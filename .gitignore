@@ -1,0 +1,47 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.pyc
+__pycache__/
+*.egg-info/
+.eggs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+venv/
+env/
+virtualenv/
+
+# Project-specific
+audio_files/
+logs/
+*.wav
+*.mp3
+*.mp4
+*.m4a
+
+# OS
+.DS_Store
+Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Credentials
+credentials.json
+secrets.json
+*.key
+*.pem
+
+# Build
+build/
+dist/
+*.egg-info/
+
