@@ -1,38 +1,7 @@
-# ===== Этап 1-2: Захват аудио и STT =====
+# ===== Runtime =====
 SpeechRecognition==3.10.0
 pyaudio==0.2.14
-pydub==0.25.1
-
-# ===== Этап 2: Speech-to-Text (Whisper) =====
 openai==1.3.0
 httpx<0.28
-# Альтернатива локальная модель:
-# openai-whisper==20231117
-
-# ===== Этап 3: Language Model (LLM) =====
-# openai уже включен выше
-google-generativeai==0.3.0
-
-# ===== Этап 4: Text-to-Speech =====
 pyttsx3==2.90
-# Альтернативы:
-# elevenlabs==0.2.4
-
-# ===== Этап 5: Основной цикл =====
 python-dotenv==1.0.0
-pydantic==2.12.5
-
-# ===== Этап 6: Web-интерфейс =====
-streamlit==1.28.1
-streamlit-webrtc==0.47.0
-
-# ===== Этап 7: REST API =====
-fastapi==0.104.1
-uvicorn==0.24.0
-python-multipart==0.0.6
-
-# ===== Утилиты =====
-pytest==7.4.3
-black==23.10.1
-# streamlit==1.28.1 требует packaging<24, поэтому wheel тоже должен быть совместим
-wheel<0.46

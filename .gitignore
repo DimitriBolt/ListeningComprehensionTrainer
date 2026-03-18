@@ -20,6 +20,12 @@ virtualenv/
 # Project-specific
 audio_files/
 logs/
+responses/
+sessions/
+transcripts/
+.run/
+00_FINAL_REPORT.txt
+Запрос.txt
 *.wav
 *.mp3
 *.mp4
@@ -44,4 +50,3 @@ secrets.json
 build/
 dist/
 *.egg-info/
-
