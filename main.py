@@ -19,7 +19,7 @@ import json
 from typing import Any, Optional
 from contextlib import contextmanager
 from io import UnsupportedOperation
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 import speech_recognition as sr
 import pyttsx3
 
@@ -31,19 +31,70 @@ os.environ['ALSA_CARD'] = 'default'
 os.environ['ALSA_PCM_CARD'] = 'default'
 
 
-# ===== КОНФИГУРАЦИЯ =====
-load_dotenv()
+PROJECT_ROOT = Path(__file__).parent
+ENV_FILE = PROJECT_ROOT / ".env"
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-LANGUAGE_LEVEL = os.getenv("LANGUAGE_LEVEL", "B1")
+
+def get_required_env_value(config: dict[str, Optional[str]], name: str) -> str:
+    """Получить обязательный параметр только из .env."""
+    raw_value = config.get(name)
+    if raw_value is None:
+        raise SystemExit(f"В {ENV_FILE} отсутствует обязательный параметр {name}.")
+
+    value = raw_value.strip()
+    if not value:
+        raise SystemExit(f"В {ENV_FILE} пустой обязательный параметр {name}.")
+
+    return value
+
+
+def get_required_float_env_value(config: dict[str, Optional[str]], name: str) -> float:
+    """Прочитать числовой обязательный параметр только из .env."""
+    value = get_required_env_value(config, name)
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise SystemExit(f"Параметр {name} в {ENV_FILE} должен быть числом, сейчас: {value!r}.") from exc
+
+
+def get_required_int_env_value(config: dict[str, Optional[str]], name: str) -> int:
+    """Прочитать целочисленный обязательный параметр только из .env."""
+    value = get_required_env_value(config, name)
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise SystemExit(f"Параметр {name} в {ENV_FILE} должен быть целым числом, сейчас: {value!r}.") from exc
+
+
+# ===== КОНФИГУРАЦИЯ =====
+if not ENV_FILE.is_file():
+    raise SystemExit(f"Не найден обязательный файл конфигурации {ENV_FILE}. Создайте его из .env.example.")
+
+ENV_CONFIG = dotenv_values(ENV_FILE)
+
+OPENAI_API_KEY = get_required_env_value(ENV_CONFIG, "OPENAI_API_KEY")
+LANGUAGE_LEVEL = get_required_env_value(ENV_CONFIG, "LANGUAGE_LEVEL")
 # Ключевые параметры темпа:
 # - PAUSE_THRESHOLD управляет тем, сколько тишины считать концом реплики пользователя.
-# - TTS_SPEED и паузы ниже управляют темпом и "дыханием" речи учителя.
-# Больше значения -> медленнее и разборчивее; меньше -> быстрее и естественнее, но рискованнее для понимания.
-PAUSE_THRESHOLD = float(os.getenv("PAUSE_THRESHOLD", "2.0"))  # Секунды тишины до автоостановки записи; увеличьте, если конец фразы обрезается.
-PHRASE_TIME_LIMIT = float(os.getenv("PHRASE_TIME_LIMIT", "30"))
-TTS_SPEED = float(os.getenv("TTS_SPEED", "0.99"))  # Общая скорость TTS; меньше = медленнее/четче, больше = быстрее/естественнее.
-TTS_VOLUME = float(os.getenv("TTS_VOLUME", "0.9"))
+# - TTS_SPEED управляет скоростью произнесения слов.
+# - Паузы ниже независимо управляют ритмом и "дыханием" речи учителя.
+# - MIN/MAX задают safety bounds для любых pause_ms в chunk-ах.
+PAUSE_THRESHOLD = get_required_float_env_value(ENV_CONFIG, "PAUSE_THRESHOLD")  # Секунды тишины до автоостановки записи; увеличьте, если конец фразы обрезается.
+PHRASE_TIME_LIMIT = get_required_float_env_value(ENV_CONFIG, "PHRASE_TIME_LIMIT")
+SESSION_IDLE_TIMEOUT = get_required_float_env_value(ENV_CONFIG, "SESSION_IDLE_TIMEOUT")  # Сколько ждать начала новой реплики; если тишина длится дольше, сеанс завершается.
+TTS_SPEED = get_required_float_env_value(ENV_CONFIG, "TTS_SPEED")  # Скорость произнесения слов TTS; меньше = медленнее/четче, больше = быстрее/естественнее.
+TTS_VOLUME = get_required_float_env_value(ENV_CONFIG, "TTS_VOLUME")
+TTS_SERVICE = get_required_env_value(ENV_CONFIG, "TTS_SERVICE").lower()
+MIN_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "MIN_PAUSE_MS")
+MAX_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "MAX_PAUSE_MS")
+SMALL_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "SMALL_PAUSE_MS")
+CLAUSE_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "CLAUSE_PAUSE_MS")
+SENTENCE_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "SENTENCE_PAUSE_MS")
+
+if MIN_PAUSE_MS > MAX_PAUSE_MS:
+    raise SystemExit(
+        f"В {ENV_FILE} MIN_PAUSE_MS={MIN_PAUSE_MS} не может быть больше MAX_PAUSE_MS={MAX_PAUSE_MS}."
+    )
 
 # Инициализация клиентов
 client = create_openai_client(OPENAI_API_KEY)
@@ -52,7 +103,6 @@ tts_engine: Optional[pyttsx3.Engine] = None
 tts_init_attempted = False
 
 # Пути
-PROJECT_ROOT = Path(__file__).parent
 SESSIONS_DIR = PROJECT_ROOT / "sessions"
 LOGS_DIR = PROJECT_ROOT / "logs"
 AUDIO_FILES_DIR = PROJECT_ROOT / "audio_files"
@@ -88,16 +138,40 @@ ROUND_DIVIDER = "─" * 70
 CHAT_MODEL = "gpt-4o-mini"
 TTS_MODEL = "gpt-4o-mini-tts"
 DEFAULT_TTS_VOICE = "nova"
-MIN_PAUSE_MS = 120
-MAX_PAUSE_MS = 900
-SMALL_PAUSE_MS = 220  # Короткая пауза внутри одной мысли между мелкими chunk-ами; задает плавность речи.
-CLAUSE_PAUSE_MS = 420  # Пауза на запятых и между частями сложной фразы; помогает разделять смысловые блоки.
-SENTENCE_PAUSE_MS = 720  # Пауза в конце предложения; влияет на общий ритм и время на восприятие ответа.
-TTS_CHUNK_INSTRUCTIONS = (
-    "Speak slowly and clearly for an English learner. Separate words distinctly, "
-    "keep a natural rhythm inside this chunk, and mark the end of the chunk with a "
-    "gentle phrase boundary. Do not add extra words or sounds."
-)
+MIN_TTS_SPEED = 0.25
+MAX_TTS_SPEED = 4.0
+LOCAL_TTS_BASE_RATE = 150
+GRAMMAR_CHUNK_MAX_WORDS = {
+    "A2": 4,
+    "B1": 5,
+    "B2": 6,
+}
+WORD_RE = re.compile(r"[A-Za-z0-9]+(?:'[A-Za-z]+)?")
+WH_QUESTION_WORDS = {"what", "which", "who", "whom", "whose", "where", "when", "why", "how"}
+AUXILIARY_BOUNDARY_WORDS = {
+    "am", "is", "are", "was", "were",
+    "do", "does", "did",
+    "have", "has", "had",
+    "can", "could", "will", "would", "shall", "should", "may", "might", "must",
+}
+CLAUSE_BOUNDARY_WORDS = {
+    "because", "although", "though", "if", "when", "while", "that",
+    "which", "who", "whom", "whose", "where", "since", "unless", "until",
+    "after", "before", "whether",
+}
+COORDINATING_BOUNDARY_WORDS = {"and", "but", "or", "so", "yet", "nor"}
+PREPOSITION_BOUNDARY_WORDS = {
+    "about", "for", "with", "without", "on", "in", "at", "from", "into",
+    "over", "under", "after", "before", "during", "through", "between",
+    "among", "around", "against", "toward", "towards",
+}
+COPULAR_BOUNDARY_WORDS = {
+    "am", "is", "are", "was", "were", "be", "been", "being",
+    "feel", "feels", "felt",
+    "seem", "seems", "seemed",
+    "sound", "sounds", "sounded",
+    "look", "looks", "looked",
+}
 
 # ===== СИСТЕМНЫЕ ПРОМПТЫ =====
 SYSTEM_PROMPTS = {
@@ -180,12 +254,132 @@ def show_startup_hint(current_level: str):
     ui_header("🎓 LISTENING COMPREHENSION TRAINER")
     ui_print(f"Текущий уровень: {current_level}")
     ui_print("\nЧто программа ждёт от вас:")
-    ui_print("  1. В меню введите цифру 1-5 и нажмите Enter.")
-    ui_print("  2. Для тренировки выберите пункт 1.")
-    ui_print("  3. После начала сеанса говорите в микрофон по-английски.")
-    ui_print(f"  4. Когда закончите, просто помолчите {PAUSE_THRESHOLD} сек.")
-    ui_print("  5. С клавиатуры вводите только меню и ответ на вопрос 'Продолжить? (Y/n)'.")
+    ui_print("  • В меню введите цифру 1-5 и нажмите Enter.")
+    ui_print("  • Для тренировки выберите пункт 1.")
+    ui_print("  • После начала сеанса говорите в микрофон по-английски.")
+    ui_print(f"  • Когда закончите, просто помолчите {PAUSE_THRESHOLD} сек.")
+    if SESSION_IDLE_TIMEOUT > 0:
+        ui_print(f"  • Если слишком долго молчать перед новой репликой, сеанс завершится через {SESSION_IDLE_TIMEOUT:.0f} сек.")
+    ui_print("  • Для принудительного выхода из сеанса используйте Ctrl+C.")
     ui_print("\nПодробные технические логи пишутся в logs/main.log.")
+
+
+def clamp_tts_speed(speed: float) -> float:
+    """Ограничить скорость TTS безопасным диапазоном API/движка."""
+    return max(MIN_TTS_SPEED, min(MAX_TTS_SPEED, speed))
+
+
+def get_local_tts_rate(speed: float) -> int:
+    """Рассчитать фактический rate для локального pyttsx3."""
+    return max(90, min(320, int(LOCAL_TTS_BASE_RATE * clamp_tts_speed(speed))))
+
+
+def get_effective_pause_ms(pause_ms: Any) -> int:
+    """Свести любую паузу к одному из явно заданных пользователем значений."""
+    try:
+        pause_value = int(pause_ms)
+    except (TypeError, ValueError):
+        pause_value = CLAUSE_PAUSE_MS
+
+    pause_value = max(MIN_PAUSE_MS, min(MAX_PAUSE_MS, pause_value))
+    configured_pauses = [SMALL_PAUSE_MS, CLAUSE_PAUSE_MS, SENTENCE_PAUSE_MS]
+    return min(configured_pauses, key=lambda configured: (abs(configured - pause_value), configured))
+
+
+def get_effective_playback_pauses_ms(tts_chunks: list[dict[str, Any]]) -> list[int]:
+    """Собрать реальные межchunk-паузы, которые будут использованы при воспроизведении."""
+    if len(tts_chunks) <= 1:
+        return []
+
+    return [
+        get_effective_pause_ms(chunk.get("pause_ms", CLAUSE_PAUSE_MS))
+        for chunk in tts_chunks[:-1]
+    ]
+
+
+def format_pause_values(pause_values: list[int]) -> str:
+    """Подготовить список пауз для UI и логов."""
+    if not pause_values:
+        return "нет дополнительных межchunk-пауз"
+
+    return ", ".join(str(value) for value in pause_values)
+
+
+def build_tts_chunk_instructions(speed: float) -> str:
+    """Сформировать инструкцию для OpenAI TTS без жёсткого навязывания медленного темпа."""
+    safe_speed = clamp_tts_speed(speed)
+
+    if safe_speed <= 0.9:
+        pace_instruction = "Speak slowly and clearly for an English learner."
+    elif safe_speed <= 1.15:
+        pace_instruction = "Speak clearly for an English learner with a calm, natural pace."
+    elif safe_speed <= 1.45:
+        pace_instruction = "Speak clearly with a natural, moderately brisk pace for an English learner."
+    else:
+        pace_instruction = "Speak clearly with a brisk but intelligible pace for an English learner."
+
+    return (
+        f"{pace_instruction} Separate words distinctly and keep a natural rhythm. "
+        "Do not add extra words or sounds."
+    )
+
+
+def show_tts_playback_settings(service_label: str, tts_chunks: list[dict[str, Any]]) -> None:
+    """Показать фактические параметры, которые будут использованы для озвучивания."""
+    effective_speed = clamp_tts_speed(TTS_SPEED)
+    pause_values = get_effective_playback_pauses_ms(tts_chunks)
+    speed_details = f"{effective_speed:.2f}"
+
+    if abs(effective_speed - TTS_SPEED) > 1e-9:
+        speed_details += f" (из TTS_SPEED={TTS_SPEED:.2f}, ограничено допустимым диапазоном)"
+    else:
+        speed_details += f" (TTS_SPEED={TTS_SPEED:.2f})"
+
+    logger.info(
+        "🔧 Фактические параметры озвучивания: service=%s, speech_speed=%.2f, chunks=%d, pauses_ms=[%s]",
+        service_label,
+        effective_speed,
+        len(tts_chunks),
+        format_pause_values(pause_values),
+    )
+
+    if service_label == "OpenAI TTS":
+        logger.info(
+            "🔧 OpenAI TTS: model=%s, voice=%s",
+            TTS_MODEL,
+            DEFAULT_TTS_VOICE,
+        )
+    else:
+        logger.info("🔧 pyttsx3: rate=%d WPM", get_local_tts_rate(effective_speed))
+
+    ui_print("🔧 Фактические параметры озвучивания:")
+    ui_print(f"   Сервис: {service_label}")
+    ui_print(f"   Скорость слов: {speed_details}")
+    if service_label == "OpenAI TTS":
+        ui_print(f"   OpenAI модель/голос: {TTS_MODEL} / {DEFAULT_TTS_VOICE}")
+    else:
+        ui_print(f"   Локальный rate движка: {get_local_tts_rate(effective_speed)} WPM")
+    ui_print(f"   Chunk-ов в ответе: {len(tts_chunks)}")
+    ui_print(f"   Паузы между chunk-ами, мс: {format_pause_values(pause_values)}")
+    ui_print(f"   Суммарная межchunk-пауза: {sum(pause_values)} мс")
+    ui_print(
+        "   Базовые паузы, мс: "
+        f"short={SMALL_PAUSE_MS}, clause={CLAUSE_PAUSE_MS}, sentence={SENTENCE_PAUSE_MS}"
+    )
+
+
+def show_teacher_chunk_sequence(tts_chunks: list[dict[str, Any]]) -> None:
+    """Показать на экране последовательность chunk-ов и пауз между ними."""
+    if not tts_chunks:
+        ui_print("👨‍🏫 Ответ учителя пуст.")
+        return
+
+    ui_print("👨‍🏫 Ответ учителя по chunk-ам:")
+    for index, chunk in enumerate(tts_chunks):
+        ui_print(f"   {index + 1}. {chunk['text']}")
+        if index < len(tts_chunks) - 1:
+            pause_ms = get_effective_pause_ms(chunk.get("pause_ms", CLAUSE_PAUSE_MS))
+            ui_print(f"   Пауза: {pause_ms} мс")
 
 
 def normalize_text_spacing(text: str) -> str:
@@ -194,57 +388,178 @@ def normalize_text_spacing(text: str) -> str:
     return re.sub(r"\s+([,.;:!?])", r"\1", compact).strip()
 
 
-def split_text_for_tts_fallback(text: str) -> list[dict[str, Any]]:
-    """Запасная эвристика разбиения текста на удобные для слуха куски."""
+def get_max_chunk_words(level: str) -> int:
+    """Вернуть максимально допустимый размер грамматического chunk-а для уровня."""
+    return GRAMMAR_CHUNK_MAX_WORDS.get(str(level or "").upper(), GRAMMAR_CHUNK_MAX_WORDS["B1"])
+
+
+def get_chunk_terminal_pause_ms(text: str) -> int:
+    """Определить тип паузы по знаку препинания в конце chunk-а."""
+    if text.endswith((".", "!", "?")):
+        return SENTENCE_PAUSE_MS
+    if text.endswith((",", ";", ":")):
+        return CLAUSE_PAUSE_MS
+    return SMALL_PAUSE_MS
+
+
+def get_chunk_pause_ms(text: str, requested_pause_ms: Any = None) -> int:
+    """Вернуть финальную паузу chunk-а только из текущих настроек .env."""
+    punctuation_pause_ms = get_chunk_terminal_pause_ms(text)
+    if text.endswith((".", "!", "?", ",", ";", ":")):
+        return punctuation_pause_ms
+    if requested_pause_ms is None:
+        return SMALL_PAUSE_MS
+    return get_effective_pause_ms(requested_pause_ms)
+
+
+def split_text_at_char_index(text: str, boundary_index: int) -> tuple[str, str] | None:
+    """Разделить строку по позиции начала правой части."""
+    left = text[:boundary_index].strip()
+    right = text[boundary_index:].strip()
+    if not left or not right:
+        return None
+    return left, right
+
+
+def split_on_explicit_punctuation(text: str) -> tuple[str, str, int] | None:
+    """Сначала резать по явной пунктуации: каждый chunk должен оканчиваться знаком препинания."""
+    match = re.search(r"[,;:.!?]+(?=\s+\S)", text)
+    if not match:
+        return None
+
+    split_result = split_text_at_char_index(text, match.end())
+    if not split_result:
+        return None
+
+    left, right = split_result
+    return left, right, get_chunk_terminal_pause_ms(left)
+
+
+def should_split_before_infinitive(words: list[str], index: int) -> bool:
+    """Разрывать перед to после краткой связки/оценки: I am happy | to help."""
+    if words[index] != "to" or index < 2:
+        return False
+
+    for probe_index in range(max(1, index - 3), index):
+        if words[probe_index] in COPULAR_BOUNDARY_WORDS:
+            return True
+    return False
+
+
+def choose_grammar_split(text: str, level: str) -> tuple[str, str, int] | None:
+    """Подобрать внутреннюю грамматическую границу, если пунктуации недостаточно."""
+    word_matches = list(WORD_RE.finditer(text))
+    if len(word_matches) <= 1:
+        return None
+
+    lower_words = [match.group(0).lower() for match in word_matches]
+    max_words = get_max_chunk_words(level)
+    candidates: list[tuple[int, int, int, int]] = []
+
+    if text.rstrip().endswith("?") and lower_words[0] in WH_QUESTION_WORDS:
+        for split_index, word in enumerate(lower_words[1:-1], start=1):
+            if word in AUXILIARY_BOUNDARY_WORDS and split_index >= 2:
+                candidates.append((split_index, SMALL_PAUSE_MS, 100, split_index))
+                break
+
+    for split_index, word in enumerate(lower_words[1:-1], start=1):
+        if word == "to" and should_split_before_infinitive(lower_words, split_index):
+            candidates.append((split_index, SMALL_PAUSE_MS, 95, split_index))
+            continue
+
+        if word in CLAUSE_BOUNDARY_WORDS:
+            candidates.append((split_index, CLAUSE_PAUSE_MS, 90, split_index))
+            continue
+
+        if word in COORDINATING_BOUNDARY_WORDS:
+            candidates.append((split_index, CLAUSE_PAUSE_MS, 80, split_index))
+            continue
+
+        if word in PREPOSITION_BOUNDARY_WORDS:
+            candidates.append((split_index, SMALL_PAUSE_MS, 65, split_index))
+
+    if candidates:
+        ranked_candidates: list[tuple[int, int, int, int, int]] = []
+        total_words = len(word_matches)
+
+        for split_index, pause_ms, priority, order_index in candidates:
+            left_words = split_index
+            right_words = total_words - split_index
+            if left_words < 2 or right_words < 2:
+                continue
+
+            overflow = max(0, left_words - max_words) + max(0, right_words - max_words)
+            distance_from_limit = abs(max_words - left_words)
+            ranked_candidates.append((overflow, -priority, distance_from_limit, order_index, pause_ms))
+
+        if ranked_candidates:
+            best_overflow, best_priority, _, best_index, best_pause = min(ranked_candidates)
+            split_result = split_text_at_char_index(text, word_matches[best_index].start())
+            if split_result:
+                left, right = split_result
+                if best_overflow == 0 or len(word_matches) > max_words:
+                    return left, right, best_pause
+
+    if len(word_matches) <= max_words:
+        return None
+
+    fallback_index = min(max_words, len(word_matches) - 2)
+    split_result = split_text_at_char_index(text, word_matches[fallback_index].start())
+    if not split_result:
+        return None
+
+    left, right = split_result
+    return left, right, SMALL_PAUSE_MS
+
+
+def split_text_recursively_for_tts(text: str, level: str) -> list[tuple[str, int]]:
+    """Рекурсивно делить текст на короткие грамматические куски с паузами."""
     normalized_text = normalize_text_spacing(text)
     if not normalized_text:
         return []
 
-    sentence_candidates = re.findall(r"[^.!?]+[.!?]?|[.!?]", normalized_text)
-    chunks: list[dict[str, Any]] = []
+    split_result = split_on_explicit_punctuation(normalized_text) or choose_grammar_split(normalized_text, level)
+    if not split_result:
+        return [(normalized_text, get_chunk_terminal_pause_ms(normalized_text))]
 
-    for sentence in sentence_candidates:
-        sentence = sentence.strip()
-        if not sentence:
+    left, right, boundary_pause_ms = split_result
+    left_chunks = split_text_recursively_for_tts(left, level)
+    right_chunks = split_text_recursively_for_tts(right, level)
+    last_left_text, last_left_pause_ms = left_chunks[-1]
+    left_chunks[-1] = (last_left_text, max(last_left_pause_ms, boundary_pause_ms))
+    return left_chunks + right_chunks
+
+
+def split_text_for_tts_fallback(text: str, level: str = LANGUAGE_LEVEL) -> list[dict[str, Any]]:
+    """Запасная эвристика: короткие chunk-и по пунктуации и грамматическим границам."""
+    normalized_text = normalize_text_spacing(text)
+    if not normalized_text:
+        return []
+
+    return [
+        {"text": chunk_text, "pause_ms": pause_ms}
+        for chunk_text, pause_ms in split_text_recursively_for_tts(normalized_text, level)
+    ]
+
+
+def refine_tts_chunks(tts_chunks: list[dict[str, Any]], level: str = LANGUAGE_LEVEL) -> list[dict[str, Any]]:
+    """Доразбить модельные chunk-и локальными правилами, если они получились слишком крупными."""
+    refined_chunks: list[dict[str, Any]] = []
+
+    for chunk in tts_chunks:
+        chunk_text = normalize_text_spacing(str(chunk.get("text", "")).strip())
+        if not chunk_text:
             continue
 
-        sentence_parts = re.split(r"(?<=[,;:])\s+", sentence)
-        expanded_parts: list[str] = []
+        subchunks = split_text_for_tts_fallback(chunk_text, level)
+        if not subchunks:
+            continue
 
-        for part in sentence_parts:
-            part = part.strip()
-            if not part:
-                continue
+        original_pause_ms = get_chunk_pause_ms(chunk_text, chunk.get("pause_ms", CLAUSE_PAUSE_MS))
+        subchunks[-1]["pause_ms"] = original_pause_ms
+        refined_chunks.extend(subchunks)
 
-            words = part.split()
-            if len(words) > 12 and "," not in part:
-                subparts = re.split(
-                    r"\s+(?=(?:and|but|or|so|because|although|though|when|while|if|which|who|that)\b)",
-                    part,
-                    flags=re.IGNORECASE,
-                )
-                expanded_parts.extend(p.strip() for p in subparts if p.strip())
-            else:
-                expanded_parts.append(part)
-
-        for index, part in enumerate(expanded_parts):
-            pause_ms = SMALL_PAUSE_MS
-            if part.endswith((".", "!", "?")):
-                pause_ms = SENTENCE_PAUSE_MS
-            elif part.endswith((",", ";", ":")):
-                pause_ms = CLAUSE_PAUSE_MS
-            elif index < len(expanded_parts) - 1:
-                pause_ms = CLAUSE_PAUSE_MS
-
-            chunks.append({
-                "text": part,
-                "pause_ms": pause_ms,
-            })
-
-    if not chunks:
-        chunks.append({"text": normalized_text, "pause_ms": SENTENCE_PAUSE_MS})
-
-    return chunks
+    return refined_chunks
 
 
 def parse_json_object(raw_text: str) -> dict[str, Any] | None:
@@ -262,13 +577,13 @@ def parse_json_object(raw_text: str) -> dict[str, Any] | None:
             return None
 
 
-def normalize_teacher_response_payload(payload: Any) -> dict[str, Any]:
+def normalize_teacher_response_payload(payload: Any, level: str = LANGUAGE_LEVEL) -> dict[str, Any]:
     """Привести ответ учителя к стабильной структуре."""
     if not isinstance(payload, dict):
         display_text = normalize_text_spacing(str(payload or ""))
         return {
             "display_text": display_text,
-            "tts_chunks": split_text_for_tts_fallback(display_text),
+            "tts_chunks": split_text_for_tts_fallback(display_text, level),
         }
 
     display_text = normalize_text_spacing(str(payload.get("display_text", "")).strip())
@@ -285,14 +600,9 @@ def normalize_teacher_response_payload(payload: Any) -> dict[str, Any]:
                 continue
 
             pause_ms_raw = item.get("pause_ms", CLAUSE_PAUSE_MS)
-            try:
-                pause_ms = int(pause_ms_raw)
-            except (TypeError, ValueError):
-                pause_ms = CLAUSE_PAUSE_MS
-
             normalized_chunks.append({
                 "text": chunk_text,
-                "pause_ms": max(MIN_PAUSE_MS, min(MAX_PAUSE_MS, pause_ms)),
+                "pause_ms": get_chunk_pause_ms(chunk_text, pause_ms_raw),
             })
 
     if not display_text and normalized_chunks:
@@ -306,7 +616,11 @@ def normalize_teacher_response_payload(payload: Any) -> dict[str, Any]:
 
     joined_chunks = normalize_text_spacing(" ".join(chunk["text"] for chunk in normalized_chunks))
     if not normalized_chunks or joined_chunks != display_text:
-        normalized_chunks = split_text_for_tts_fallback(display_text)
+        normalized_chunks = [{"text": display_text, "pause_ms": SENTENCE_PAUSE_MS}]
+
+    normalized_chunks = refine_tts_chunks(normalized_chunks, level)
+    if normalize_text_spacing(" ".join(chunk["text"] for chunk in normalized_chunks)) != display_text:
+        normalized_chunks = split_text_for_tts_fallback(display_text, level)
 
     return {
         "display_text": display_text,
@@ -316,6 +630,8 @@ def normalize_teacher_response_payload(payload: Any) -> dict[str, Any]:
 
 def build_structured_teacher_prompt(level: str) -> str:
     """Системный промпт для ответа учителя с разметкой пауз."""
+    max_chunk_words = get_max_chunk_words(level)
+    example_pause_ms = SMALL_PAUSE_MS
     return (
         SYSTEM_PROMPTS.get(level, SYSTEM_PROMPTS["B1"])
         + "\n\n"
@@ -324,7 +640,9 @@ Use exactly this schema:
 {
   "display_text": "Natural teacher reply for the student",
   "tts_chunks": [
-    {"text": "First grammatical chunk", "pause_ms": 220}
+    {"text": "First grammatical chunk", "pause_ms": """
+        + str(example_pause_ms)
+        + """}
   ]
 }
 
@@ -334,20 +652,30 @@ Rules:
 - Split by listening-friendly grammatical units: introductory phrases, main clauses,
   subordinate clauses, relative clauses, participial phrases, parenthetical insertions,
   coordinated clauses, and direct address.
-- Do not over-segment. Usually produce 2 to 5 chunks total.
+- End a chunk at every comma, semicolon, colon, period, question mark, and exclamation mark.
+- If one punctuation-based chunk is still long, split it further at natural intonation boundaries.
+- Prefer very small chunks for listening practice: usually 2 to """
+        + str(max_chunk_words)
+        + """ words per chunk for this level.
 - Keep punctuation inside chunk text.
 - pause_ms:
-  220 = short phrase boundary
-  380 = clause boundary
-  680 = end of sentence or long grammatical boundary
+  """
+        + str(SMALL_PAUSE_MS)
+        + """ = short phrase boundary
+  """
+        + str(CLAUSE_PAUSE_MS)
+        + """ = clause boundary
+  """
+        + str(SENTENCE_PAUSE_MS)
+        + """ = end of sentence or long grammatical boundary
 - Prefer shorter, clearer sentences when possible.
 """
     )
 
 
-def get_display_text_and_chunks(teacher_response: Any) -> tuple[str, list[dict[str, Any]]]:
+def get_display_text_and_chunks(teacher_response: Any, level: str = LANGUAGE_LEVEL) -> tuple[str, list[dict[str, Any]]]:
     """Получить текст для экрана и chunks для TTS."""
-    normalized = normalize_teacher_response_payload(teacher_response)
+    normalized = normalize_teacher_response_payload(teacher_response, level)
     return normalized["display_text"], normalized["tts_chunks"]
 
 
@@ -355,6 +683,32 @@ def generate_silence_frames(pause_ms: int, frame_rate: int, channels: int, sampl
     """Сгенерировать WAV-тишину нужной длины."""
     frame_count = max(0, round(frame_rate * (pause_ms / 1000)))
     return b"\x00" * frame_count * channels * sample_width
+
+
+def trim_wav_silence(audio_frames: bytes, sample_width: int, channels: int, silence_threshold: int = 150) -> bytes:
+    """Обрезать тишину с начала и конца WAV-фреймов."""
+    frame_size = sample_width * channels
+    if frame_size == 0 or len(audio_frames) < frame_size:
+        return audio_frames
+
+    def is_silent_frame(frame_bytes: bytes) -> bool:
+        if sample_width == 2:
+            import struct
+            samples = struct.unpack_from(f"<{len(frame_bytes) // 2}h", frame_bytes)
+            return all(abs(s) < silence_threshold for s in samples)
+        return all(b < silence_threshold for b in frame_bytes)
+
+    frames = [audio_frames[i:i + frame_size] for i in range(0, len(audio_frames) - frame_size + 1, frame_size)]
+
+    start = 0
+    while start < len(frames) and is_silent_frame(frames[start]):
+        start += 1
+
+    end = len(frames)
+    while end > start and is_silent_frame(frames[end - 1]):
+        end -= 1
+
+    return b"".join(frames[start:end])
 
 
 def stitch_wav_chunks(chunk_files: list[tuple[Path, int]], output_file: Path) -> Path:
@@ -379,6 +733,7 @@ def stitch_wav_chunks(chunk_files: list[tuple[Path, int]], output_file: Path) ->
             elif current_params != base_params:
                 raise ValueError("OpenAI TTS вернул WAV-куски с разными параметрами")
 
+            audio_frames = trim_wav_silence(audio_frames, params.sampwidth, params.nchannels)
             output_wav.writeframes(audio_frames)
 
             if index < len(chunk_files) - 1 and pause_ms > 0:
@@ -414,6 +769,10 @@ def ensure_microphone_available() -> bool:
         ui_print("Проверьте подключение и системные разрешения, затем попробуйте снова.")
         return False
 
+
+class SessionIdleTimeout(Exception):
+    """Пользователь слишком долго молчал перед началом новой реплики."""
+
 class ConversationSession:
     """Класс для управления сеансом беседы"""
 
@@ -428,7 +787,7 @@ class ConversationSession:
 
     def add_exchange(self, student_input: str, teacher_response: Any):
         """Добавить обмен в историю"""
-        display_text, tts_chunks = get_display_text_and_chunks(teacher_response)
+        display_text, tts_chunks = get_display_text_and_chunks(teacher_response, self.level)
         self.conversation.append({
             "round": self.round_count,
             "student": student_input,
@@ -481,8 +840,8 @@ def initialize_tts_engine(speed: float = 0.8, volume: float = 0.9) -> Optional[p
         with suppress_stderr():
             engine = pyttsx3.init()
 
-        # Оптимизирована скорость для лучшей четкости (120 WPM вместо 150)
-        engine.setProperty('rate', int(120 * speed))
+        # Базовая локальная скорость ближе к естественной речи; TTS_SPEED масштабирует её.
+        engine.setProperty('rate', get_local_tts_rate(speed))
 
         # Максимальная громкость для лучшей слышимости
         engine.setProperty('volume', max(0.9, volume))
@@ -516,13 +875,34 @@ def get_tts_engine(speed: float = 0.8, volume: float = 0.9) -> Optional[pyttsx3.
     return tts_engine
 
 
-def record_audio(pause_threshold: float = 2.5, phrase_time_limit: float = 30) -> str:
+def get_configured_tts_service() -> str:
+    """Вернуть корректно нормализованное имя TTS-сервиса."""
+    if TTS_SERVICE in {"openai", "pyttsx3"}:
+        return TTS_SERVICE
+
+    logger.warning("⚠️  Неизвестный TTS_SERVICE=%s, использую openai", TTS_SERVICE)
+    return "openai"
+
+
+def get_tts_service_label(tts_service: str) -> str:
+    """Понятная подпись активного TTS-сервиса для UI и логов."""
+    if tts_service == "pyttsx3":
+        return "pyttsx3"
+    return "OpenAI TTS"
+
+
+def record_audio(
+    pause_threshold: float = 2.5,
+    phrase_time_limit: float = 30,
+    session_idle_timeout: float | None = SESSION_IDLE_TIMEOUT,
+) -> str | None:
     """
     Записать аудио через микрофон
 
     Args:
         pause_threshold: Пауза для завершения записи (сек)
         phrase_time_limit: Максимум времени записи (сек)
+        session_idle_timeout: Максимум ожидания начала речи (сек)
 
     Returns:
         Путь к сохранённому WAV файлу
@@ -530,9 +910,13 @@ def record_audio(pause_threshold: float = 2.5, phrase_time_limit: float = 30) ->
     logger.info("🎙️  Слушаю микрофон...")
     logger.info(f"   Пауза обнаружения: {pause_threshold}s")
     logger.info(f"   Максимум времени: {phrase_time_limit}s")
+    if session_idle_timeout and session_idle_timeout > 0:
+        logger.info(f"   Автовыход при молчании: {session_idle_timeout}s")
     logger.info("Начинайте говорить! (программа завершит запись после паузы)\n")
     ui_print("🎙️ Сейчас программа ждёт ваш голос в микрофон.")
     ui_print(f"   Скажите фразу на английском и затем помолчите {pause_threshold} сек.")
+    if session_idle_timeout and session_idle_timeout > 0:
+        ui_print(f"   Если не начать говорить в течение {session_idle_timeout:.0f} сек., сеанс завершится автоматически.")
     ui_print("   Ничего печатать в консоль сейчас не нужно.\n")
 
     try:
@@ -553,7 +937,7 @@ def record_audio(pause_threshold: float = 2.5, phrase_time_limit: float = 30) ->
                 logger.info("⏺️  Начало записи...")
                 audio = recognizer.listen(
                     source,
-                    timeout=None,
+                    timeout=session_idle_timeout if session_idle_timeout and session_idle_timeout > 0 else None,
                     phrase_time_limit=phrase_time_limit
                 )
                 logger.info("✓ Запись завершена!")
@@ -569,6 +953,9 @@ def record_audio(pause_threshold: float = 2.5, phrase_time_limit: float = 30) ->
                 logger.info(f"💾 Файл сохранён: {output_file}")
                 return str(output_file)
 
+    except sr.WaitTimeoutError:
+        logger.info("⏹️  Сеанс завершён: пользователь слишком долго молчал перед новой репликой")
+        raise SessionIdleTimeout
     except sr.RequestError as e:
         logger.error(f"❌ Ошибка микрофона: {e}")
         return None
@@ -599,8 +986,22 @@ def transcribe_audio(audio_file: str) -> str:
         return None
 
 
-def get_teacher_response(student_text: str, level: str = "B1") -> dict[str, Any]:
+def build_history_messages(conversation: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Собрать историю диалога в формат messages для API."""
+    messages = []
+    for exchange in conversation:
+        messages.append({"role": "user", "content": exchange["student"]})
+        messages.append({"role": "assistant", "content": exchange["teacher"]})
+    return messages
+
+
+def get_teacher_response(
+    student_text: str,
+    level: str = "B1",
+    conversation: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Получить структурированный ответ от учителя (текст + chunks для TTS)."""
+    history_messages = build_history_messages(conversation or [])
     try:
         logger.info("🤖 Генерирую ответ учителя...")
         ui_print("⏳ Учитель готовит ответ...")
@@ -612,6 +1013,7 @@ def get_teacher_response(student_text: str, level: str = "B1") -> dict[str, Any]
                     "role": "system",
                     "content": build_structured_teacher_prompt(level)
                 },
+                *history_messages,
                 {
                     "role": "user",
                     "content": student_text
@@ -624,7 +1026,7 @@ def get_teacher_response(student_text: str, level: str = "B1") -> dict[str, Any]
 
         raw_payload = response.choices[0].message.content or ""
         parsed_payload = parse_json_object(raw_payload)
-        teacher_response = normalize_teacher_response_payload(parsed_payload or raw_payload)
+        teacher_response = normalize_teacher_response_payload(parsed_payload or raw_payload, level)
 
         logger.info(f"✅ Ответ учителя: {teacher_response['display_text']}")
         logger.info(f"🧩 TTS chunks: {len(teacher_response['tts_chunks'])}")
@@ -641,6 +1043,7 @@ def get_teacher_response(student_text: str, level: str = "B1") -> dict[str, Any]
                         "role": "system",
                         "content": SYSTEM_PROMPTS.get(level, SYSTEM_PROMPTS["B1"])
                     },
+                    *history_messages,
                     {
                         "role": "user",
                         "content": student_text
@@ -651,7 +1054,7 @@ def get_teacher_response(student_text: str, level: str = "B1") -> dict[str, Any]
             )
 
             fallback_text = response.choices[0].message.content or ""
-            teacher_response = normalize_teacher_response_payload({"display_text": fallback_text})
+            teacher_response = normalize_teacher_response_payload({"display_text": fallback_text}, level)
             logger.info(f"✅ Ответ учителя (fallback): {teacher_response['display_text']}")
             logger.info(f"🧩 TTS chunks (fallback): {len(teacher_response['tts_chunks'])}")
             return teacher_response
@@ -664,6 +1067,8 @@ def get_teacher_response(student_text: str, level: str = "B1") -> dict[str, Any]
 def render_chunked_openai_tts(tts_chunks: list[dict[str, Any]], output_file: Path) -> Path:
     """Сгенерировать OpenAI TTS по chunk-ам и склеить результат в один WAV."""
     chunk_files: list[tuple[Path, int]] = []
+    safe_speed = clamp_tts_speed(TTS_SPEED)
+    chunk_instructions = build_tts_chunk_instructions(safe_speed)
 
     with tempfile.TemporaryDirectory() as temp_dir_name:
         temp_dir = Path(temp_dir_name)
@@ -675,13 +1080,76 @@ def render_chunked_openai_tts(tts_chunks: list[dict[str, Any]], output_file: Pat
                 voice=DEFAULT_TTS_VOICE,
                 input=chunk["text"],
                 response_format="wav",
-                speed=TTS_SPEED,
-                extra_body={"instructions": TTS_CHUNK_INSTRUCTIONS},
+                speed=safe_speed,
+                extra_body={"instructions": chunk_instructions},
             )
             response.stream_to_file(str(chunk_path))
-            chunk_files.append((chunk_path, int(chunk["pause_ms"])))
+            chunk_files.append((chunk_path, get_effective_pause_ms(chunk.get("pause_ms", CLAUSE_PAUSE_MS))))
 
         return stitch_wav_chunks(chunk_files, output_file)
+
+
+def speak_with_openai_chunks(tts_chunks: list[dict[str, Any]]) -> bool:
+    """Озвучить ответ через OpenAI TTS и воспроизвести результат."""
+    if not client:
+        logger.warning("⚠️  OpenAI TTS недоступен без API-клиента.")
+        return False
+
+    try:
+        logger.info("🎤 Озвучиваю ответ через OpenAI TTS с грамматическими паузами...")
+        logger.info(f"🧩 Количество chunk-ов: {len(tts_chunks)}")
+        ui_print("🔊 Озвучиваю ответ...")
+        show_tts_playback_settings("OpenAI TTS", tts_chunks)
+
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            final_audio_file = Path(temp_dir_name) / "teacher_response.wav"
+            render_chunked_openai_tts(tts_chunks, final_audio_file)
+            logger.info("✅ Озвучено (OpenAI TTS с паузами)")
+
+            if play_audio_file(final_audio_file):
+                ui_print("✅ Ответ озвучен.")
+                return True
+
+    except Exception as e:
+        logger.warning(f"⚠️  OpenAI TTS ошибка: {e}")
+
+    return False
+
+
+def play_input_beep() -> None:
+    """Сыграть короткий звуковой сигнал, что программа ждёт голосового ввода."""
+    try:
+        subprocess.run(
+            [
+                "ffplay", "-nodisp", "-autoexit",
+                "-f", "lavfi",
+                "-i", "sine=frequency=880:duration=0.25",
+                "-af", "afade=t=out:st=0.15:d=0.1",
+            ],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        pass
+
+
+def play_stop_listening_beep() -> None:
+    """Сыграть короткий нисходящий сигнал, что программа перестала слушать."""
+    try:
+        subprocess.run(
+            [
+                "ffplay", "-nodisp", "-autoexit",
+                "-f", "lavfi",
+                "-i", "sine=frequency=520:duration=0.2",
+                "-af", "afade=t=in:st=0:d=0.05,afade=t=out:st=0.12:d=0.08",
+            ],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        pass
 
 
 def play_audio_file(audio_file: Path) -> bool:
@@ -711,11 +1179,12 @@ def speak_with_local_chunks(fallback_engine: Optional[pyttsx3.Engine], tts_chunk
     if fallback_engine is None:
         fallback_engine = get_tts_engine(TTS_SPEED, TTS_VOLUME)
     if fallback_engine is None:
-        logger.warning("⚠️  Локальный TTS недоступен. Ответ будет показан только текстом.")
+        logger.warning("⚠️  Локальный TTS недоступен.")
         return False
 
     logger.info("🎤 Озвучиваю ответ через pyttsx3...")
     ui_print("🔊 Озвучиваю ответ...")
+    show_tts_playback_settings("pyttsx3", tts_chunks)
 
     with suppress_stderr():
         for index, chunk in enumerate(tts_chunks):
@@ -723,7 +1192,8 @@ def speak_with_local_chunks(fallback_engine: Optional[pyttsx3.Engine], tts_chunk
             fallback_engine.runAndWait()
 
             if index < len(tts_chunks) - 1:
-                time.sleep(max(0, int(chunk["pause_ms"])) / 1000)
+                pause_ms = get_effective_pause_ms(chunk.get("pause_ms", CLAUSE_PAUSE_MS))
+                time.sleep(pause_ms / 1000)
 
     logger.info("✅ Озвучено")
     ui_print("✅ Ответ озвучен.")
@@ -734,7 +1204,8 @@ def speak_response(
     engine: Optional[pyttsx3.Engine],
     teacher_response: Any,
     enable_audio: bool = True,
-    use_openai_tts: bool = True
+    use_openai_tts: bool = True,
+    level: str = LANGUAGE_LEVEL,
 ):
     """
     Озвучить ответ учителя с паузами между грамматическими chunk-ами.
@@ -745,37 +1216,43 @@ def speak_response(
         enable_audio: Озвучивать ли (True/False)
         use_openai_tts: Использовать ли OpenAI TTS (если доступен)
     """
-    display_text, tts_chunks = get_display_text_and_chunks(teacher_response)
-
-    if not enable_audio:
-        logger.info(f"🔇 TTS отключен. Ответ: {display_text}")
-        return
+    display_text, tts_chunks = get_display_text_and_chunks(teacher_response, level)
 
     if not display_text:
         logger.warning("⚠️  Нет текста для озвучивания.")
         return
 
+    show_teacher_chunk_sequence(tts_chunks)
+
+    if not enable_audio:
+        logger.info(f"🔇 TTS отключен. Ответ: {display_text}")
+        return
+
     fallback_engine = engine
+    tts_service = get_configured_tts_service()
+    logger.info("🔊 Конфиг TTS: service=%s, requested_speech_speed=%.2f", tts_service, TTS_SPEED)
+
+    if tts_service == "openai":
+        if use_openai_tts and speak_with_openai_chunks(tts_chunks):
+            return
+
+        logger.warning("⚠️  OpenAI TTS недоступен, использую pyttsx3...")
+        ui_print("⚠️ OpenAI TTS недоступен. Пробую локальную озвучку...")
+        if speak_with_local_chunks(fallback_engine, tts_chunks):
+            return
+        ui_print("⚠️ Озвучка недоступна. Ответ показан только текстом.")
+        return
+
+    if speak_with_local_chunks(fallback_engine, tts_chunks):
+        return
 
     if use_openai_tts and client:
-        try:
-            logger.info("🎤 Озвучиваю ответ через OpenAI TTS с грамматическими паузами...")
-            logger.info(f"🧩 Количество chunk-ов: {len(tts_chunks)}")
-            ui_print("🔊 Озвучиваю ответ...")
+        logger.warning("⚠️  pyttsx3 недоступен, переключаюсь на OpenAI TTS...")
+        ui_print("⚠️ Локальная озвучка недоступна. Переключаюсь на OpenAI TTS...")
+        if speak_with_openai_chunks(tts_chunks):
+            return
 
-            with tempfile.TemporaryDirectory() as temp_dir_name:
-                final_audio_file = Path(temp_dir_name) / "teacher_response.wav"
-                render_chunked_openai_tts(tts_chunks, final_audio_file)
-                logger.info("✅ Озвучено (OpenAI TTS с паузами)")
-
-                if play_audio_file(final_audio_file):
-                    ui_print("✅ Ответ озвучен.")
-                    return
-
-        except Exception as e:
-            logger.warning(f"⚠️  OpenAI TTS ошибка: {e}, использую pyttsx3...")
-
-    speak_with_local_chunks(fallback_engine, tts_chunks)
+    ui_print("⚠️ Озвучка недоступна. Ответ показан только текстом.")
 
 
 def display_menu(current_level: str):
@@ -797,6 +1274,7 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
 
     session = ConversationSession(level)
     engine = None
+    tts_service = get_configured_tts_service()
 
     logger.info(f"\n{'='*70}")
     logger.info(f"🎓 СЕАНС ОБУЧЕНИЯ ЗАПУЩЕН (уровень: {level})")
@@ -806,8 +1284,13 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
     ui_print("Что делать:")
     ui_print("  • Говорите по-английски в микрофон, когда увидите подсказку 'Говорите...'.")
     ui_print(f"  • Когда закончите фразу, просто помолчите {PAUSE_THRESHOLD} сек.")
-    ui_print("  • С клавиатуры вводите только ответ на вопрос 'Продолжить? (Y/n)'.")
+    ui_print(
+        f"  • Озвучивание: {get_tts_service_label(tts_service)}, "
+        f"скорость слов {TTS_SPEED:.2f}; паузы между chunk-ами настраиваются отдельно."
+    )
     ui_print("  • Для выхода из сеанса можно нажать Ctrl+C.\n")
+    if SESSION_IDLE_TIMEOUT > 0:
+        ui_print(f"  • Если не говорить слишком долго, сеанс завершится сам через {SESSION_IDLE_TIMEOUT:.0f} сек.\n")
 
     round_num = 0
     while True:
@@ -819,7 +1302,9 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
 
             # ЭТАП 1: Запись
             ui_print("📝 Шаг 1/4: Запись вашей речи")
-            audio_file = record_audio(PAUSE_THRESHOLD, PHRASE_TIME_LIMIT)
+            play_input_beep()
+            audio_file = record_audio(PAUSE_THRESHOLD, PHRASE_TIME_LIMIT, SESSION_IDLE_TIMEOUT)
+            play_stop_listening_beep()
 
             if not audio_file:
                 logger.warning("⚠️  Не удалось записать аудио. Попробуйте снова.")
@@ -835,20 +1320,20 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
 
             # ЭТАП 3: Ответ учителя
             ui_print("\n📝 Шаг 3/4: Генерация ответа учителя")
-            teacher_response = get_teacher_response(student_text, level)
+            teacher_response = get_teacher_response(student_text, level, session.conversation)
 
             if not teacher_response:
                 logger.warning("⚠️  Не удалось получить ответ. Попробуйте снова.")
                 continue
 
-            teacher_text, tts_chunks = get_display_text_and_chunks(teacher_response)
+            teacher_text, tts_chunks = get_display_text_and_chunks(teacher_response, level)
 
             # Добавить в историю
             session.add_exchange(student_text, teacher_response)
 
             # ЭТАП 4: Озвучивание
             ui_print("\n📝 Шаг 4/4: Озвучивание ответа")
-            speak_response(engine, teacher_response, enable_audio)
+            speak_response(engine, teacher_response, enable_audio, level=level)
 
             # Вывести результаты раунда
             ui_print(f"\n{ROUND_DIVIDER}")
@@ -856,18 +1341,20 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
             ui_print(f"👨‍🏫 УЧИТЕЛЬ: {teacher_text}")
             ui_print(f"🧩 Грамматических блоков для TTS: {len(tts_chunks)}")
             ui_print(f"{ROUND_DIVIDER}")
-
-            # Предложить продолжить
-            user_input = input("\n🔄 Продолжить? (Y/n): ").strip().lower()
-            if user_input == 'n':
-                break
-
+        except SessionIdleTimeout:
+            ui_print("\n⏹️  Сеанс завершён: вы слишком долго ничего не говорили.")
+            break
         except KeyboardInterrupt:
             ui_print("\n\n⏹️  Сеанс прерван пользователем")
             break
         except Exception as e:
             logger.error(f"❌ Ошибка в раунде {round_num}: {e}")
             continue
+
+    if session.round_count == 0:
+        ui_print("\nℹ️  Сеанс завершён без сохранения: не было ни одного раунда.")
+        logger.info("ℹ️  Пустой сеанс не сохраняю")
+        return
 
     # Сохранить сеанс
     saved_session = session.save()
@@ -916,7 +1403,9 @@ def show_help():
     ui_print("  • В меню: введите цифру 1-5 и нажмите Enter.")
     ui_print("  • В сеансе: говорите в микрофон по-английски.")
     ui_print(f"  • После фразы: помолчите {PAUSE_THRESHOLD} сек, чтобы запись завершилась.")
-    ui_print("  • После ответа учителя: введите Y или n.")
+    if SESSION_IDLE_TIMEOUT > 0:
+        ui_print(f"  • Если не начать новую реплику за {SESSION_IDLE_TIMEOUT:.0f} сек., сеанс завершится автоматически.")
+    ui_print("  • Для ручного выхода из сеанса нажмите Ctrl+C.")
 
     ui_print("\nЧто НЕ нужно делать:")
     ui_print("  • Не нужно печатать английский текст во время голосового сеанса.")
