@@ -9,19 +9,20 @@ import os
 import sys
 import logging
 import re
-import wave
 import time
 import tempfile
 import subprocess
+import threading
+from collections import Counter
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import json
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 from contextlib import contextmanager
 from io import UnsupportedOperation
 from dotenv import dotenv_values
+import httpx
 import speech_recognition as sr
-import pyttsx3
 
 from src.openai_compat import create_openai_client
 
@@ -77,30 +78,27 @@ LANGUAGE_LEVEL = get_required_env_value(ENV_CONFIG, "LANGUAGE_LEVEL")
 # Ключевые параметры темпа:
 # - PAUSE_THRESHOLD управляет тем, сколько тишины считать концом реплики пользователя.
 # - TTS_SPEED управляет скоростью произнесения слов.
+# - TTS_MAX_CHUNK_WORDS управляет агрессивностью внутреннего разбиения на chunk-и.
 # - Паузы ниже независимо управляют ритмом и "дыханием" речи учителя.
-# - MIN/MAX задают safety bounds для любых pause_ms в chunk-ах.
 PAUSE_THRESHOLD = get_required_float_env_value(ENV_CONFIG, "PAUSE_THRESHOLD")  # Секунды тишины до автоостановки записи; увеличьте, если конец фразы обрезается.
-PHRASE_TIME_LIMIT = get_required_float_env_value(ENV_CONFIG, "PHRASE_TIME_LIMIT")
+PHRASE_TIME_LIMIT = get_required_float_env_value(ENV_CONFIG, "PHRASE_TIME_LIMIT")  # Жёсткий максимум длины одной реплики; <= 0 отключает hard cap.
 SESSION_IDLE_TIMEOUT = get_required_float_env_value(ENV_CONFIG, "SESSION_IDLE_TIMEOUT")  # Сколько ждать начала новой реплики; если тишина длится дольше, сеанс завершается.
 TTS_SPEED = get_required_float_env_value(ENV_CONFIG, "TTS_SPEED")  # Скорость произнесения слов TTS; меньше = медленнее/четче, больше = быстрее/естественнее.
 TTS_VOLUME = get_required_float_env_value(ENV_CONFIG, "TTS_VOLUME")
-TTS_SERVICE = get_required_env_value(ENV_CONFIG, "TTS_SERVICE").lower()
-MIN_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "MIN_PAUSE_MS")
-MAX_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "MAX_PAUSE_MS")
+TTS_MAX_CHUNK_WORDS = get_required_int_env_value(ENV_CONFIG, "TTS_MAX_CHUNK_WORDS")
 SMALL_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "SMALL_PAUSE_MS")
 CLAUSE_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "CLAUSE_PAUSE_MS")
 SENTENCE_PAUSE_MS = get_required_int_env_value(ENV_CONFIG, "SENTENCE_PAUSE_MS")
 
-if MIN_PAUSE_MS > MAX_PAUSE_MS:
+if TTS_MAX_CHUNK_WORDS < 2:
     raise SystemExit(
-        f"В {ENV_FILE} MIN_PAUSE_MS={MIN_PAUSE_MS} не может быть больше MAX_PAUSE_MS={MAX_PAUSE_MS}."
+        f"Параметр TTS_MAX_CHUNK_WORDS в {ENV_FILE} должен быть не меньше 2, "
+        f"сейчас: {TTS_MAX_CHUNK_WORDS}."
     )
 
 # Инициализация клиентов
 client = create_openai_client(OPENAI_API_KEY)
 recognizer = sr.Recognizer()
-tts_engine: Optional[pyttsx3.Engine] = None
-tts_init_attempted = False
 
 # Пути
 SESSIONS_DIR = PROJECT_ROOT / "sessions"
@@ -140,11 +138,113 @@ TTS_MODEL = "gpt-4o-mini-tts"
 DEFAULT_TTS_VOICE = "nova"
 MIN_TTS_SPEED = 0.25
 MAX_TTS_SPEED = 4.0
-LOCAL_TTS_BASE_RATE = 150
-GRAMMAR_CHUNK_MAX_WORDS = {
-    "A2": 4,
-    "B1": 5,
-    "B2": 6,
+TEACHER_WAIT_SIGNAL_INTERVAL_SECONDS = 6.0
+LISTENING_SIGNAL_INTERVAL_SECONDS = 1.8
+TRANSCRIPTION_WAIT_SIGNAL_INTERVAL_SECONDS = 4.0
+TTS_PREPARING_SIGNAL_INTERVAL_SECONDS = 4.0
+ONLINE_SEARCH_TRIGGER_PHRASES = (
+    "search the internet",
+    "search internet",
+    "search online",
+    "search the web",
+    "look up",
+    "look it up",
+    "find online",
+    "find on the internet",
+    "find in the internet",
+    "check online",
+    "on the internet",
+    "in the internet",
+    "from the internet",
+)
+REPEAT_SEARCH_PHRASES = (
+    "try again",
+    "search again",
+    "look it up again",
+    "check again",
+    "find again",
+)
+WEATHER_KEYWORDS = {
+    "weather", "forecast", "temperature", "temperatures", "rain", "snow",
+    "wind", "winds", "sunny", "cloudy", "storm", "storms", "humidity",
+}
+LIVE_DATA_KEYWORDS = {
+    "weather", "forecast", "news", "price", "prices", "cost", "rate", "rates",
+    "schedule", "schedules", "hours", "opening hours", "open", "closed",
+    "score", "scores", "result", "results", "traffic", "delay", "delays",
+    "ceo", "president", "election",
+}
+TEMPORAL_HINT_WORDS = {
+    "today", "tomorrow", "tonight", "morning", "afternoon", "evening",
+    "night", "weekend", "this", "next", "current", "latest", "recent",
+}
+WEEKDAY_TO_INDEX = {
+    "monday": 0,
+    "tuesday": 1,
+    "wednesday": 2,
+    "thursday": 3,
+    "friday": 4,
+    "saturday": 5,
+    "sunday": 6,
+}
+MONTH_NAME_TO_INDEX = {
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+}
+TIME_OF_DAY_RANGES = {
+    "morning": range(6, 12),
+    "afternoon": range(12, 18),
+    "evening": range(18, 22),
+    "night": range(0, 6),
+    "tonight": range(18, 24),
+}
+LOCATION_STOP_WORDS = (
+    set(WEEKDAY_TO_INDEX)
+    | set(MONTH_NAME_TO_INDEX)
+    | WEATHER_KEYWORDS
+    | {
+        "hi", "hello", "hey", "today", "tomorrow", "this", "next", "morning", "afternoon", "evening", "night",
+        "could", "would", "should", "can", "what", "when", "where", "who", "why", "how",
+        "internet", "online", "web", "search", "find", "check",
+    }
+)
+WEATHER_CODE_DESCRIPTIONS = {
+    0: "clear",
+    1: "mostly clear",
+    2: "partly cloudy",
+    3: "overcast",
+    45: "foggy",
+    48: "foggy",
+    51: "light drizzle",
+    53: "drizzle",
+    55: "dense drizzle",
+    61: "light rain",
+    63: "rain",
+    65: "heavy rain",
+    66: "light freezing rain",
+    67: "freezing rain",
+    71: "light snow",
+    73: "snow",
+    75: "heavy snow",
+    77: "snow grains",
+    80: "rain showers",
+    81: "rain showers",
+    82: "heavy rain showers",
+    85: "snow showers",
+    86: "heavy snow showers",
+    95: "a thunderstorm",
+    96: "a thunderstorm",
+    99: "a thunderstorm",
 }
 WORD_RE = re.compile(r"[A-Za-z0-9]+(?:'[A-Za-z]+)?")
 WH_QUESTION_WORDS = {"what", "which", "who", "whom", "whose", "where", "when", "why", "how"}
@@ -251,6 +351,7 @@ def suppress_stderr():
 
 def show_startup_hint(current_level: str):
     """Коротко объяснить сценарий работы программы."""
+    effective_phrase_time_limit = get_effective_phrase_time_limit(PHRASE_TIME_LIMIT)
     ui_header("🎓 LISTENING COMPREHENSION TRAINER")
     ui_print(f"Текущий уровень: {current_level}")
     ui_print("\nЧто программа ждёт от вас:")
@@ -258,6 +359,10 @@ def show_startup_hint(current_level: str):
     ui_print("  • Для тренировки выберите пункт 1.")
     ui_print("  • После начала сеанса говорите в микрофон по-английски.")
     ui_print(f"  • Когда закончите, просто помолчите {PAUSE_THRESHOLD} сек.")
+    if effective_phrase_time_limit is None:
+        ui_print("  • Жёсткий лимит длины одной реплики отключён.")
+    else:
+        ui_print(f"  • Одна реплика может длиться максимум {effective_phrase_time_limit:g} сек., даже без паузы.")
     if SESSION_IDLE_TIMEOUT > 0:
         ui_print(f"  • Если слишком долго молчать перед новой репликой, сеанс завершится через {SESSION_IDLE_TIMEOUT:.0f} сек.")
     ui_print("  • Для принудительного выхода из сеанса используйте Ctrl+C.")
@@ -269,21 +374,24 @@ def clamp_tts_speed(speed: float) -> float:
     return max(MIN_TTS_SPEED, min(MAX_TTS_SPEED, speed))
 
 
-def get_local_tts_rate(speed: float) -> int:
-    """Рассчитать фактический rate для локального pyttsx3."""
-    return max(90, min(320, int(LOCAL_TTS_BASE_RATE * clamp_tts_speed(speed))))
+def get_effective_phrase_time_limit(seconds: float | None) -> float | None:
+    """Подготовить phrase_time_limit для recognizer.listen(); <= 0 отключает hard cap."""
+    try:
+        if seconds is None:
+            return None
+        value = float(seconds)
+    except (TypeError, ValueError):
+        value = PHRASE_TIME_LIMIT
+
+    return value if value > 0 else None
 
 
 def get_effective_pause_ms(pause_ms: Any) -> int:
-    """Свести любую паузу к одному из явно заданных пользователем значений."""
+    """Вернуть паузу в мс как есть, не меньше нуля."""
     try:
-        pause_value = int(pause_ms)
+        return max(0, int(pause_ms))
     except (TypeError, ValueError):
-        pause_value = CLAUSE_PAUSE_MS
-
-    pause_value = max(MIN_PAUSE_MS, min(MAX_PAUSE_MS, pause_value))
-    configured_pauses = [SMALL_PAUSE_MS, CLAUSE_PAUSE_MS, SENTENCE_PAUSE_MS]
-    return min(configured_pauses, key=lambda configured: (abs(configured - pause_value), configured))
+        return CLAUSE_PAUSE_MS
 
 
 def get_effective_playback_pauses_ms(tts_chunks: list[dict[str, Any]]) -> list[int]:
@@ -343,23 +451,18 @@ def show_tts_playback_settings(service_label: str, tts_chunks: list[dict[str, An
         format_pause_values(pause_values),
     )
 
-    if service_label == "OpenAI TTS":
-        logger.info(
-            "🔧 OpenAI TTS: model=%s, voice=%s",
-            TTS_MODEL,
-            DEFAULT_TTS_VOICE,
-        )
-    else:
-        logger.info("🔧 pyttsx3: rate=%d WPM", get_local_tts_rate(effective_speed))
+    logger.info(
+        "🔧 OpenAI TTS: model=%s, voice=%s",
+        TTS_MODEL,
+        DEFAULT_TTS_VOICE,
+    )
 
     ui_print("🔧 Фактические параметры озвучивания:")
     ui_print(f"   Сервис: {service_label}")
     ui_print(f"   Скорость слов: {speed_details}")
-    if service_label == "OpenAI TTS":
-        ui_print(f"   OpenAI модель/голос: {TTS_MODEL} / {DEFAULT_TTS_VOICE}")
-    else:
-        ui_print(f"   Локальный rate движка: {get_local_tts_rate(effective_speed)} WPM")
+    ui_print(f"   OpenAI модель/голос: {TTS_MODEL} / {DEFAULT_TTS_VOICE}")
     ui_print(f"   Chunk-ов в ответе: {len(tts_chunks)}")
+    ui_print(f"   Целевой максимум слов в chunk-е: {TTS_MAX_CHUNK_WORDS}")
     ui_print(f"   Паузы между chunk-ами, мс: {format_pause_values(pause_values)}")
     ui_print(f"   Суммарная межchunk-пауза: {sum(pause_values)} мс")
     ui_print(
@@ -388,9 +491,9 @@ def normalize_text_spacing(text: str) -> str:
     return re.sub(r"\s+([,.;:!?])", r"\1", compact).strip()
 
 
-def get_max_chunk_words(level: str) -> int:
-    """Вернуть максимально допустимый размер грамматического chunk-а для уровня."""
-    return GRAMMAR_CHUNK_MAX_WORDS.get(str(level or "").upper(), GRAMMAR_CHUNK_MAX_WORDS["B1"])
+def get_max_chunk_words(_level: str) -> int:
+    """Вернуть максимально допустимый размер грамматического chunk-а."""
+    return TTS_MAX_CHUNK_WORDS
 
 
 def get_chunk_terminal_pause_ms(text: str) -> int:
@@ -656,7 +759,7 @@ Rules:
 - If one punctuation-based chunk is still long, split it further at natural intonation boundaries.
 - Prefer very small chunks for listening practice: usually 2 to """
         + str(max_chunk_words)
-        + """ words per chunk for this level.
+        + """ words per chunk for this configuration.
 - Keep punctuation inside chunk text.
 - pause_ms:
   """
@@ -669,6 +772,11 @@ Rules:
         + str(SENTENCE_PAUSE_MS)
         + """ = end of sentence or long grammatical boundary
 - Prefer shorter, clearer sentences when possible.
+- Comprehension check: if your previous turn ended with a question and the student's reply
+  is vague, off-topic, or clearly does not address that question, do NOT move on.
+  Instead, gently rephrase the same question using simpler words and a shorter sentence.
+  You may start with "I meant..." or "Let me ask again:".
+  Only after the student gives a relevant answer, continue normally.
 """
     )
 
@@ -679,69 +787,6 @@ def get_display_text_and_chunks(teacher_response: Any, level: str = LANGUAGE_LEV
     return normalized["display_text"], normalized["tts_chunks"]
 
 
-def generate_silence_frames(pause_ms: int, frame_rate: int, channels: int, sample_width: int) -> bytes:
-    """Сгенерировать WAV-тишину нужной длины."""
-    frame_count = max(0, round(frame_rate * (pause_ms / 1000)))
-    return b"\x00" * frame_count * channels * sample_width
-
-
-def trim_wav_silence(audio_frames: bytes, sample_width: int, channels: int, silence_threshold: int = 150) -> bytes:
-    """Обрезать тишину с начала и конца WAV-фреймов."""
-    frame_size = sample_width * channels
-    if frame_size == 0 or len(audio_frames) < frame_size:
-        return audio_frames
-
-    def is_silent_frame(frame_bytes: bytes) -> bool:
-        if sample_width == 2:
-            import struct
-            samples = struct.unpack_from(f"<{len(frame_bytes) // 2}h", frame_bytes)
-            return all(abs(s) < silence_threshold for s in samples)
-        return all(b < silence_threshold for b in frame_bytes)
-
-    frames = [audio_frames[i:i + frame_size] for i in range(0, len(audio_frames) - frame_size + 1, frame_size)]
-
-    start = 0
-    while start < len(frames) and is_silent_frame(frames[start]):
-        start += 1
-
-    end = len(frames)
-    while end > start and is_silent_frame(frames[end - 1]):
-        end -= 1
-
-    return b"".join(frames[start:end])
-
-
-def stitch_wav_chunks(chunk_files: list[tuple[Path, int]], output_file: Path) -> Path:
-    """Склеить WAV-куски и добавить тишину между ними."""
-    if not chunk_files:
-        raise ValueError("Нет WAV-кусков для склейки")
-
-    base_params = None
-
-    with wave.open(str(output_file), "wb") as output_wav:
-        for index, (chunk_file, pause_ms) in enumerate(chunk_files):
-            with wave.open(str(chunk_file), "rb") as input_wav:
-                params = input_wav.getparams()
-                audio_frames = input_wav.readframes(input_wav.getnframes())
-
-            current_params = (params.nchannels, params.sampwidth, params.framerate)
-            if base_params is None:
-                base_params = current_params
-                output_wav.setnchannels(params.nchannels)
-                output_wav.setsampwidth(params.sampwidth)
-                output_wav.setframerate(params.framerate)
-            elif current_params != base_params:
-                raise ValueError("OpenAI TTS вернул WAV-куски с разными параметрами")
-
-            audio_frames = trim_wav_silence(audio_frames, params.sampwidth, params.nchannels)
-            output_wav.writeframes(audio_frames)
-
-            if index < len(chunk_files) - 1 and pause_ms > 0:
-                output_wav.writeframes(
-                    generate_silence_frames(pause_ms, params.framerate, params.nchannels, params.sampwidth)
-                )
-
-    return output_file
 
 
 def ensure_openai_api_key() -> bool:
@@ -833,64 +878,6 @@ class ConversationSession:
         logger.info(f"Длительность:     {duration.total_seconds():.0f} сек ({duration.total_seconds()/60:.1f} мин)")
         logger.info("=" * 70 + "\n")
 
-
-def initialize_tts_engine(speed: float = 0.8, volume: float = 0.9) -> Optional[pyttsx3.Engine]:
-    """Инициализировать pyttsx3 движок, если локальный TTS доступен."""
-    try:
-        with suppress_stderr():
-            engine = pyttsx3.init()
-
-        # Базовая локальная скорость ближе к естественной речи; TTS_SPEED масштабирует её.
-        engine.setProperty('rate', get_local_tts_rate(speed))
-
-        # Максимальная громкость для лучшей слышимости
-        engine.setProperty('volume', max(0.9, volume))
-
-        voices = engine.getProperty('voices')
-        if voices and len(voices) > 1:
-            # Женский голос обычно звучит лучше и понятнее
-            engine.setProperty('voice', voices[1].id)
-
-        return engine
-    except Exception as e:
-        logger.warning(
-            "⚠️  Локальный TTS через pyttsx3 недоступен: %s. "
-            "Сессия продолжится без локальной озвучки.",
-            e
-        )
-        return None
-
-
-def get_tts_engine(speed: float = 0.8, volume: float = 0.9) -> Optional[pyttsx3.Engine]:
-    """Ленивая инициализация локального TTS с кешированием результата."""
-    global tts_engine, tts_init_attempted
-
-    if tts_engine is not None:
-        return tts_engine
-    if tts_init_attempted:
-        return None
-
-    tts_init_attempted = True
-    tts_engine = initialize_tts_engine(speed, volume)
-    return tts_engine
-
-
-def get_configured_tts_service() -> str:
-    """Вернуть корректно нормализованное имя TTS-сервиса."""
-    if TTS_SERVICE in {"openai", "pyttsx3"}:
-        return TTS_SERVICE
-
-    logger.warning("⚠️  Неизвестный TTS_SERVICE=%s, использую openai", TTS_SERVICE)
-    return "openai"
-
-
-def get_tts_service_label(tts_service: str) -> str:
-    """Понятная подпись активного TTS-сервиса для UI и логов."""
-    if tts_service == "pyttsx3":
-        return "pyttsx3"
-    return "OpenAI TTS"
-
-
 def record_audio(
     pause_threshold: float = 2.5,
     phrase_time_limit: float = 30,
@@ -901,20 +888,29 @@ def record_audio(
 
     Args:
         pause_threshold: Пауза для завершения записи (сек)
-        phrase_time_limit: Максимум времени записи (сек)
+        phrase_time_limit: Максимум времени записи (сек); <= 0 отключает hard cap
         session_idle_timeout: Максимум ожидания начала речи (сек)
 
     Returns:
         Путь к сохранённому WAV файлу
     """
+    effective_phrase_time_limit = get_effective_phrase_time_limit(phrase_time_limit)
+
     logger.info("🎙️  Слушаю микрофон...")
     logger.info(f"   Пауза обнаружения: {pause_threshold}s")
-    logger.info(f"   Максимум времени: {phrase_time_limit}s")
+    if effective_phrase_time_limit is None:
+        logger.info("   Максимум времени: без жёсткого лимита")
+    else:
+        logger.info(f"   Максимум времени: {effective_phrase_time_limit:g}s")
     if session_idle_timeout and session_idle_timeout > 0:
         logger.info(f"   Автовыход при молчании: {session_idle_timeout}s")
     logger.info("Начинайте говорить! (программа завершит запись после паузы)\n")
     ui_print("🎙️ Сейчас программа ждёт ваш голос в микрофон.")
     ui_print(f"   Скажите фразу на английском и затем помолчите {pause_threshold} сек.")
+    if effective_phrase_time_limit is None:
+        ui_print("   Жёсткий лимит длины реплики отключён.")
+    else:
+        ui_print(f"   Даже без паузы запись остановится через {effective_phrase_time_limit:g} сек.")
     if session_idle_timeout and session_idle_timeout > 0:
         ui_print(f"   Если не начать говорить в течение {session_idle_timeout:.0f} сек., сеанс завершится автоматически.")
     ui_print("   Ничего печатать в консоль сейчас не нужно.\n")
@@ -935,11 +931,12 @@ def record_audio(
 
                 # Запись
                 logger.info("⏺️  Начало записи...")
-                audio = recognizer.listen(
-                    source,
-                    timeout=session_idle_timeout if session_idle_timeout and session_idle_timeout > 0 else None,
-                    phrase_time_limit=phrase_time_limit
-                )
+                with listening_wait_feedback():
+                    audio = recognizer.listen(
+                        source,
+                        timeout=session_idle_timeout if session_idle_timeout and session_idle_timeout > 0 else None,
+                        phrase_time_limit=effective_phrase_time_limit
+                    )
                 logger.info("✓ Запись завершена!")
                 ui_print("✅ Запись завершена.")
 
@@ -971,11 +968,12 @@ def transcribe_audio(audio_file: str) -> str:
         ui_print("⏳ Распознаю вашу речь...")
 
         with open(audio_file, "rb") as audio:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio,
-                language="en"
-            )
+            with transcription_wait_feedback():
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio,
+                    language="en"
+                )
 
         text = transcript.text
         logger.info(f"✅ Распознано: {text}")
@@ -995,6 +993,455 @@ def build_history_messages(conversation: list[dict[str, Any]]) -> list[dict[str,
     return messages
 
 
+def normalize_search_router_text(text: str) -> str:
+    """Нормализовать текст для простого роутинга интернет-запросов."""
+    return re.sub(r"\s+", " ", str(text or "").casefold()).strip()
+
+
+def contains_any_phrase(normalized_text: str, phrases: set[str] | tuple[str, ...]) -> bool:
+    """Проверить, содержит ли нормализованный текст одну из фраз."""
+    return any(phrase in normalized_text for phrase in phrases)
+
+
+def is_repeat_search_request(text: str) -> bool:
+    """Понять, просит ли пользователь повторить предыдущий интернет-поиск."""
+    normalized_text = normalize_search_router_text(text)
+    if normalized_text in REPEAT_SEARCH_PHRASES:
+        return True
+    return any(normalized_text.startswith(phrase) for phrase in REPEAT_SEARCH_PHRASES)
+
+
+def should_search_online_text(text: str) -> bool:
+    """Решить по самому тексту, нужен ли обязательный интернет-поиск."""
+    normalized_text = normalize_search_router_text(text)
+    if not normalized_text:
+        return False
+
+    if contains_any_phrase(normalized_text, ONLINE_SEARCH_TRIGGER_PHRASES):
+        return True
+    if any(keyword in normalized_text for keyword in WEATHER_KEYWORDS):
+        return True
+    if any(keyword in normalized_text for keyword in LIVE_DATA_KEYWORDS):
+        temporal_hints = TEMPORAL_HINT_WORDS | set(WEEKDAY_TO_INDEX)
+        if any(hint in normalized_text for hint in temporal_hints):
+            return True
+
+    return False
+
+
+def find_latest_searchable_request(conversation: list[dict[str, Any]] | None) -> str | None:
+    """Найти последнюю реплику пользователя, для которой уже имело смысл искать онлайн."""
+    for exchange in reversed(conversation or []):
+        student_text = str(exchange.get("student", "")).strip()
+        if should_search_online_text(student_text):
+            return student_text
+    return None
+
+
+def resolve_online_request_text(student_text: str, conversation: list[dict[str, Any]] | None = None) -> str:
+    """Определить, какой именно запрос нужно искать онлайн прямо сейчас."""
+    if is_repeat_search_request(student_text):
+        previous_request = find_latest_searchable_request(conversation)
+        if previous_request:
+            return previous_request
+    return student_text
+
+
+def should_search_online(student_text: str, conversation: list[dict[str, Any]] | None = None) -> bool:
+    """Решить, нужен ли интернет-поиск с учётом возможного 'try again'."""
+    return should_search_online_text(resolve_online_request_text(student_text, conversation))
+
+
+def is_weather_request(text: str) -> bool:
+    """Понять, относится ли запрос к погоде."""
+    normalized_text = normalize_search_router_text(text)
+    return any(keyword in normalized_text for keyword in WEATHER_KEYWORDS)
+
+
+def format_absolute_date(target_date: date) -> str:
+    """Подготовить дату в понятном английском формате без ведущего нуля."""
+    return target_date.strftime("%A, %B %d, %Y").replace(" 0", " ")
+
+
+def extract_requested_date(request_text: str, reference_date: date) -> date | None:
+    """Вытащить дату из пользовательского запроса простыми правилами."""
+    normalized_text = normalize_search_router_text(request_text)
+
+    if "day after tomorrow" in normalized_text:
+        return reference_date + timedelta(days=2)
+    if "tomorrow" in normalized_text:
+        return reference_date + timedelta(days=1)
+    if "today" in normalized_text or "tonight" in normalized_text:
+        return reference_date
+
+    month_pattern = (
+        r"\b("
+        + "|".join(MONTH_NAME_TO_INDEX)
+        + r")\s+(\d{1,2})(?:st|nd|rd|th)?(?:,\s*(\d{4}))?\b"
+    )
+    month_match = re.search(month_pattern, normalized_text)
+    if month_match:
+        month_index = MONTH_NAME_TO_INDEX[month_match.group(1)]
+        day_of_month = int(month_match.group(2))
+        year = int(month_match.group(3)) if month_match.group(3) else reference_date.year
+        try:
+            return date(year, month_index, day_of_month)
+        except ValueError:
+            return None
+
+    for weekday_name, weekday_index in WEEKDAY_TO_INDEX.items():
+        if re.search(rf"\b(?:this|next)?\s*{weekday_name}\b", normalized_text):
+            delta_days = (weekday_index - reference_date.weekday()) % 7
+            if f"next {weekday_name}" in normalized_text and delta_days == 0:
+                delta_days = 7
+            if weekday_name in normalized_text and f"this {weekday_name}" not in normalized_text and delta_days == 0:
+                delta_days = 7
+            return reference_date + timedelta(days=delta_days)
+
+    return None
+
+
+def extract_part_of_day(request_text: str) -> str | None:
+    """Определить, просит ли пользователь погоду на часть дня."""
+    normalized_text = normalize_search_router_text(request_text)
+    for part_of_day in ("morning", "afternoon", "evening", "tonight", "night"):
+        if re.search(rf"\b{part_of_day}\b", normalized_text):
+            return part_of_day
+    return None
+
+
+def clean_location_candidate(raw_candidate: str) -> str:
+    """Очистить кандидат на название места от хвостов вроде 'this Saturday morning'."""
+    candidate = normalize_text_spacing(str(raw_candidate or "")).strip(" ,.!?;:")
+    if not candidate:
+        return ""
+
+    cleaned_tokens: list[str] = []
+    for token in candidate.split():
+        bare_token = token.strip(" ,.!?;:")
+        if not bare_token:
+            continue
+
+        normalized_token = bare_token.casefold()
+        if normalized_token in LOCATION_STOP_WORDS or normalized_token in TIME_OF_DAY_RANGES:
+            break
+        cleaned_tokens.append(bare_token)
+
+    cleaned_candidate = " ".join(cleaned_tokens[:4]).strip()
+    if len(cleaned_candidate) < 2:
+        return ""
+
+    return cleaned_candidate.title()
+
+
+def extract_location_candidates(request_text: str) -> list[str]:
+    """Собрать вероятные названия мест из вопроса пользователя."""
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def add_candidate(raw_candidate: str) -> None:
+        candidate = clean_location_candidate(raw_candidate)
+        if not candidate:
+            return
+        normalized_candidate = candidate.casefold()
+        if normalized_candidate in seen:
+            return
+        seen.add(normalized_candidate)
+        candidates.append(candidate)
+
+    for match in re.finditer(
+        r"\b(?:in|for|near|around|at)\s+([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,3})",
+        request_text,
+        flags=re.IGNORECASE,
+    ):
+        add_candidate(match.group(1))
+
+    for match in re.finditer(r"\b[A-Z][A-Za-z.'-]*(?:\s+[A-Z][A-Za-z.'-]*){0,3}\b", request_text):
+        add_candidate(match.group(0))
+
+    return candidates
+
+
+def build_web_search_query(request_text: str, reference_date: date) -> str:
+    """Собрать понятный поисковый запрос для общего веб-поиска."""
+    query = normalize_text_spacing(request_text)
+    query = re.sub(r"\b(?:please|can you|could you|would you|do you know|tell me)\b", "", query, flags=re.IGNORECASE)
+    query = re.sub(r"\b(?:find|search|look up|look it up|check)\b", "", query, flags=re.IGNORECASE)
+    query = re.sub(r"\b(?:on|in|from)\s+the\s+internet\b", "", query, flags=re.IGNORECASE)
+    query = re.sub(r"\bonline\b", "", query, flags=re.IGNORECASE)
+    query = normalize_text_spacing(query).strip(" ?.")
+
+    target_date = extract_requested_date(request_text, reference_date)
+    if target_date and str(target_date.year) not in query:
+        date_suffix = target_date.strftime("%B %d %Y")
+        if target_date.strftime("%A").casefold() not in query.casefold():
+            date_suffix = target_date.strftime("%A ") + date_suffix
+        query = f"{query} {date_suffix}".strip()
+
+    return query or normalize_text_spacing(request_text)
+
+
+def perform_web_search(query: str) -> dict[str, Any]:
+    """Выполнить общий веб-поиск через DuckDuckGo."""
+    normalized_query = str(query or "").strip()
+    search_payload: dict[str, Any] = {
+        "type": "web_search",
+        "source": "duckduckgo",
+        "status": "error",
+        "query": normalized_query,
+        "results": [],
+    }
+
+    try:
+        from ddgs import DDGS
+        with DDGS() as ddgs:
+            results = list(ddgs.text(normalized_query, max_results=4))
+
+        normalized_results: list[dict[str, str]] = []
+        for result in results:
+            title = normalize_text_spacing(str(result.get("title", "")).strip())
+            body = normalize_text_spacing(str(result.get("body", "")).strip())
+            href = str(result.get("href", "")).strip()
+            if not any((title, body, href)):
+                continue
+            normalized_results.append({
+                "title": title,
+                "snippet": body,
+                "url": href,
+            })
+
+        if normalized_results:
+            logger.info("✅ Результаты веб-поиска получены")
+            search_payload["status"] = "ok"
+            search_payload["results"] = normalized_results
+        else:
+            logger.info("ℹ️  Веб-поиск не дал результатов")
+            search_payload["status"] = "no_results"
+            search_payload["message"] = "No search results found."
+    except Exception as e:
+        logger.warning(f"⚠️  Веб-поиск не удался: {e}")
+        search_payload["message"] = "Web search failed inside the application."
+        search_payload["error"] = str(e)
+
+    return search_payload
+
+
+def describe_weather_code(weather_code: int | None) -> str:
+    """Перевести код Open-Meteo в короткое английское описание."""
+    if weather_code is None:
+        return "mixed weather"
+    return WEATHER_CODE_DESCRIPTIONS.get(int(weather_code), "mixed weather")
+
+
+def pick_dominant_weather_code(codes: list[int]) -> int | None:
+    """Выбрать самый частый weather_code из набора часов."""
+    if not codes:
+        return None
+    return Counter(codes).most_common(1)[0][0]
+
+
+def summarize_hourly_weather(hourly_payload: dict[str, list[Any]], part_of_day: str | None) -> dict[str, Any] | None:
+    """Свести почасовой прогноз к короткому summary по нужной части дня."""
+    selected_points: list[dict[str, Any]] = []
+    allowed_hours = TIME_OF_DAY_RANGES.get(part_of_day)
+
+    for time_str, temperature, precipitation_probability, weather_code, wind_speed in zip(
+        hourly_payload.get("time", []),
+        hourly_payload.get("temperature_2m", []),
+        hourly_payload.get("precipitation_probability", []),
+        hourly_payload.get("weather_code", []),
+        hourly_payload.get("wind_speed_10m", []),
+    ):
+        try:
+            hour = int(str(time_str)[11:13])
+        except (TypeError, ValueError):
+            continue
+
+        if allowed_hours is not None and hour not in allowed_hours:
+            continue
+
+        selected_points.append({
+            "time": str(time_str),
+            "temperature_2m": float(temperature),
+            "precipitation_probability": int(precipitation_probability),
+            "weather_code": int(weather_code),
+            "wind_speed_10m": float(wind_speed),
+        })
+
+    if not selected_points:
+        return None
+
+    return {
+        "weather_code": pick_dominant_weather_code([point["weather_code"] for point in selected_points]),
+        "min_temp_c": min(point["temperature_2m"] for point in selected_points),
+        "max_temp_c": max(point["temperature_2m"] for point in selected_points),
+        "max_precipitation_probability": max(point["precipitation_probability"] for point in selected_points),
+        "max_wind_kmh": max(point["wind_speed_10m"] for point in selected_points),
+    }
+
+
+def perform_weather_lookup(request_text: str, reference_date: date) -> dict[str, Any]:
+    """Получить точный прогноз погоды через Open-Meteo."""
+    location_candidates = extract_location_candidates(request_text)
+    requested_date = extract_requested_date(request_text, reference_date) or reference_date
+    part_of_day = extract_part_of_day(request_text)
+    weather_payload: dict[str, Any] = {
+        "type": "weather",
+        "source": "open-meteo",
+        "status": "error",
+        "request_text": request_text,
+        "location_candidates": location_candidates,
+        "requested_date": requested_date.isoformat(),
+        "requested_date_label": format_absolute_date(requested_date),
+        "part_of_day": part_of_day,
+    }
+
+    if not location_candidates:
+        weather_payload["message"] = "Could not identify the location in the weather request."
+        return weather_payload
+
+    location_record: dict[str, Any] | None = None
+    resolved_location = ""
+    for candidate in location_candidates:
+        try:
+            geocoding_response = httpx.get(
+                "https://geocoding-api.open-meteo.com/v1/search",
+                params={
+                    "name": candidate,
+                    "count": 1,
+                    "language": "en",
+                    "format": "json",
+                },
+                timeout=20,
+            )
+            geocoding_response.raise_for_status()
+            geocoding_payload = geocoding_response.json()
+            results = geocoding_payload.get("results") or []
+            if not results:
+                continue
+            location_record = results[0]
+            resolved_location = str(location_record.get("name") or candidate)
+            break
+        except Exception as e:
+            logger.warning("⚠️  Геокодирование Open-Meteo не удалось для %s: %s", candidate, e)
+
+    if not location_record:
+        weather_payload["message"] = "Could not geocode the location for the weather request."
+        return weather_payload
+
+    try:
+        forecast_response = httpx.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": location_record["latitude"],
+                "longitude": location_record["longitude"],
+                "timezone": "auto",
+                "hourly": "temperature_2m,precipitation_probability,weather_code,wind_speed_10m",
+                "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code",
+                "start_date": requested_date.isoformat(),
+                "end_date": requested_date.isoformat(),
+            },
+            timeout=20,
+        )
+        forecast_response.raise_for_status()
+        forecast_payload = forecast_response.json()
+    except Exception as e:
+        weather_payload["message"] = "Open-Meteo forecast request failed."
+        weather_payload["error"] = str(e)
+        return weather_payload
+
+    daily_payload = forecast_payload.get("daily", {})
+    hourly_payload = forecast_payload.get("hourly", {})
+    period_summary = summarize_hourly_weather(hourly_payload, part_of_day)
+
+    weather_payload.update({
+        "status": "ok",
+        "resolved_location": resolved_location,
+        "country_code": location_record.get("country_code"),
+        "timezone": forecast_payload.get("timezone"),
+        "daily_summary": {
+            "weather_code": (daily_payload.get("weather_code") or [None])[0],
+            "min_temp_c": (daily_payload.get("temperature_2m_min") or [None])[0],
+            "max_temp_c": (daily_payload.get("temperature_2m_max") or [None])[0],
+            "max_precipitation_probability": (daily_payload.get("precipitation_probability_max") or [None])[0],
+        },
+        "period_summary": period_summary,
+    })
+    logger.info("✅ Прогноз погоды получен через Open-Meteo: %s, %s", resolved_location, weather_payload["requested_date"])
+    return weather_payload
+
+
+def build_weather_teacher_text(weather_payload: dict[str, Any]) -> str:
+    """Построить короткий ответ учителя по прямому weather API without LLM."""
+    location_name = str(weather_payload.get("resolved_location", "the city"))
+    requested_date_label = str(weather_payload.get("requested_date_label", "that day"))
+    part_of_day = weather_payload.get("part_of_day")
+    period_summary = weather_payload.get("period_summary") or {}
+    daily_summary = weather_payload.get("daily_summary") or {}
+
+    if period_summary:
+        weather_code = period_summary.get("weather_code")
+        condition = describe_weather_code(weather_code)
+        max_precipitation_probability = int(period_summary.get("max_precipitation_probability") or 0)
+        if max_precipitation_probability <= 10 and condition in {"clear", "mostly clear", "partly cloudy"}:
+            condition = f"{condition} and dry"
+
+        sentences = [
+            f"In {location_name} on {requested_date_label}, the {part_of_day} looks {condition}.",
+            (
+                f"Temperatures should stay around {round(period_summary['min_temp_c'])} to "
+                f"{round(period_summary['max_temp_c'])} degrees Celsius, with up to "
+                f"{max_precipitation_probability}% chance of precipitation."
+            ),
+        ]
+        if float(period_summary.get("max_wind_kmh") or 0) >= 20:
+            sentences.append(f"Wind may reach about {round(period_summary['max_wind_kmh'])} kilometers per hour.")
+        return " ".join(sentences)
+
+    daily_weather_code = daily_summary.get("weather_code")
+    daily_condition = describe_weather_code(daily_weather_code)
+    max_precipitation_probability = int(daily_summary.get("max_precipitation_probability") or 0)
+    if max_precipitation_probability <= 10 and daily_condition in {"clear", "mostly clear", "partly cloudy"}:
+        daily_condition = f"{daily_condition} and dry"
+
+    return (
+        f"In {location_name} on {requested_date_label}, the forecast looks {daily_condition}. "
+        f"Temperatures should range from {round(daily_summary['min_temp_c'])} to "
+        f"{round(daily_summary['max_temp_c'])} degrees Celsius, with up to "
+        f"{max_precipitation_probability}% chance of precipitation."
+    )
+
+
+def build_search_failure_text(lookup_payload: dict[str, Any]) -> str:
+    """Сформировать понятный ответ, если интернет-поиск не дал usable data."""
+    if lookup_payload.get("type") == "weather":
+        return (
+            "I tried to check the weather online, but I could not get a reliable forecast just now. "
+            "Please try again, or say the city and date more clearly."
+        )
+    return (
+        "I searched the internet, but I could not get useful results just now. "
+        "Please try again or ask the question in a more specific way."
+    )
+
+
+def perform_online_lookup(request_text: str, reference_date: date) -> dict[str, Any]:
+    """Выполнить обязательный интернет-поиск по детерминированным правилам."""
+    if is_weather_request(request_text):
+        logger.info("🌤️  Проверяю прогноз погоды через Open-Meteo")
+        ui_print("🌤️ Проверяю прогноз погоды онлайн...")
+        weather_payload = perform_weather_lookup(request_text, reference_date)
+        if weather_payload.get("status") == "ok":
+            return weather_payload
+        logger.info("ℹ️  Weather lookup не дал надёжного результата, переключаюсь на веб-поиск")
+
+    search_query = build_web_search_query(request_text, reference_date)
+    logger.info("🔍 Веб-поиск: %s", search_query)
+    ui_print("🌐 Ищу актуальную информацию в интернете...")
+    ui_print(f"🔍 Ищу: {search_query}")
+    return perform_web_search(search_query)
+
+
 def get_teacher_response(
     student_text: str,
     level: str = "B1",
@@ -1002,23 +1449,72 @@ def get_teacher_response(
 ) -> dict[str, Any]:
     """Получить структурированный ответ от учителя (текст + chunks для TTS)."""
     history_messages = build_history_messages(conversation or [])
+    today_date = datetime.now().date()
+    today_label = format_absolute_date(today_date)
+    response_messages: list[dict[str, Any]] = []
+
     try:
         logger.info("🤖 Генерирую ответ учителя...")
         ui_print("⏳ Учитель готовит ответ...")
 
-        response = client.chat.completions.create(
-            model=CHAT_MODEL,
-            messages=[
+        effective_request_text = resolve_online_request_text(student_text, conversation)
+        online_lookup: dict[str, Any] | None = None
+
+        if should_search_online(student_text, conversation):
+            online_lookup = perform_online_lookup(effective_request_text, today_date)
+            if online_lookup.get("type") == "weather" and online_lookup.get("status") == "ok":
+                teacher_response = normalize_teacher_response_payload(
+                    {"display_text": build_weather_teacher_text(online_lookup)},
+                    level,
+                )
+                logger.info(f"✅ Ответ учителя: {teacher_response['display_text']}")
+                logger.info(f"🧩 TTS chunks: {len(teacher_response['tts_chunks'])}")
+                return teacher_response
+
+            if online_lookup.get("status") != "ok":
+                teacher_response = normalize_teacher_response_payload(
+                    {"display_text": build_search_failure_text(online_lookup)},
+                    level,
+                )
+                logger.info(f"✅ Ответ учителя: {teacher_response['display_text']}")
+                logger.info(f"🧩 TTS chunks: {len(teacher_response['tts_chunks'])}")
+                return teacher_response
+
+        system_messages = [
+            {"role": "system", "content": f"Today's date: {today_label}.\n\n" + build_structured_teacher_prompt(level)},
+        ]
+
+        if online_lookup:
+            system_messages.extend([
                 {
                     "role": "system",
-                    "content": build_structured_teacher_prompt(level)
+                    "content": (
+                        "The application has already searched the internet because the student asked for current or "
+                        "time-sensitive information. Use the online lookup context below directly.\n"
+                        "- Answer the factual question directly and concretely.\n"
+                        "- If the lookup is partial or uncertain, say exactly that it is partial or uncertain.\n"
+                        "- Do not say that you cannot search the internet.\n"
+                        "- Do not redirect the student to generic websites unless the lookup failed.\n"
+                        "- When the original question used relative dates like today, tomorrow, or this Saturday, "
+                        "prefer exact dates in your answer.\n"
+                        "Return valid JSON only."
+                    ),
                 },
-                *history_messages,
                 {
-                    "role": "user",
-                    "content": student_text
-                }
-            ],
+                    "role": "system",
+                    "content": "Online lookup context retrieved just now:\n" + json.dumps(online_lookup, ensure_ascii=False, indent=2),
+                },
+            ])
+
+        response_messages = [
+            *system_messages,
+            *history_messages,
+            {"role": "user", "content": student_text},
+        ]
+
+        response = client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=response_messages,
             response_format={"type": "json_object"},
             temperature=0.4,
             max_tokens=700,
@@ -1038,16 +1534,10 @@ def get_teacher_response(
         try:
             response = client.chat.completions.create(
                 model=CHAT_MODEL,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": SYSTEM_PROMPTS.get(level, SYSTEM_PROMPTS["B1"])
-                    },
+                messages=response_messages or [
+                    {"role": "system", "content": f"Today's date: {today_label}.\n\n" + SYSTEM_PROMPTS.get(level, SYSTEM_PROMPTS["B1"])},
                     *history_messages,
-                    {
-                        "role": "user",
-                        "content": student_text
-                    }
+                    {"role": "user", "content": student_text},
                 ],
                 temperature=0.4,
                 max_tokens=500,
@@ -1064,33 +1554,24 @@ def get_teacher_response(
             return None
 
 
-def render_chunked_openai_tts(tts_chunks: list[dict[str, Any]], output_file: Path) -> Path:
-    """Сгенерировать OpenAI TTS по chunk-ам и склеить результат в один WAV."""
-    chunk_files: list[tuple[Path, int]] = []
-    safe_speed = clamp_tts_speed(TTS_SPEED)
-    chunk_instructions = build_tts_chunk_instructions(safe_speed)
-
-    with tempfile.TemporaryDirectory() as temp_dir_name:
-        temp_dir = Path(temp_dir_name)
-
-        for index, chunk in enumerate(tts_chunks):
-            chunk_path = temp_dir / f"chunk_{index:02d}.wav"
-            response = client.audio.speech.create(
-                model=TTS_MODEL,
-                voice=DEFAULT_TTS_VOICE,
-                input=chunk["text"],
-                response_format="wav",
-                speed=safe_speed,
-                extra_body={"instructions": chunk_instructions},
-            )
-            response.stream_to_file(str(chunk_path))
-            chunk_files.append((chunk_path, get_effective_pause_ms(chunk.get("pause_ms", CLAUSE_PAUSE_MS))))
-
-        return stitch_wav_chunks(chunk_files, output_file)
+def _fetch_tts_chunk(chunk: dict[str, Any], path: Path, safe_speed: float, instructions: str, errors: list) -> None:
+    """Сгенерировать один TTS chunk и сохранить в файл (вызывается из фонового потока)."""
+    try:
+        response = client.audio.speech.create(
+            model=TTS_MODEL,
+            voice=DEFAULT_TTS_VOICE,
+            input=chunk["text"],
+            response_format="wav",
+            speed=safe_speed,
+            extra_body={"instructions": instructions},
+        )
+        response.stream_to_file(str(path))
+    except Exception as e:
+        errors.append(e)
 
 
 def speak_with_openai_chunks(tts_chunks: list[dict[str, Any]]) -> bool:
-    """Озвучить ответ через OpenAI TTS и воспроизвести результат."""
+    """Озвучить ответ через OpenAI TTS с double-buffering: пока играет chunk N, генерируется chunk N+1."""
     if not client:
         logger.warning("⚠️  OpenAI TTS недоступен без API-клиента.")
         return False
@@ -1098,17 +1579,55 @@ def speak_with_openai_chunks(tts_chunks: list[dict[str, Any]]) -> bool:
     try:
         logger.info("🎤 Озвучиваю ответ через OpenAI TTS с грамматическими паузами...")
         logger.info(f"🧩 Количество chunk-ов: {len(tts_chunks)}")
-        ui_print("🔊 Озвучиваю ответ...")
+        ui_print("⏳ Готовлю озвучивание ответа...")
         show_tts_playback_settings("OpenAI TTS", tts_chunks)
 
-        with tempfile.TemporaryDirectory() as temp_dir_name:
-            final_audio_file = Path(temp_dir_name) / "teacher_response.wav"
-            render_chunked_openai_tts(tts_chunks, final_audio_file)
-            logger.info("✅ Озвучено (OpenAI TTS с паузами)")
+        safe_speed = clamp_tts_speed(TTS_SPEED)
+        chunk_instructions = build_tts_chunk_instructions(safe_speed)
+        errors: list = []
 
-            if play_audio_file(final_audio_file):
-                ui_print("✅ Ответ озвучен.")
-                return True
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+
+            # Генерируем первый chunk синхронно — без него нечего воспроизводить.
+            current_path = temp_dir / "chunk_00.wav"
+            with tts_preparing_wait_feedback():
+                _fetch_tts_chunk(tts_chunks[0], current_path, safe_speed, chunk_instructions, errors)
+            if errors:
+                raise errors[0]
+
+            ui_print("🔊 Озвучиваю ответ...")
+            for index in range(len(tts_chunks)):
+                # Запускаем генерацию следующего chunk в фоне пока воспроизводится текущий.
+                next_thread: threading.Thread | None = None
+                next_path: Path | None = None
+                if index + 1 < len(tts_chunks):
+                    next_path = temp_dir / f"chunk_{index + 1:02d}.wav"
+                    next_thread = threading.Thread(
+                        target=_fetch_tts_chunk,
+                        args=(tts_chunks[index + 1], next_path, safe_speed, chunk_instructions, errors),
+                        daemon=True,
+                    )
+                    next_thread.start()
+
+                if not play_audio_file(current_path):
+                    if next_thread:
+                        next_thread.join()
+                    return False
+
+                if index < len(tts_chunks) - 1:
+                    pause_ms = get_effective_pause_ms(tts_chunks[index].get("pause_ms", CLAUSE_PAUSE_MS))
+                    time.sleep(pause_ms / 1000)
+
+                if next_thread:
+                    next_thread.join()
+                    if errors:
+                        raise errors[0]
+                    current_path = next_path
+
+        logger.info("✅ Озвучено (OpenAI TTS с паузами)")
+        ui_print("✅ Ответ озвучен.")
+        return True
 
     except Exception as e:
         logger.warning(f"⚠️  OpenAI TTS ошибка: {e}")
@@ -1118,103 +1637,214 @@ def speak_with_openai_chunks(tts_chunks: list[dict[str, Any]]) -> bool:
 
 def play_input_beep() -> None:
     """Сыграть короткий звуковой сигнал, что программа ждёт голосового ввода."""
-    try:
-        subprocess.run(
-            [
-                "ffplay", "-nodisp", "-autoexit",
-                "-f", "lavfi",
-                "-i", "sine=frequency=880:duration=0.25",
-                "-af", "afade=t=out:st=0.15:d=0.1",
-            ],
-            capture_output=True,
-            timeout=5,
-            check=False,
-        )
-    except Exception:
-        pass
+    play_synthetic_status_tone(
+        frequency=880,
+        duration=0.25,
+        audio_filter="volume=0.06,afade=t=out:st=0.15:d=0.1",
+    )
 
 
 def play_stop_listening_beep() -> None:
     """Сыграть короткий нисходящий сигнал, что программа перестала слушать."""
+    play_synthetic_status_tone(
+        frequency=520,
+        duration=0.2,
+        audio_filter="volume=0.06,afade=t=in:st=0:d=0.05,afade=t=out:st=0.12:d=0.08",
+    )
+
+
+def play_listening_active_beep() -> None:
+    """Сыграть тихий повторяющийся сигнал, пока программа слушает микрофон."""
+    play_synthetic_status_tone(
+        frequency=930,
+        duration=0.09,
+        audio_filter="volume=0.025,afade=t=in:st=0:d=0.015,afade=t=out:st=0.05:d=0.04",
+    )
+
+
+def play_transcribing_beep() -> None:
+    """Сыграть мягкий сигнал, пока Whisper ещё распознаёт речь."""
+    play_synthetic_status_tone(
+        frequency=610,
+        duration=0.11,
+        audio_filter="volume=0.035,afade=t=in:st=0:d=0.02,afade=t=out:st=0.06:d=0.05",
+        fallback_bell=True,
+    )
+
+
+def play_teacher_waiting_beep() -> None:
+    """Сыграть мягкий короткий сигнал, что учитель всё ещё готовит ответ."""
+    play_synthetic_status_tone(
+        frequency=660,
+        duration=0.12,
+        audio_filter="volume=0.04,afade=t=in:st=0:d=0.02,afade=t=out:st=0.07:d=0.05",
+        fallback_bell=True,
+    )
+
+
+def play_tts_preparing_beep() -> None:
+    """Сыграть мягкий сигнал, пока готовится первый TTS chunk."""
+    play_synthetic_status_tone(
+        frequency=760,
+        duration=0.11,
+        audio_filter="volume=0.035,afade=t=in:st=0:d=0.02,afade=t=out:st=0.06:d=0.05",
+        fallback_bell=True,
+    )
+
+
+def play_synthetic_status_tone(
+    frequency: int,
+    duration: float,
+    audio_filter: str,
+    *,
+    timeout_seconds: float = 5,
+    fallback_bell: bool = False,
+) -> None:
+    """Сыграть короткий синтетический тон через ffplay."""
     try:
         subprocess.run(
             [
-                "ffplay", "-nodisp", "-autoexit",
+                "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet",
                 "-f", "lavfi",
-                "-i", "sine=frequency=520:duration=0.2",
-                "-af", "afade=t=in:st=0:d=0.05,afade=t=out:st=0.12:d=0.08",
+                "-i", f"sine=frequency={frequency}:duration={duration}",
+                "-af", audio_filter,
             ],
             capture_output=True,
-            timeout=5,
+            timeout=timeout_seconds,
             check=False,
         )
     except Exception:
-        pass
+        if not fallback_bell:
+            return
+        try:
+            sys.stdout.write("\a")
+            sys.stdout.flush()
+        except Exception:
+            pass
+
+
+@contextmanager
+def periodic_stage_feedback(
+    interval_seconds: float,
+    beep_callback: Callable[[], None],
+    *,
+    logger_message: str | None = None,
+    ui_message: str | None = None,
+    play_immediately: bool = False,
+):
+    """Периодически напоминать пользователю, что текущий этап всё ещё идёт."""
+    stop_event = threading.Event()
+    started_at = time.monotonic()
+
+    def notify() -> None:
+        if play_immediately:
+            beep_callback()
+
+        while not stop_event.wait(interval_seconds):
+            elapsed_seconds = int(time.monotonic() - started_at)
+            if logger_message:
+                logger.info(logger_message, elapsed_seconds)
+            if ui_message:
+                ui_print(ui_message.format(seconds=elapsed_seconds))
+            beep_callback()
+
+    notifier_thread = threading.Thread(target=notify, daemon=True)
+    notifier_thread.start()
+    try:
+        yield
+    finally:
+        stop_event.set()
+        notifier_thread.join(timeout=1.0)
+
+
+@contextmanager
+def listening_wait_feedback(interval_seconds: float = LISTENING_SIGNAL_INTERVAL_SECONDS):
+    """Тихо напоминать, что запись голоса всё ещё продолжается."""
+    with periodic_stage_feedback(interval_seconds, play_listening_active_beep):
+        yield
+
+
+@contextmanager
+def transcription_wait_feedback(interval_seconds: float = TRANSCRIPTION_WAIT_SIGNAL_INTERVAL_SECONDS):
+    """Периодически сообщать, что Whisper всё ещё распознаёт речь."""
+    with periodic_stage_feedback(
+        interval_seconds,
+        play_transcribing_beep,
+        logger_message="⏳ Whisper всё ещё распознаёт речь... %s сек",
+        ui_message="⏳ Всё ещё распознаю вашу речь... {seconds} сек.",
+    ):
+        yield
+
+
+@contextmanager
+def teacher_response_wait_feedback(interval_seconds: float = TEACHER_WAIT_SIGNAL_INTERVAL_SECONDS):
+    """Периодически напоминать, что длинная генерация ответа всё ещё идёт."""
+    with periodic_stage_feedback(
+        interval_seconds,
+        play_teacher_waiting_beep,
+        logger_message="⏳ Учитель всё ещё готовит ответ... %s сек",
+        ui_message="⏳ Учитель всё ещё готовит ответ... {seconds} сек.",
+    ):
+        yield
+
+
+@contextmanager
+def tts_preparing_wait_feedback(interval_seconds: float = TTS_PREPARING_SIGNAL_INTERVAL_SECONDS):
+    """Периодически сообщать, что первый TTS chunk всё ещё готовится."""
+    with periodic_stage_feedback(
+        interval_seconds,
+        play_tts_preparing_beep,
+        logger_message="⏳ OpenAI TTS всё ещё готовит первый audio chunk... %s сек",
+        ui_message="⏳ Всё ещё готовлю озвучивание ответа... {seconds} сек.",
+    ):
+        yield
+
 
 
 def play_audio_file(audio_file: Path) -> bool:
-    """Воспроизвести подготовленный аудиофайл через ffplay."""
-    try:
-        result = subprocess.run(
-            ["ffplay", "-nodisp", "-autoexit", str(audio_file)],
-            capture_output=True,
-            timeout=60,
-            check=False,
-        )
-        if result.returncode == 0:
-            return True
+    """Воспроизвести подготовленный аудиофайл через ffplay или системный WAV-плеер."""
+    playback_attempts = [
+        ("ffplay", ["ffplay", "-nodisp", "-autoexit", str(audio_file)], 60),
+    ]
+    if audio_file.suffix.lower() == ".wav":
+        playback_attempts.append(("aplay", ["aplay", "-q", str(audio_file)], 60))
 
-        logger.warning("⚠️  ffplay завершился с ошибкой, перехожу на локальный TTS fallback...")
-        return False
-    except FileNotFoundError:
-        logger.warning("⚠️  ffplay не найден, перехожу на локальный TTS fallback...")
-        return False
-    except Exception as e:
-        logger.warning(f"⚠️  Не удалось воспроизвести аудиофайл через ffplay: {e}")
-        return False
+    for player_name, command, timeout_seconds in playback_attempts:
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            if result.returncode == 0:
+                return True
 
+            stderr_text = result.stderr.decode(errors="ignore").strip()
+            if stderr_text:
+                logger.warning("⚠️  %s завершился с ошибкой: %s", player_name, stderr_text)
+            else:
+                logger.warning("⚠️  %s завершился с кодом %s", player_name, result.returncode)
+        except FileNotFoundError:
+            logger.info("ℹ️ %s не найден, пробую следующий способ воспроизведения.", player_name)
+        except Exception as e:
+            logger.warning("⚠️  Не удалось воспроизвести аудиофайл через %s: %s", player_name, e)
 
-def speak_with_local_chunks(fallback_engine: Optional[pyttsx3.Engine], tts_chunks: list[dict[str, Any]]) -> bool:
-    """Локальный fallback: озвучить chunk-и по очереди и выдержать паузы."""
-    if fallback_engine is None:
-        fallback_engine = get_tts_engine(TTS_SPEED, TTS_VOLUME)
-    if fallback_engine is None:
-        logger.warning("⚠️  Локальный TTS недоступен.")
-        return False
-
-    logger.info("🎤 Озвучиваю ответ через pyttsx3...")
-    ui_print("🔊 Озвучиваю ответ...")
-    show_tts_playback_settings("pyttsx3", tts_chunks)
-
-    with suppress_stderr():
-        for index, chunk in enumerate(tts_chunks):
-            fallback_engine.say(chunk["text"])
-            fallback_engine.runAndWait()
-
-            if index < len(tts_chunks) - 1:
-                pause_ms = get_effective_pause_ms(chunk.get("pause_ms", CLAUSE_PAUSE_MS))
-                time.sleep(pause_ms / 1000)
-
-    logger.info("✅ Озвучено")
-    ui_print("✅ Ответ озвучен.")
-    return True
+    logger.warning("⚠️  Не удалось воспроизвести аудиофайл локально.")
+    return False
 
 
 def speak_response(
-    engine: Optional[pyttsx3.Engine],
     teacher_response: Any,
     enable_audio: bool = True,
-    use_openai_tts: bool = True,
     level: str = LANGUAGE_LEVEL,
 ):
     """
     Озвучить ответ учителя с паузами между грамматическими chunk-ами.
 
     Args:
-        engine: pyttsx3.Engine объект (используется если OpenAI недоступен)
         teacher_response: dict с display_text и tts_chunks или обычная строка
         enable_audio: Озвучивать ли (True/False)
-        use_openai_tts: Использовать ли OpenAI TTS (если доступен)
     """
     display_text, tts_chunks = get_display_text_and_chunks(teacher_response, level)
 
@@ -1228,29 +1858,10 @@ def speak_response(
         logger.info(f"🔇 TTS отключен. Ответ: {display_text}")
         return
 
-    fallback_engine = engine
-    tts_service = get_configured_tts_service()
-    logger.info("🔊 Конфиг TTS: service=%s, requested_speech_speed=%.2f", tts_service, TTS_SPEED)
+    logger.info("🔊 Конфиг TTS: service=openai, requested_speech_speed=%.2f", TTS_SPEED)
 
-    if tts_service == "openai":
-        if use_openai_tts and speak_with_openai_chunks(tts_chunks):
-            return
-
-        logger.warning("⚠️  OpenAI TTS недоступен, использую pyttsx3...")
-        ui_print("⚠️ OpenAI TTS недоступен. Пробую локальную озвучку...")
-        if speak_with_local_chunks(fallback_engine, tts_chunks):
-            return
-        ui_print("⚠️ Озвучка недоступна. Ответ показан только текстом.")
+    if speak_with_openai_chunks(tts_chunks):
         return
-
-    if speak_with_local_chunks(fallback_engine, tts_chunks):
-        return
-
-    if use_openai_tts and client:
-        logger.warning("⚠️  pyttsx3 недоступен, переключаюсь на OpenAI TTS...")
-        ui_print("⚠️ Локальная озвучка недоступна. Переключаюсь на OpenAI TTS...")
-        if speak_with_openai_chunks(tts_chunks):
-            return
 
     ui_print("⚠️ Озвучка недоступна. Ответ показан только текстом.")
 
@@ -1273,8 +1884,6 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
         return
 
     session = ConversationSession(level)
-    engine = None
-    tts_service = get_configured_tts_service()
 
     logger.info(f"\n{'='*70}")
     logger.info(f"🎓 СЕАНС ОБУЧЕНИЯ ЗАПУЩЕН (уровень: {level})")
@@ -1285,9 +1894,10 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
     ui_print("  • Говорите по-английски в микрофон, когда увидите подсказку 'Говорите...'.")
     ui_print(f"  • Когда закончите фразу, просто помолчите {PAUSE_THRESHOLD} сек.")
     ui_print(
-        f"  • Озвучивание: {get_tts_service_label(tts_service)}, "
+        "  • Озвучивание: OpenAI TTS, "
         f"скорость слов {TTS_SPEED:.2f}; паузы между chunk-ами настраиваются отдельно."
     )
+    ui_print("  • Если учитель думает дольше обычного, программа подаст короткий сигнал ожидания.")
     ui_print("  • Для выхода из сеанса можно нажать Ctrl+C.\n")
     if SESSION_IDLE_TIMEOUT > 0:
         ui_print(f"  • Если не говорить слишком долго, сеанс завершится сам через {SESSION_IDLE_TIMEOUT:.0f} сек.\n")
@@ -1303,8 +1913,10 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
             # ЭТАП 1: Запись
             ui_print("📝 Шаг 1/4: Запись вашей речи")
             play_input_beep()
-            audio_file = record_audio(PAUSE_THRESHOLD, PHRASE_TIME_LIMIT, SESSION_IDLE_TIMEOUT)
-            play_stop_listening_beep()
+            try:
+                audio_file = record_audio(PAUSE_THRESHOLD, PHRASE_TIME_LIMIT, SESSION_IDLE_TIMEOUT)
+            finally:
+                play_stop_listening_beep()
 
             if not audio_file:
                 logger.warning("⚠️  Не удалось записать аудио. Попробуйте снова.")
@@ -1320,7 +1932,8 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
 
             # ЭТАП 3: Ответ учителя
             ui_print("\n📝 Шаг 3/4: Генерация ответа учителя")
-            teacher_response = get_teacher_response(student_text, level, session.conversation)
+            with teacher_response_wait_feedback():
+                teacher_response = get_teacher_response(student_text, level, session.conversation)
 
             if not teacher_response:
                 logger.warning("⚠️  Не удалось получить ответ. Попробуйте снова.")
@@ -1333,7 +1946,7 @@ def practice_session(level: str = "B1", enable_audio: bool = True):
 
             # ЭТАП 4: Озвучивание
             ui_print("\n📝 Шаг 4/4: Озвучивание ответа")
-            speak_response(engine, teacher_response, enable_audio, level=level)
+            speak_response(teacher_response, enable_audio, level=level)
 
             # Вывести результаты раунда
             ui_print(f"\n{ROUND_DIVIDER}")
