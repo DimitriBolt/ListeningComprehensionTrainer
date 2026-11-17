@@ -65,4 +65,5 @@ responses/
 
 # Пробы S00b: звук и сырые результаты остаются на компьютере пользователя
 tools/probe/out/
+tools/probe/.venv/
 .pytest_cache/
