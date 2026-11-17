@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.ToneGenerator
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.conversation.SpeechPlanner
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -36,11 +37,6 @@ import java.util.*
 import java.util.regex.Pattern
 import kotlin.coroutines.resume
 
-/**
- * Данные для одного фрагмента озвучки (чанка)
- */
-data class TtsChunk(val text: String, val pauseMs: Long)
-
 class TrainerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val PREFS_NAME = "trainer_prefs"
@@ -60,6 +56,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
     private var mediaPlayer: MediaPlayer? = null
     private var shouldStopPlayback = false
     private val chatHistory = mutableListOf<Message>()
+    private val speechPlanner = SpeechPlanner()
 
     private val httpClient = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.NONE })
@@ -294,7 +291,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                 teacherResponse = finalContent
 
                 if (finalContent.isNotEmpty()) {
-                    val chunks = splitIntoChunks(finalContent)
+                    val chunks = speechPlanner.plan(finalContent)
                     val deferredFiles = chunks.mapIndexed { index, chunk ->
                         async(Dispatchers.IO) {
                             // Удаляем ** из текста только для озвучки.
@@ -331,52 +328,6 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) { statusText = "Error: ${e.localizedMessage}" }
             finally { isProcessing = false }
         }
-    }
-
-    /**
-     * Разрезает текст на части для комфортного прослушивания.
-     * Здесь настраиваются паузы между фразами и логика дробления.
-     */
-    private fun splitIntoChunks(text: String): List<TtsChunk> {
-        val preparedText = text.replace(Regex("(?<!\\d\\.)\\s*(\\*\\*.*?\\*\\*)"), "\n$1\n")
-        val paragraphs = preparedText.split(Regex("\\n+")).filter { it.trim().isNotEmpty() }
-        val allChunks = mutableListOf<TtsChunk>()
-
-        // [1] Базовый split: знаки препинания и союзы
-        val splitRegex = Regex("(?<=[,!?;:])\\s+|(?<=[.])(?<!\\b\\d\\.)\\s+|\\s+(?=(?i)and|but|because|if|when|then|after|before|that|which|who|so|or|although|while|since|as)\\b")
-
-        paragraphs.forEachIndexed { pIndex, pText ->
-            val pChunksRaw = pText.split(splitRegex).filter { it.trim().isNotEmpty() }
-            
-            // [2] ВТОРИЧНОЕ ДРОБЛЕНИЕ: Если фраза > 6 слов, режем её пополам для педагогических целей.
-            val pedagogicalChunks = mutableListOf<String>()
-            for (rawChunk in pChunksRaw) {
-                val words = rawChunk.split(" ")
-                if (words.size > 6) {
-                    val mid = words.size / 2
-                    pedagogicalChunks.add(words.subList(0, mid).joinToString(" "))
-                    pedagogicalChunks.add(words.subList(mid, words.size).joinToString(" "))
-                } else {
-                    pedagogicalChunks.add(rawChunk)
-                }
-            }
-
-            val pChunks = pedagogicalChunks.mapIndexed { cIndex, t ->
-                val trimmed = t.trim()
-                val p = when {
-                    cIndex == pedagogicalChunks.size - 1 && pIndex < paragraphs.size - 1 -> 1600L
-                    trimmed.startsWith("**") && trimmed.endsWith("**") -> 1100L
-                    trimmed.endsWith(".") || trimmed.endsWith("!") || trimmed.endsWith("?") -> 1000L
-                    trimmed.endsWith(",") || trimmed.endsWith(":") || trimmed.endsWith(";") -> 600L
-                    else -> 250L
-                }
-                // [3] ОПЕРЕЖАЮЩИЙ ЗАПУСК: Вычитаем 1000мс, так как в файле теперь ~1.2 сек тишины.
-                // Это заставит телефон начать "трансляцию" тишины в наушники почти мгновенно.
-                TtsChunk(trimmed, maxOf(10L, p - 1000L))
-            }
-            allChunks.addAll(pChunks)
-        }
-        return allChunks
     }
 
     /**
