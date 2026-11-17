@@ -16,8 +16,8 @@ class SpeechPlanner {
         val paragraphs = preparedText.split(Regex("\\n+")).filter { it.trim().isNotEmpty() }
         val allChunks = mutableListOf<SpeechChunk>()
 
-        // [1] Базовый split: знаки препинания и союзы
-        val splitRegex = Regex("(?<=[,!?;:])\\s+|(?<=[.])(?<!\\b\\d\\.)\\s+|\\s+(?=(?i)and|but|because|if|when|then|after|before|that|which|who|so|or|although|while|since|as)\\b")
+        // [1] Базовый split: знаки препинания и союзы (только целое слово: `sorry` не режется)
+        val splitRegex = Regex("(?<=[,!?;:])\\s+|(?<=[.])(?<!\\b\\d\\.)\\s+|\\s+(?=(?i:and|but|because|if|when|then|after|before|that|which|who|so|or|although|while|since|as)\\b)")
 
         paragraphs.forEachIndexed { pIndex, pText ->
             val pChunksRaw = pText.split(splitRegex).filter { it.trim().isNotEmpty() }

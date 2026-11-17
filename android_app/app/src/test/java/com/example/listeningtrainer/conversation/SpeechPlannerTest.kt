@@ -79,8 +79,7 @@ class SpeechPlannerTest {
                 "Here are two simple rules:" to 1600L,
                 "1. **Make**" to 1600L,
                 "We use \"make\"" to 250L,
-                "when we create" to 250L,
-                "something," to 600L,
+                "when we create something," to 600L,
                 "like a cake" to 250L,
                 "or a plan." to 1600L,
                 "Can you make a" to 250L,
@@ -94,13 +93,21 @@ class SpeechPlannerTest {
     }
 
     @Test
-    fun `conjunction split - current behavior`() {
-        assertEquals(listOf("I", "ask you."), texts("I ask you."))
-        assertEquals(listOf("I am", "sorry."), texts("I am sorry."))
-        assertEquals(listOf("I spent the", "whole day here."), texts("I spent the whole day here."))
-        assertEquals(listOf("Good", "afternoon to you."), texts("Good afternoon to you."))
-        assertEquals(listOf("In", "order to win."), texts("In order to win."))
-        assertEquals(listOf("I want", "some tea."), texts("I want some tea."))
+    fun `words that only start with a conjunction are not split`() {
+        assertEquals(listOf("I ask you."), texts("I ask you."))
+        assertEquals(listOf("I am sorry."), texts("I am sorry."))
+        assertEquals(listOf("I spent the whole day here."), texts("I spent the whole day here."))
+        assertEquals(listOf("Good afternoon to you."), texts("Good afternoon to you."))
+        assertEquals(listOf("In order to win."), texts("In order to win."))
+        assertEquals(listOf("I want some tea."), texts("I want some tea."))
+        assertEquals(listOf("I like oranges."), texts("I like oranges."))
+        assertEquals(listOf("Ask me again."), texts("Ask me again."))
+    }
+
+    @Test
+    fun `whole conjunction is split regardless of case`() {
+        assertEquals(listOf("Yes,", "So we go."), texts("Yes, So we go."))
+        assertEquals(listOf("Wait here", "AND listen."), texts("Wait here AND listen."))
     }
 
     @Test
