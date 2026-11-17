@@ -47,6 +47,7 @@ def test_redact_hides_key(tmp_path):
     s = probe.redact(f"Authorization: Bearer {FAKE_KEY} failed")
     assert FAKE_KEY not in s and "***" in s
     assert "sk-abcdefghijkl" not in probe.redact("key sk-abcdefghijklmnop")
+    assert "7890" not in probe.redact("Incorrect API key provided: sk-proj-******************7890.")
 
 
 def test_auth_error_has_no_key():

@@ -208,3 +208,31 @@ def test_http_401_message(tmp_path):
     with pytest.raises(probe.ProbeError) as e:
         probe.run_probe(ctx, "tutor")
     assert "401" in str(e.value)
+
+
+def test_realtime_invalid_key_close_3000(tmp_path, monkeypatch):
+    """Так ведёт себя настоящий Realtime с неверным ключом: подключает, затем закрывает 3000."""
+    async def handler(ws):
+        await ws.close(3000, "invalid_request_error.invalid_api_key")
+
+    async def run():
+        async with websockets.serve(handler, "127.0.0.1", 0) as srv:
+            port = srv.sockets[0].getsockname()[1]
+            async with probe.Realtime("sk-fake-0000000000000000", 5, f"ws://127.0.0.1:{port}/") as rt:
+                await rt.update_session({"type": "realtime"})
+
+    with pytest.raises(probe.ProbeError) as e:
+        asyncio.run(run())
+    assert "401" in str(e.value)
+
+
+def test_http_401_hides_openai_message_with_key_tail(tmp_path):
+    ctx = make_ctx(tmp_path, "tutor")
+    api = probe.Api.__new__(probe.Api)
+    api.client = httpx.Client(base_url=probe.API_BASE, transport=httpx.MockTransport(
+        lambda r: httpx.Response(401, json={"error": {"message": "Incorrect API key provided: sk-proj-****7890."}})))
+    ctx._api = api
+    with pytest.raises(probe.ProbeError) as e:
+        probe.run_probe(ctx, "tutor")
+    assert "7890" not in str(e.value)
+    assert not (tmp_path / "docs.md").exists()  # 401 не портит прежние результаты

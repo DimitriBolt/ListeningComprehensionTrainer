@@ -133,6 +133,7 @@ def redact(text: object) -> str:
     for k in _SECRETS:
         if k:
             s = s.replace(k, "***")
+    s = re.sub(r"sk-[A-Za-z0-9_\-]*\*+[A-Za-z0-9]*", "sk-***", s)  # «sk-proj-****7890» из ответа OpenAI
     s = re.sub(r"sk-[A-Za-z0-9_\-]{8,}", "sk-***", s)
     return s
 
@@ -554,6 +555,8 @@ class Api:
                                    headers={"Authorization": f"Bearer {key}"})
 
     def _check(self, r) -> None:
+        if r.status_code == 401:
+            raise ProbeError(auth_error_text(401))
         if r.status_code >= 400:
             try:
                 msg = r.json().get("error", {}).get("message", "")
@@ -675,11 +678,30 @@ class Realtime:
         except Exception:
             pass
 
+    @staticmethod
+    def _closed_error(e) -> ProbeError:
+        """Неверный ключ Realtime не отклоняет при подключении, а закрывает соединение
+        кодом 3000 с причиной invalid_request_error.invalid_api_key (проверено 2026-11-16)."""
+        rcvd = getattr(e, "rcvd", None)
+        code = getattr(rcvd, "code", None)
+        reason = getattr(rcvd, "reason", "") or ""
+        if "invalid_api_key" in reason:
+            return ProbeError(auth_error_text(401))
+        return ProbeError(redact(f"Realtime закрыл соединение: код {code} {reason}".strip()))
+
     async def send(self, event: dict) -> None:
-        await self.ws.send(json.dumps(event))
+        import websockets
+        try:
+            await self.ws.send(json.dumps(event))
+        except websockets.exceptions.ConnectionClosed as e:
+            raise self._closed_error(e) from None
 
     async def recv(self, timeout: float | None = None) -> dict:
-        msg = await asyncio.wait_for(self.ws.recv(), timeout or self.timeout)
+        import websockets
+        try:
+            msg = await asyncio.wait_for(self.ws.recv(), timeout or self.timeout)
+        except websockets.exceptions.ConnectionClosed as e:
+            raise self._closed_error(e) from None
         return json.loads(msg)
 
     async def wait_for(self, types: tuple[str, ...], timeout: float | None = None) -> dict:
@@ -834,6 +856,8 @@ async def _verbatim_run(ctx: Ctx, chunks: list[str], variant: int, voice: str) -
             text = tts_text(chunk)
             try:
                 r = await rt_say(rt, text, ctx.args.rt_reasoning)
+            except ProbeError:
+                raise  # соединение закрыто или ключ не принят — дальше по группам смысла нет
             except Exception as e:  # одна группа не роняет пробу
                 r = {"text": text, "error": redact(e), "transcript": "", "pcm": b""}
             cmp = compare_texts(text, r.get("transcript", "")) if not r.get("error") else \
@@ -936,6 +960,8 @@ async def _latency_rt(ctx: Ctx, texts: list[str]) -> dict:
             try:
                 r = await rt_say(rt, text, ctx.args.rt_reasoning)
                 r.pop("pcm", None)
+            except ProbeError:
+                raise
             except Exception as e:
                 r = {"text": text, "error": redact(e)}
             out["rows"].append(r)
@@ -1496,17 +1522,17 @@ def run_probe(ctx: Ctx, name: str) -> bool:
             tb = redact(traceback.format_exc(limit=3))
         else:
             tb = ""
+        if "401" in msg:
+            raise ProbeError(msg)  # без ключа дальше идти бессмысленно; результаты не трогаем
         log(f"!!! проба {name} упала: {msg}")
         ctx.results.put(name, {"error": msg, "traceback": tb},
                         f"## {name}\n\n**Проба не выполнена:** {msg}")
-        if "401" in msg:
-            raise ProbeError(msg)
         return False
 
 
 def print_next_steps(ctx: Ctx) -> None:
     rel = DOCS_RESULTS.relative_to(REPO_ROOT)
-    print(f"\nГотово. Отчёт: {ctx.results.md_path}")
+    print(f"\nОтчёт: {ctx.results.md_path}")
     print(f"Копия для архитектора: {rel}")
     print("Что сделать дальше:")
     print("  1. Послушайте tools/probe/out/voices/*.wav и впишите выбранный голос в раздел voices.")
