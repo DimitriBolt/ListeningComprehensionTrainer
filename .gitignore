@@ -62,3 +62,7 @@ Thumbs.db
 __pycache__/
 *.pyc
 responses/
+
+# Пробы S00b: звук и сырые результаты остаются на компьютере пользователя
+tools/probe/out/
+.pytest_cache/
