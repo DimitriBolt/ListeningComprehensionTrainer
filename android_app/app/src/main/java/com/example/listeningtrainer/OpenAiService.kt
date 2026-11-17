@@ -1,6 +1,7 @@
 @file:OptIn(kotlinx.serialization.InternalSerializationApi::class)
 package com.example.listeningtrainer
 
+import com.example.listeningtrainer.config.ModelConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import okhttp3.MultipartBody
@@ -68,11 +69,11 @@ data class Choice(
 
 @Serializable
 data class TtsRequest(
-    val model: String = "tts-1",
+    val model: String = ModelConfig.TTS_MODEL,
     val input: String,
-    val voice: String = "nova",
-    val response_format: String = "mp3",
-    val speed: Float = 1.0f
+    val voice: String = ModelConfig.TTS_VOICE,
+    val response_format: String = ModelConfig.TTS_FORMAT,
+    val speed: Float = ModelConfig.TTS_SPEED
 )
 
 @Serializable

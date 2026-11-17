@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.ToneGenerator
+import com.example.listeningtrainer.config.ModelConfig
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -62,13 +63,16 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
 
     private val httpClient = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.NONE })
-        .dispatcher(Dispatcher().apply { maxRequests = 50; maxRequestsPerHost = 50 })
+        .connectTimeout(ModelConfig.CONNECT_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .readTimeout(ModelConfig.READ_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .writeTimeout(ModelConfig.WRITE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .dispatcher(Dispatcher().apply { maxRequests = ModelConfig.MAX_PARALLEL_REQUESTS; maxRequestsPerHost = ModelConfig.MAX_PARALLEL_REQUESTS })
         .build()
 
     private val openAiService: OpenAiService by lazy {
         val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
         Retrofit.Builder()
-            .baseUrl("https://api.openai.com/")
+            .baseUrl(ModelConfig.OPENAI_BASE_URL)
             .client(httpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
@@ -100,7 +104,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
             try {
                 isProcessing = true
                 statusText = "Validating key..."
-                val response = openAiService.checkKey("Bearer $cleanKey", ChatRequest(model = "gpt-4o-mini", messages = listOf(Message("user", "Hi"))))
+                val response = openAiService.checkKey("Bearer $cleanKey", ChatRequest(model = ModelConfig.TUTOR_MODEL, messages = listOf(Message("user", "Hi"))))
                 if (response.choices.isNotEmpty()) {
                     isKeyValid = true; statusText = "Key valid ✅"
                     getApplication<Application>().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_API_KEY, cleanKey).apply()
@@ -119,7 +123,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                 shouldStopPlayback = false
                 statusText = "Transcribing..."
                 val filePart = MultipartBody.Part.createFormData("file", audioFile.name, audioFile.asRequestBody("audio/wav".toMediaType()))
-                val response = openAiService.transcribeAudio("Bearer $cleanKey", filePart, "whisper-1".toRequestBody(textType), "en".toRequestBody(textType))
+                val response = openAiService.transcribeAudio("Bearer $cleanKey", filePart, ModelConfig.TRANSCRIBE_MODEL.toRequestBody(textType), ModelConfig.TRANSCRIBE_LANGUAGE.toRequestBody(textType))
                 recognizedText = response.text
                 if (response.text.isBlank() || response.text.length < 2) {
                     silenceCount++
@@ -171,7 +175,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                 "get_weather" -> {
                     val loc = jsonArgs["location"]?.jsonPrimitive?.content ?: "London"
                     try {
-                        val response = httpClient.newCall(Request.Builder().url("https://wttr.in/$loc?format=%l:+%C+%t").build()).execute()
+                        val response = httpClient.newCall(Request.Builder().url(ModelConfig.WEATHER_URL.replace("{location}", loc)).build()).execute()
                         response.body?.string() ?: "Weather unavailable"
                     } catch (e: Exception) { "Weather failed" }
                 }
@@ -179,8 +183,8 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                     val query = jsonArgs["query"]?.jsonPrimitive?.content ?: ""
                     try {
                         val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                        val url = "https://duckduckgo.com/lite/?q=$encodedQuery"
-                        val request = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").build()
+                        val url = ModelConfig.SEARCH_URL + encodedQuery
+                        val request = Request.Builder().url(url).header("User-Agent", ModelConfig.SEARCH_USER_AGENT).build()
                         val html = httpClient.newCall(request).execute().body?.string() ?: ""
                         
                         // Собираем ВСЕ текстовые блоки из результатов для GPT
@@ -260,7 +264,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                     chatHistory.add(Message("user", actualPrompt))
                 }
 
-                var response = openAiService.checkKey("Bearer $cleanKey", ChatRequest(model = "gpt-4o-mini", messages = chatHistory, tools = getTools()))
+                var response = openAiService.checkKey("Bearer $cleanKey", ChatRequest(model = ModelConfig.TUTOR_MODEL, messages = chatHistory, tools = getTools()))
                 var currentMessage = response.choices.first().message
                 val toolCalls = currentMessage.tool_calls
                 var toolDataFound = false
@@ -276,7 +280,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                         delay(800)
                         chatHistory.add(Message(role = "tool", tool_call_id = toolCall.id, content = result, name = toolCall.function.name))
                     }
-                    response = openAiService.checkKey("Bearer $cleanKey", ChatRequest(model = "gpt-4o-mini", messages = chatHistory))
+                    response = openAiService.checkKey("Bearer $cleanKey", ChatRequest(model = ModelConfig.TUTOR_MODEL, messages = chatHistory))
                     currentMessage = response.choices.first().message
                 }
 
@@ -295,7 +299,7 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                             // Удаляем ** из текста только для озвучки.
                             // Добавляем 8 точек (~1.2 сек тишины) для "железобетонного" прогрева Bluetooth.
                             val ttsInput = chunk.text.replace("**", "")
-                            val res = openAiService.generateSpeech("Bearer $cleanKey", TtsRequest(input = " . . . . . . . . " + ttsInput, speed = 0.88f))
+                            val res = openAiService.generateSpeech("Bearer $cleanKey", TtsRequest(input = " . . . . . . . . " + ttsInput, speed = ModelConfig.TTS_SPEED))
                             val file = File(cacheDir, "chunk_$index.mp3")
                             res.byteStream()?.use { i -> FileOutputStream(file).use { o -> i.copyTo(o) } }
                             file
