@@ -26,6 +26,8 @@ captures/
 keystore.properties
 secrets.properties
 credentials.json
+credentials.properties
+*credentials*.properties
 secrets.json
 *.key
 *.pem
