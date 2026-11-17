@@ -81,7 +81,8 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         val prefs = getApplication<Application>().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedKey = prefs.getString(KEY_API_KEY, "") ?: ""
+        // Сохранённый на устройстве ключ главнее; ключ из BuildConfig есть только в debug-сборке.
+        val savedKey = (prefs.getString(KEY_API_KEY, "") ?: "").ifEmpty { BuildConfig.DEBUG_API_KEY }
         if (savedKey.isNotEmpty()) {
             apiKey = savedKey
             validateKey()

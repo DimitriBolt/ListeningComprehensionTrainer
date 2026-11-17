@@ -1,9 +1,24 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     // Стандартный способ подключения плагина сериализации
     kotlin("plugin.serialization")
 }
+
+// Ключ OpenAI для отладочной сборки: строка APIkey=... в credentials.properties в корне
+// репозитория (на уровень выше android_app/). Файла нет — пустая строка, сборка не падает.
+// Значение нигде не печатается и попадает только в debug (см. buildTypes ниже).
+val debugApiKey: String = providers
+    .fileContents(rootProject.layout.projectDirectory.file("../credentials.properties"))
+    .asText
+    .map { text -> Properties().apply { load(text.reader()) }.getProperty("APIkey", "").trim() }
+    .orElse("")
+    .get()
+
+fun String.asBuildConfigString(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
     namespace = "com.example.listeningtrainer"
@@ -23,7 +38,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "DEBUG_API_KEY", debugApiKey.asBuildConfigString())
+        }
         release {
+            // В release ключ не попадает никогда.
+            buildConfigField("String", "DEBUG_API_KEY", "\"\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -40,6 +60,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
