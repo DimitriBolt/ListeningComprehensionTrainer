@@ -10,7 +10,9 @@ data class SpeechChunk(val text: String, val pauseMs: Long)
 class SpeechPlanner {
 
     fun plan(text: String): List<SpeechChunk> {
-        val preparedText = text.replace(Regex("(?<!\\d\\.)\\s*(\\*\\*.*?\\*\\*)"), "\n$1\n")
+        // Жирный заголовок — отдельный абзац. Номер пункта списка в начале строки
+        // (`1. **Заголовок**`) остаётся с заголовком в одной группе.
+        val preparedText = text.replace(HEADING_REGEX, "\n$1\n")
         val paragraphs = preparedText.split(Regex("\\n+")).filter { it.trim().isNotEmpty() }
         val allChunks = mutableListOf<SpeechChunk>()
 
@@ -37,7 +39,7 @@ class SpeechPlanner {
                 val trimmed = t.trim()
                 val p = when {
                     cIndex == pedagogicalChunks.size - 1 && pIndex < paragraphs.size - 1 -> PAUSE_PARAGRAPH_MS
-                    trimmed.startsWith("**") && trimmed.endsWith("**") -> PAUSE_HEADING_MS
+                    HEADING_CHUNK_REGEX.matches(trimmed) -> PAUSE_HEADING_MS
                     trimmed.endsWith(".") || trimmed.endsWith("!") || trimmed.endsWith("?") -> PAUSE_SENTENCE_MS
                     trimmed.endsWith(",") || trimmed.endsWith(":") || trimmed.endsWith(";") -> PAUSE_COMMA_MS
                     else -> PAUSE_INSIDE_MS
@@ -52,6 +54,9 @@ class SpeechPlanner {
     }
 
     companion object {
+        private val HEADING_REGEX = Regex("(?m)\\s*((?:^[ \\t]*\\d{1,2}\\.[ \\t]+)?\\*\\*.*?\\*\\*)")
+        private val HEADING_CHUNK_REGEX = Regex("(?:\\d{1,2}\\.\\s+)?\\*\\*.*\\*\\*")
+
         const val PAUSE_PARAGRAPH_MS = 1600L
         const val PAUSE_HEADING_MS = 1100L
         const val PAUSE_SENTENCE_MS = 1000L

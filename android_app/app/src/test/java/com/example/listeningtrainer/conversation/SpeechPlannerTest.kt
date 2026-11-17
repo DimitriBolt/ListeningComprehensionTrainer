@@ -73,12 +73,11 @@ class SpeechPlannerTest {
     }
 
     @Test
-    fun `numbered bold list - current behavior`() {
+    fun `numbered bold list item is one chunk`() {
         assertEquals(
             listOf(
                 "Here are two simple rules:" to 1600L,
-                "1." to 1600L,
-                "**Make**" to 1600L,
+                "1. **Make**" to 1600L,
                 "We use \"make\"" to 250L,
                 "when we create" to 250L,
                 "something," to 600L,
@@ -119,6 +118,31 @@ class SpeechPlannerTest {
         assertEquals(
             listOf("(Search attempted,", "fallback):", "I could not find it."),
             texts("(Search attempted, fallback): I could not find it."),
+        )
+    }
+
+    @Test
+    fun `every numbered heading in a list stays whole`() {
+        val chunks = texts(
+            "Here are two simple rules:\n1. **Make** We use \"make\" when we create something.\n" +
+                "2. **Do** We use \"do\" for tasks.\n  3. **Have** Easy."
+        )
+        assertTrue(chunks.toString(), "1. **Make**" in chunks)
+        assertTrue(chunks.toString(), "2. **Do**" in chunks)
+        assertTrue(chunks.toString(), "3. **Have**" in chunks)
+        assertTrue(chunks.toString(), chunks.none { it == "1." || it == "2." || it == "3." })
+    }
+
+    @Test
+    fun `numbered heading at the very end gets heading pause`() {
+        assertEquals(listOf("Rules:" to 1600L, "1. **Make**" to 1100L), pairs("Rules:\n1. **Make**"))
+    }
+
+    @Test
+    fun `number ending a sentence is not glued to the next heading`() {
+        assertEquals(
+            listOf("Today is 2026." to 1600L, "**Note**" to 1600L, "this." to 1000L),
+            pairs("Today is 2026. **Note** this."),
         )
     }
 }
