@@ -1,0 +1,54 @@
+# 50 смысловых групп для пробы verbatim, по одной на строку.
+# Получены из fixtures/teacher_replies.txt функцией split_into_chunks (перенос
+# TrainerViewModel.splitIntoChunks на Python). В синтез идут без ** — как в приложении.
+# Пересоздать: python -c "import probe; probe.write_chunks_fixture()"
+I think you meant "Yesterday
+I went to the shop
+and bought
+some apples," right?
+Good job!
+Now tell me,
+what did you
+cook with the apples?
+That's a great question.
+Many people find
+English hard to understand.
+People often connect words,
+and
+then they
+sound like one long word.
+What do you think?
+Tell me more.
+The price of gas in Tucson
+today is about $3.29 per gallon.
+That is a little
+lower than last month.
+Do you drive a lot?
+Here are two simple rules:
+1.
+**Make**
+We use "make"
+when we create
+something,
+like a cake
+or a plan.
+2.
+**Do**
+We use "do" for tasks
+and jobs,
+so you do your homework.
+Can you make a
+sentence with each word?
+Today is Monday,
+November 16,
+2026.
+The holidays start on December 24th,
+so we have 38 days.
+Are you planning a trip?
+Listen carefully.
+Repeat
+after me.
+Say it slowly,
+and
+then say it fast.
+Are you ready?
