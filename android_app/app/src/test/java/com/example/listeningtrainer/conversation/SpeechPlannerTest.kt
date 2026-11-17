@@ -4,10 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Поведение SpeechPlanner. Паузы в тестах — с вычетом 1000 мс на щит Bluetooth,
- * как в прежнем TrainerViewModel.splitIntoChunks.
- */
+/** Поведение SpeechPlanner. Паузы — эталонные, без опережающего запуска под щит Bluetooth. */
 class SpeechPlannerTest {
 
     private val planner = SpeechPlanner()
@@ -17,7 +14,7 @@ class SpeechPlannerTest {
 
     @Test
     fun `single word is one chunk`() {
-        assertEquals(listOf("Hello" to 10L), pairs("Hello"))
+        assertEquals(listOf("Hello" to 250L), pairs("Hello"))
     }
 
     @Test
@@ -30,21 +27,21 @@ class SpeechPlannerTest {
     fun `sentences and commas are split with their pauses`() {
         assertEquals(
             listOf(
-                "Listen carefully." to 10L,
-                "Repeat" to 10L,
-                "after me." to 10L,
-                "Say it slowly," to 10L,
-                "and" to 10L,
-                "then say it fast." to 10L,
+                "Listen carefully." to 1000L,
+                "Repeat" to 250L,
+                "after me." to 1000L,
+                "Say it slowly," to 600L,
+                "and" to 250L,
+                "then say it fast." to 1000L,
             ),
             pairs("Listen carefully. Repeat after me. Say it slowly, and then say it fast."),
         )
     }
 
     @Test
-    fun `paragraph end pause is 1600 minus shield`() {
+    fun `paragraph end pause is 1600`() {
         assertEquals(
-            listOf("First line." to 600L, "Second line." to 10L),
+            listOf("First line." to 1600L, "Second line." to 1000L),
             pairs("First line.\nSecond line."),
         )
     }
@@ -52,7 +49,7 @@ class SpeechPlannerTest {
     @Test
     fun `chunk longer than six words is cut in half`() {
         assertEquals(
-            listOf("The price is about \$3.29 today." to 10L, "Do you drive?" to 10L),
+            listOf("The price is about \$3.29 today." to 1000L, "Do you drive?" to 1000L),
             pairs("The price is about \$3.29 today. Do you drive?"),
         )
         assertEquals(
@@ -72,23 +69,23 @@ class SpeechPlannerTest {
 
     @Test
     fun `bold heading at end of text gets heading pause`() {
-        assertEquals(listOf("Speak slowly." to 600L, "**Tip**" to 100L), pairs("Speak slowly. **Tip**"))
+        assertEquals(listOf("Speak slowly." to 1600L, "**Tip**" to 1100L), pairs("Speak slowly. **Tip**"))
     }
 
     @Test
     fun `numbered bold list - current behavior`() {
         assertEquals(
             listOf(
-                "Here are two simple rules:" to 600L,
-                "1." to 600L,
-                "**Make**" to 600L,
-                "We use \"make\"" to 10L,
-                "when we create" to 10L,
-                "something," to 10L,
-                "like a cake" to 10L,
-                "or a plan." to 600L,
-                "Can you make a" to 10L,
-                "sentence with each word?" to 10L,
+                "Here are two simple rules:" to 1600L,
+                "1." to 1600L,
+                "**Make**" to 1600L,
+                "We use \"make\"" to 250L,
+                "when we create" to 250L,
+                "something," to 600L,
+                "like a cake" to 250L,
+                "or a plan." to 1600L,
+                "Can you make a" to 250L,
+                "sentence with each word?" to 1000L,
             ),
             pairs(
                 "Here are two simple rules:\n1. **Make** We use \"make\" when we create something, " +

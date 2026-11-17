@@ -309,7 +309,9 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
                         currentSpokenChunk = chunks[i].text
                         statusText = "Speaking ${i+1}/${chunks.size} 🔊"
                         playAudioAndWait(audioFile)
-                        if (i < chunks.size - 1 && !shouldStopPlayback) delay(chunks[i].pauseMs)
+                        // ОПЕРЕЖАЮЩИЙ ЗАПУСК: в начале каждого файла ~1,2 с тишины (щит Bluetooth),
+                        // поэтому следующий файл запускаем на 1000 мс раньше эталонной паузы.
+                        if (i < chunks.size - 1 && !shouldStopPlayback) delay(maxOf(10L, chunks[i].pauseMs - 1000L))
                     }
                     currentSpokenChunk = ""
                     if (!shouldStopPlayback) {

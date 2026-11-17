@@ -42,8 +42,9 @@ class SpeechPlanner {
                     trimmed.endsWith(",") || trimmed.endsWith(":") || trimmed.endsWith(";") -> PAUSE_COMMA_MS
                     else -> PAUSE_INSIDE_MS
                 }
-                // [3] ОПЕРЕЖАЮЩИЙ ЗАПУСК: вычитаем 1000 мс, так как в файле ~1.2 с тишины.
-                SpeechChunk(trimmed, maxOf(10L, p - 1000L))
+                // Паузы — строго по эталону. Опережающий запуск под щит Bluetooth вычитает
+                // синтез/воспроизведение, а не планировщик.
+                SpeechChunk(trimmed, p)
             }
             allChunks.addAll(pChunks)
         }
