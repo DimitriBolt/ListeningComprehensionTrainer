@@ -2,6 +2,8 @@
 .gradle/
 build/
 local.properties
+# Создаёт Android Studio; wrapper 8.7 его не использует
+android_app/gradle/gradle-daemon-jvm.properties
 captures/
 .externalNativeBuild/
 .cxx/

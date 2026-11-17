@@ -70,4 +70,8 @@ dependencies {
 
     // Markdown рендеринг
     implementation("com.github.jeziellago:compose-markdown:0.3.4")
+
+    // Модульные тесты чистой логики (без Android)
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.1")
 }
