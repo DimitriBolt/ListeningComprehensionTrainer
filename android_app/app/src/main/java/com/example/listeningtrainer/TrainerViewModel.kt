@@ -284,7 +284,8 @@ class TrainerViewModel(application: Application) : AndroidViewModel(application)
 
                 var finalContent = currentMessage.content ?: ""
                 if (toolCalls != null) {
-                    finalContent = if (toolDataFound) "(Live Web Data): $finalContent" else "(Search attempted, fallback): $finalContent"
+                    val label = if (toolDataFound) SpeechPlanner.LABEL_LIVE_WEB else SpeechPlanner.LABEL_SEARCH_FALLBACK
+                    finalContent = "$label $finalContent"
                 }
 
                 chatHistory.add(currentMessage)

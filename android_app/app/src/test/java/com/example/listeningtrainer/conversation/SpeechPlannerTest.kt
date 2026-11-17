@@ -117,15 +117,27 @@ class SpeechPlannerTest {
     }
 
     @Test
-    fun `service labels - current behavior`() {
+    fun `service labels are not spoken`() {
         assertEquals(
-            listOf("(Live Web Data):", "The price is about \$3.29 today."),
-            texts("(Live Web Data): The price is about \$3.29 today."),
+            listOf("The price is about \$3.29 today."),
+            texts("${SpeechPlanner.LABEL_LIVE_WEB} The price is about \$3.29 today."),
         )
         assertEquals(
-            listOf("(Search attempted,", "fallback):", "I could not find it."),
-            texts("(Search attempted, fallback): I could not find it."),
+            listOf("I could not find it.", "Try again?"),
+            texts("${SpeechPlanner.LABEL_SEARCH_FALLBACK} I could not find it. Try again?"),
         )
+        assertEquals(listOf("Rules:", "1. **Make**"), texts("${SpeechPlanner.LABEL_LIVE_WEB} Rules:\n1. **Make**"))
+    }
+
+    @Test
+    fun `labels are matched literally`() {
+        assertEquals("(Live Web Data):", SpeechPlanner.LABEL_LIVE_WEB)
+        assertEquals("(Search attempted, fallback):", SpeechPlanner.LABEL_SEARCH_FALLBACK)
+    }
+
+    @Test
+    fun `label-like text in the middle is left alone`() {
+        assertEquals(listOf("I said (Live Web Data):", "hi."), texts("I said (Live Web Data): hi."))
     }
 
     @Test
