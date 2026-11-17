@@ -1,52 +1,56 @@
+# Android / Gradle
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+
 # IDE
 .idea/
+*.iml
 .vscode/
 *.swp
 *.swo
 *~
-*.pyc
-__pycache__/
-*.egg-info/
-.eggs/
 
-# Environment
-.env
-.env.local
-.env.*.local
-venv/
-env/
-virtualenv/
-
-# Project-specific
-audio_files/
-logs/
-responses/
-sessions/
-transcripts/
-.run/
-00_FINAL_REPORT.txt
-Запрос.txt
-*.wav
-*.mp3
-*.mp4
-*.m4a
-
-# OS
-.DS_Store
-Thumbs.db
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-
-# Credentials
+# Ключи и секреты
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
 credentials.json
 secrets.json
 *.key
 *.pem
+.env
+.env.*
 
-# Build
-build/
-dist/
-*.egg-info/
+# Записи голоса и артефакты диалогов.
+# Если понадобится звуковой файл в res/raw, добавь для него явное исключение (!путь).
+*.wav
+*.mp3
+*.mp4
+*.m4a
+*.ogg
+*.opus
+*.flac
+*.aac
+*.3gp
+*.pcm
+audio_files/
+recordings/
+logs/
+sessions/
+transcripts/
+
+# OS
+.DS_Store
+Thumbs.db
+._*
