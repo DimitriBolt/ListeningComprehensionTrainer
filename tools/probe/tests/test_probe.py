@@ -268,3 +268,18 @@ def test_failed_probe_does_not_crash_run(tmp_path, monkeypatch):
     monkeypatch.setitem(probe.PROBES, "tutor", boom)
     assert probe.run_probe(ctx, "tutor") is False
     assert "network down" in (tmp_path / "d.md").read_text()
+
+
+def test_next_steps_depend_on_done_probes(tmp_path):
+    args = probe.parse_args(["verbatim", "--out", str(tmp_path / "o"), "--docs", str(tmp_path / "d.md")])
+    ctx = probe.Ctx(args)
+    ctx.results.put("verbatim", {}, "## v")
+    steps = "\n".join(probe.next_steps(ctx))
+    assert "voices" in steps and "probe.py all" in steps
+    assert ".wav" not in steps and "git add" not in steps
+    for n in probe.PROBE_ORDER:
+        ctx.results.put(n, {}, f"## {n}")
+    steps = "\n".join(probe.next_steps(ctx))
+    assert "voices/*.wav" in steps and "Usage" in steps and "git add" in steps
+    ctx.results.put("tutor", {"error": "boom"}, "## tutor")
+    assert "tutor" in probe.next_steps(ctx)[0] and "git add" not in "\n".join(probe.next_steps(ctx))

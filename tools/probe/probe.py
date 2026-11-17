@@ -1530,15 +1530,35 @@ def run_probe(ctx: Ctx, name: str) -> bool:
         return False
 
 
+def next_steps(ctx: Ctx) -> list[str]:
+    """Что сделать дальше — по тому, какие пробы уже выполнены."""
+    rel = DOCS_RESULTS.relative_to(REPO_ROOT)
+    done = ctx.results.data["probes"]
+    ok = [n for n in PROBE_ORDER if n in done and "error" not in done[n].get("raw", {})]
+    missing = [n for n in PROBE_ORDER if n not in ok]
+    steps = []
+    if missing:
+        steps.append("Ещё не выполнены (или упали): " + ", ".join(missing)
+                     + ". Запустите их по одной или все: python probe.py all")
+    if "voices" in ok:
+        steps.append(f"Послушайте {ctx.out / 'voices'}/*.wav и впишите выбранный голос в раздел voices "
+                     f"файла {rel}.")
+    if "vadservice" in ok:
+        steps.append(f"Допишите расход из панели Usage в раздел vadservice файла {rel}.")
+    if not missing:
+        steps.append("Отправьте результаты в репозиторий (из корня репозитория):\n"
+                     f'     git add {rel} && git commit -m "[S00b] Результаты проб" && git push')
+        steps.append(f"Сообщите архитектору: «S00b: результаты в {rel}».")
+    return steps
+
+
 def print_next_steps(ctx: Ctx) -> None:
     rel = DOCS_RESULTS.relative_to(REPO_ROOT)
     print(f"\nОтчёт: {ctx.results.md_path}")
     print(f"Копия для архитектора: {rel}")
     print("Что сделать дальше:")
-    print("  1. Послушайте tools/probe/out/voices/*.wav и впишите выбранный голос в раздел voices.")
-    print("  2. Отправьте результаты в репозиторий (из корня репозитория):")
-    print(f'     git add {rel} && git commit -m "[S00b] Результаты проб" && git push')
-    print("  3. Сообщите архитектору: «S00b: результаты в docs/research/00b-results.md».")
+    for i, step in enumerate(next_steps(ctx), 1):
+        print(f"  {i}. {step}")
 
 
 class RuHelpFormatter(argparse.RawDescriptionHelpFormatter):
