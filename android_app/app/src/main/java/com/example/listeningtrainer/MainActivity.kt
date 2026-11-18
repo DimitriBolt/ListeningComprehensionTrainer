@@ -1,5 +1,7 @@
 package com.example.listeningtrainer
 
+import com.example.listeningtrainer.audio.AudioRecorder
+import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import android.Manifest
 import android.content.ContentValues
 import android.content.Context
@@ -171,17 +173,13 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
                 viewModel.recognizedText = ""
                 viewModel.teacherResponse = ""
                 scope.launch {
-                    recorder.startRecording(pauseThresholdMs = pauseThreshold, silenceThresholdDb = silenceThresholdDb,
-                        onSilenceDetected = { file ->
-                            isRecording = false
-                            scope.launch(Dispatchers.IO) { exportToPublicMusic(context, file) }
-                            viewModel.processVoiceRecording(file, context.cacheDir)
-                        },
-                        onVolumeChanged = { currentVolume = it }
-                    )
+                    val file = recorder.record(SilenceTurnDetector(silenceThresholdDb, pauseThreshold)) { currentVolume = it }.file
+                    isRecording = false
+                    scope.launch(Dispatchers.IO) { exportToPublicMusic(context, file) }
+                    viewModel.processVoiceRecording(file, context.cacheDir)
                 }
             } else { 
-                recorder.stop()
+                recorder.finish()
                 isRecording = false 
             }
         } else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)

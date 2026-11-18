@@ -214,7 +214,7 @@ def test_wav_roundtrip_and_resample():
 # ---- tutor ---------------------------------------------------------------
 
 def test_tool_schemas_copied_from_kotlin():
-    kt = (probe.REPO_ROOT / "android_app/app/src/main/java/com/example/listeningtrainer/TrainerViewModel.kt").read_text()
+    kt = (probe.REPO_ROOT / "android_app/app/src/main/java/com/example/listeningtrainer/openai/ChatTutor.kt").read_text()
     for t in probe.tutor_tools():
         fn = t["function"]
         assert f'name = "{fn["name"]}"' in kt

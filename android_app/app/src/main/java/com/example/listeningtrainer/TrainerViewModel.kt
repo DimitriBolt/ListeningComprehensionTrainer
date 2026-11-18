@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.ToneGenerator
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.openai.*
 import com.example.listeningtrainer.conversation.SpeechPlanner
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

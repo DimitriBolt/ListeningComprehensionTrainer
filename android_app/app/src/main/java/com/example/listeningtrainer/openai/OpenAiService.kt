@@ -1,5 +1,5 @@
 @file:OptIn(kotlinx.serialization.InternalSerializationApi::class)
-package com.example.listeningtrainer
+package com.example.listeningtrainer.openai
 
 import com.example.listeningtrainer.config.ModelConfig
 import kotlinx.serialization.Serializable
