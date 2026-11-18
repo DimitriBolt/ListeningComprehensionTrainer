@@ -1,16 +1,12 @@
 package com.example.listeningtrainer
 
-import com.example.listeningtrainer.audio.AudioRecorder
+import com.example.listeningtrainer.audio.lastUserSpeechFile
+import com.example.listeningtrainer.conversation.ConversationState
 import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import android.Manifest
-import android.content.ContentValues
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -34,9 +30,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.jeziellago.compose.markdowntext.MarkdownText
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,26 +50,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
-
-fun exportToPublicMusic(context: Context, inputFile: File) {
-    try {
-        val fileName = "debug_speech_${System.currentTimeMillis()}.wav"
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, "audio/wav")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_MUSIC}/ListeningTrainer")
-        }
-        val resolver = context.contentResolver
-        val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, contentValues)
-        uri?.let { targetUri ->
-            resolver.openOutputStream(targetUri)?.use { outputStream ->
-                inputFile.inputStream().use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-        }
-    } catch (e: Exception) { e.printStackTrace() }
 }
 
 @Composable
@@ -130,65 +103,22 @@ fun KeySetupScreen(viewModel: TrainerViewModel, onStartPractice: () -> Unit) {
 @Composable
 fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val ui by TrainerService.ui.collectAsState()
 
-    fun startTrainerService() {
-        val intent = Intent(context, TrainerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
-    }
-
-    fun stopTrainerService() {
-        val intent = Intent(context, TrainerService::class.java)
-        context.stopService(intent)
-    }
-
-    var isRecording by remember { mutableStateOf(false) }
-    var currentVolume by remember { mutableStateOf(0f) }
-    
-    // --- НАСТРОЙКИ ПРЕРЫВАНИЯ ЗАПИСИ ---
-    // pauseThreshold: Сколько миллисекунд тишины ждать перед остановкой записи
-    val pauseThreshold = 3000L
-    // silenceThresholdDb: Порог шума в децибелах. 
-    // Если Noise ниже этого числа — считается, что пользователь молчит.
-    val silenceThresholdDb = 59f
-
-    val musicFolder = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
-    val debugAudioFile = remember { File(musicFolder, "last_user_speech.wav") }
-    val recorder = remember { AudioRecorder(debugAudioFile) }
+    val isListening = ui.state == ConversationState.Listening
+    val isBusy = ui.state == ConversationState.Thinking || ui.state == ConversationState.Speaking
+    val debugAudioFile = remember { lastUserSpeechFile(context) }
+    var permissionStatus by remember { mutableStateOf("") }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { if (it) viewModel.statusText = "Permission granted." }
+    ) { if (it) permissionStatus = "Permission granted." }
 
-    val startRecordingAction: () -> Unit = {
-        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (hasPermission) {
-            if (!isRecording) {
-                isRecording = true
-                viewModel.recognizedText = ""
-                viewModel.teacherResponse = ""
-                scope.launch {
-                    val file = recorder.record(SilenceTurnDetector(silenceThresholdDb, pauseThreshold)) { currentVolume = it }.file
-                    isRecording = false
-                    scope.launch(Dispatchers.IO) { exportToPublicMusic(context, file) }
-                    viewModel.processVoiceRecording(file, context.cacheDir)
-                }
-            } else { 
-                recorder.finish()
-                isRecording = false 
-            }
-        } else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-    }
-
-    LaunchedEffect(viewModel.autoRecordTrigger) {
-        if (viewModel.autoRecordTrigger > 0 && viewModel.isAutoMode && !isRecording) {
-            startRecordingAction()
-        }
+    // Микрофон разрешён → выполнить команду; нет → спросить разрешение.
+    fun withMicPermission(action: () -> Unit) {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (granted) action() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
     Column(
@@ -196,33 +126,32 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { 
-                viewModel.stopAll()
-                stopTrainerService()
-                onBack() 
+            TextButton(onClick = {
+                TrainerService.stop(context)
+                onBack()
             }) { Text("← Back") }
-            
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Auto-mode", style = MaterialTheme.typography.labelSmall)
                 Switch(
-                    checked = viewModel.isAutoMode,
-                    onCheckedChange = { 
-                        viewModel.isAutoMode = it 
-                        if (it) startTrainerService() else stopTrainerService()
+                    checked = ui.autoMode,
+                    onCheckedChange = { enabled ->
+                        if (enabled) withMicPermission { TrainerService.setAutoMode(context, true) }
+                        else TrainerService.setAutoMode(context, false)
                     },
                     modifier = Modifier.scale(0.7f)
                 )
             }
 
-            if (debugAudioFile.exists() && !isRecording) {
+            if (debugAudioFile.exists() && !isListening) {
                 TextButton(onClick = { viewModel.playDebugAudio(debugAudioFile) }) { Text("🔈 My Voice") }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
         Text(text = "Listening Practice", style = MaterialTheme.typography.headlineSmall)
-        
-        if (viewModel.currentSpokenChunk.isNotEmpty()) {
+
+        if (ui.currentChunk.isNotEmpty()) {
             Spacer(modifier = Modifier.height(20.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -230,25 +159,25 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
                 border = CardDefaults.outlinedCardBorder()
             ) {
                 MarkdownText(
-                    markdown = viewModel.currentSpokenChunk,
+                    markdown = ui.currentChunk,
                     modifier = Modifier.padding(24.dp).fillMaxWidth()
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Status: ${viewModel.statusText}", style = MaterialTheme.typography.bodySmall)
-        
-        if (isRecording) {
+        Text(text = "Status: ${permissionStatus.ifEmpty { ui.status }}", style = MaterialTheme.typography.bodySmall)
+
+        if (isListening) {
             Spacer(modifier = Modifier.height(8.dp))
             // ИНДИКАТОР УРОВНЯ ШУМА
             Text(
-                "Noise: ${currentVolume.toInt()} dB", 
-                color = if (currentVolume > silenceThresholdDb) MaterialTheme.colorScheme.primary else Color.Gray,
+                "Noise: ${ui.levelDb.toInt()} dB",
+                color = if (ui.levelDb > SilenceTurnDetector.DEFAULT_THRESHOLD_DB) MaterialTheme.colorScheme.primary else Color.Gray,
                 fontWeight = FontWeight.Bold
             )
             LinearProgressIndicator(
-                progress = (currentVolume / 100f).coerceIn(0f, 1f),
+                progress = (ui.levelDb / 100f).coerceIn(0f, 1f),
                 modifier = Modifier.fillMaxWidth().height(8.dp).padding(vertical = 8.dp)
             )
             Text("Listening...", color = Color.Red, fontWeight = FontWeight.Bold)
@@ -256,14 +185,14 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (viewModel.recognizedText.isNotEmpty()) {
+        if (ui.studentText.isNotEmpty()) {
             Text(text = "You said:", style = MaterialTheme.typography.labelMedium)
             Card(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                Text(text = viewModel.recognizedText, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge)
+                Text(text = ui.studentText, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge)
             }
         }
 
-        if (viewModel.teacherResponse.isNotEmpty()) {
+        if (ui.teacherText.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(text = "Teacher:", style = MaterialTheme.typography.labelMedium)
             Card(
@@ -271,7 +200,7 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
                 MarkdownText(
-                    markdown = viewModel.teacherResponse,
+                    markdown = ui.teacherText,
                     modifier = Modifier.padding(16.dp)
                 )
             }
@@ -280,18 +209,31 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
         Spacer(modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Одна кнопка: Talk → Stop Recording (закончить реплику) → Stop (пока учитель думает или говорит).
         Button(
             modifier = Modifier.fillMaxWidth().height(72.dp),
-            enabled = !viewModel.isProcessing || isRecording,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isRecording) Color.Red else MaterialTheme.colorScheme.primary
+                containerColor = if (isListening || isBusy) Color.Red else MaterialTheme.colorScheme.primary
             ),
-            onClick = startRecordingAction
+            onClick = {
+                permissionStatus = ""
+                when {
+                    isListening -> TrainerService.finishRecording(context)
+                    isBusy -> TrainerService.stopTalking(context)
+                    else -> withMicPermission { TrainerService.talk(context) }
+                }
+            }
         ) {
-            Text(if (isRecording) "Stop Recording" else "Talk to Teacher 🎙️")
+            Text(
+                when {
+                    isListening -> "Stop Recording"
+                    isBusy -> "Stop ⏹"
+                    else -> "Talk to Teacher 🎙️"
+                }
+            )
         }
-        
-        if (viewModel.isAutoMode) {
+
+        if (ui.autoMode) {
             Text(
                 "Auto-mode is ON: I will listen after I finish speaking.",
                 style = MaterialTheme.typography.labelSmall,
@@ -299,7 +241,7 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(40.dp))
     }
 }

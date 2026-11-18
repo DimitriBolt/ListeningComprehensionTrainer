@@ -7,6 +7,7 @@ import com.example.listeningtrainer.conversation.AudioOutput
 import com.example.listeningtrainer.conversation.Cue
 import com.example.listeningtrainer.conversation.SpeechAudio
 import com.example.listeningtrainer.conversation.SpeechAudioFile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -46,9 +47,10 @@ class MediaPlayerOutput : AudioOutput {
                     onStarted()
                 } else if (cont.isActive) cont.resume(Unit)
             }
-        } catch (e: IllegalStateException) {
-            // Плеер остановлен посреди подготовки — как и раньше, просто идём дальше.
-        } catch (e: java.io.IOException) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Как и раньше: сбой плеера (или остановка посреди подготовки) — идём дальше.
         }
     }
 
