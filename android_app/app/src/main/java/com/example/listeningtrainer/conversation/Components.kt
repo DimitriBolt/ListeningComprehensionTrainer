@@ -58,6 +58,9 @@ interface Tutor {
 
     /** Короткое прощание после долгого молчания ученика. */
     suspend fun farewell(onStatus: (String) -> Unit): TutorReply
+
+    /** Забыть историю диалога: следующий ответ — как в начале разговора. */
+    fun newConversation()
 }
 
 /**

@@ -27,7 +27,6 @@ import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import com.example.listeningtrainer.conversation.SpeechPlanner
 import com.example.listeningtrainer.conversation.TurnDetector
 import com.example.listeningtrainer.eventlog.AppLog
-import com.example.listeningtrainer.openai.ChatTutor
 import com.example.listeningtrainer.openai.TtsSynthesizer
 import com.example.listeningtrainer.openai.WhisperTranscriber
 import kotlinx.coroutines.CoroutineScope
@@ -63,6 +62,8 @@ class TrainerService : Service() {
 
         val keyStore = ApiKeyStore(this)
         val apiKey = { keyStore.current() }
+        val tutor = (application as TrainerApplication).tutor
+        AppLog.event(SOURCE, "tutor history: ${tutor.historySize} messages")
         val recorder = AudioRecorder(lastUserSpeechFile(this))
         // Копия каждой записи в общую папку Music — отладка, как было до S01.
         val input = object : AudioInput by recorder {
@@ -77,7 +78,7 @@ class TrainerService : Service() {
             input = input,
             turnDetector = SilenceTurnDetector(),
             transcriber = WhisperTranscriber(apiKey),
-            tutor = ChatTutor(apiKey),
+            tutor = tutor,
             planner = SpeechPlanner(),
             synthesizer = TtsSynthesizer(apiKey, cacheDir),
             output = MediaPlayerOutput(),
@@ -98,6 +99,7 @@ class TrainerService : Service() {
             ACTION_FINISH_RECORDING -> controller.finishRecording()
             ACTION_STOP -> controller.stop(EndReason.STOP_BUTTON)
             ACTION_SET_AUTO -> controller.setAutoMode(intent.getBooleanExtra(EXTRA_ENABLED, false))
+            ACTION_NEW_CONVERSATION -> controller.newConversation()
             ACTION_EXIT -> {
                 controller.stop(EndReason.BACK)
                 stopSelf()
@@ -169,6 +171,7 @@ class TrainerService : Service() {
         private const val ACTION_STOP = "com.example.listeningtrainer.STOP"
         private const val ACTION_SET_AUTO = "com.example.listeningtrainer.SET_AUTO"
         private const val ACTION_EXIT = "com.example.listeningtrainer.EXIT"
+        private const val ACTION_NEW_CONVERSATION = "com.example.listeningtrainer.NEW_CONVERSATION"
         private const val EXTRA_ENABLED = "enabled"
 
         private val _ui = MutableStateFlow(ConversationUi())
@@ -177,6 +180,9 @@ class TrainerService : Service() {
 
         @Volatile
         private var running = false
+
+        /** Идёт ли разговор (сервис жив) — экран тогда открывается сразу на разговоре. */
+        val isRunning: Boolean get() = running
 
         /** «Talk»: начать круг. Микрофон должен быть уже разрешён. */
         fun talk(context: Context) = send(context, ACTION_TALK)
@@ -194,6 +200,18 @@ class TrainerService : Service() {
                 return
             }
             send(context, ACTION_SET_AUTO) { putExtra(EXTRA_ENABLED, enabled) }
+        }
+
+        /** «New conversation»: учитель забывает историю, экран очищается. */
+        fun newConversation(context: Context) {
+            if (running) {
+                send(context, ACTION_NEW_CONVERSATION)
+                return
+            }
+            // Сервис не запущен (после «Back»): история живёт в процессе — чистим её здесь.
+            (context.applicationContext as TrainerApplication).tutor.newConversation()
+            _ui.value = _ui.value.copy(studentText = "", teacherText = "", currentChunk = "", status = "New conversation.")
+            AppLog.event(SOURCE, "New conversation (service not running): tutor history cleared")
         }
 
         /** «Back»: круг останавливается с причиной «Back», звучит «конец», сервис закрывается. */

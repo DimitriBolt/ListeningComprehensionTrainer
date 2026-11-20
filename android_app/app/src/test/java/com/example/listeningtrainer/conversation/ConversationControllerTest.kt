@@ -88,6 +88,9 @@ class ConversationControllerTest {
             farewellError?.let { throw it }
             return TutorReply("Let's take a break.")
         }
+
+        var newConversations = 0
+        override fun newConversation() { newConversations++ }
     }
 
     private class FakeSynth : Synthesizer {
@@ -639,6 +642,45 @@ class ConversationControllerTest {
         assertEquals(1, rig.input.finishes)
         assertEquals(listOf("Hello"), rig.tutor.replies)
         assertEquals(ConversationState.Idle, rig.state)
+    }
+
+    // ---- история разговора ---------------------------------------------------------------
+
+    @Test
+    fun `Back keeps the tutor history - only New conversation clears it`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        rig.controller.stop(EndReason.BACK)
+        rig.controller.release()
+        assertEquals(0, rig.tutor.newConversations)
+    }
+
+    @Test
+    fun `New conversation clears history and screen between circles`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        rig.controller.newConversation()
+        assertEquals(1, rig.tutor.newConversations)
+        val ui = rig.controller.ui.value
+        assertEquals("", ui.studentText)
+        assertEquals("", ui.teacherText)
+        assertEquals("New conversation.", ui.status)
+        assertTrue(rig.log.lines.contains("[Controller] New conversation: tutor history cleared"))
+    }
+
+    @Test
+    fun `New conversation is ignored while a circle is running`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.input.hold = true
+        rig.controller.startTurn()
+        runCurrent()
+
+        rig.controller.newConversation()
+        assertEquals(0, rig.tutor.newConversations)
+        rig.controller.stop(EndReason.STOP_BUTTON)
     }
 
     @Test

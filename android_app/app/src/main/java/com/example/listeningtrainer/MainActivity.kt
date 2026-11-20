@@ -3,6 +3,7 @@ package com.example.listeningtrainer
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.conversation.ConversationState
 import com.example.listeningtrainer.conversation.SilenceTurnDetector
+import com.example.listeningtrainer.eventlog.AppLog
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -34,7 +36,11 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+        AppLog.event(
+            SOURCE,
+            if (savedInstanceState == null) "onCreate" else "onCreate: recreated (e.g. screen rotation)",
+        )
+
         // Запрос прав на уведомления для Android 13+ (необходимо для Foreground Service)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -50,11 +56,33 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        AppLog.event(SOURCE, "onStart")
+    }
+
+    override fun onStop() {
+        AppLog.event(SOURCE, "onStop (screen off or app in background)")
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        AppLog.event(SOURCE, "onDestroy (configuration change: $isChangingConfigurations, finishing: $isFinishing)")
+        super.onDestroy()
+    }
+
+    private companion object {
+        const val SOURCE = "Activity"
+    }
 }
 
 @Composable
 fun TrainerApp(viewModel: TrainerViewModel = viewModel()) {
-    var currentScreen by remember { mutableStateOf("setup") }
+    // rememberSaveable: экран переживает поворот (Activity пересоздаётся, разговор в сервисе идёт дальше).
+    // Если разговор уже идёт (открыли из уведомления), сразу показываем его.
+    var currentScreen by rememberSaveable { mutableStateOf(if (TrainerService.isRunning) "practice" else "setup") }
+    LaunchedEffect(currentScreen) { AppLog.event("UI", "screen: $currentScreen") }
     if (currentScreen == "setup") {
         KeySetupScreen(viewModel = viewModel, onStartPractice = { currentScreen = "practice" })
     } else {
@@ -240,6 +268,15 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.padding(top = 8.dp)
             )
+        }
+
+        // История разговора живёт, пока приложение не закрыто совсем (D15); начать с нуля — здесь.
+        if (!isListening && !isBusy) {
+            Spacer(modifier = Modifier.height(24.dp))
+            TextButton(onClick = {
+                permissionStatus = ""
+                TrainerService.newConversation(context)
+            }) { Text("New conversation") }
         }
 
         Spacer(modifier = Modifier.height(40.dp))

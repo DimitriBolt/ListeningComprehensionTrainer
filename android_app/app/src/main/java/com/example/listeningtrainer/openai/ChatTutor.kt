@@ -25,6 +25,9 @@ import java.util.regex.Pattern
 /**
  * Учитель на Chat Completions (модель — в ModelConfig): история диалога, системный промпт,
  * инструменты `get_weather` и `search_live_web`. Перенесено из TrainerViewModel без изменений.
+ *
+ * Один экземпляр на процесс (TrainerApplication.tutor): история переживает «Back» и
+ * перезапуск сервиса, пока приложение не закрыто совсем (D15). Сброс — [newConversation].
  */
 class ChatTutor(
     private val apiKey: () -> String,
@@ -39,6 +42,11 @@ class ChatTutor(
 
     override suspend fun farewell(onStatus: (String) -> Unit): TutorReply =
         ask(INACTIVITY_PROMPT, onStatus)
+
+    override fun newConversation() = chatHistory.clear()
+
+    /** Сколько сообщений в истории (для журнала; тексты туда не пишутся). */
+    val historySize: Int get() = chatHistory.size
 
     private suspend fun ask(userText: String, onStatus: (String) -> Unit): TutorReply {
         val auth = OpenAiClient.bearer(apiKey())

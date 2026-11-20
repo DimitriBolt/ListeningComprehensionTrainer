@@ -8,14 +8,25 @@ import android.util.Log
 import com.example.listeningtrainer.conversation.ConversationController
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.eventlog.FileEventLog
+import com.example.listeningtrainer.openai.ChatTutor
 import java.io.File
 import java.util.Date
 
 /**
  * Процесс приложения. Здесь включается журнал событий (filesDir/logs, см. FileEventLog),
  * перехват необработанных исключений и запись о том, почему завершился прошлый процесс.
+ * Здесь же живёт учитель с историей диалога ([tutor]).
  */
 class TrainerApplication : Application() {
+
+    /**
+     * Учитель с историей диалога — один на процесс: разговор переживает «Back» и перезапуск
+     * сервиса, пока приложение не закрыто совсем (D15).
+     */
+    val tutor: ChatTutor by lazy {
+        val keyStore = ApiKeyStore(this)
+        ChatTutor(apiKey = { keyStore.current() })
+    }
 
     override fun onCreate() {
         super.onCreate()

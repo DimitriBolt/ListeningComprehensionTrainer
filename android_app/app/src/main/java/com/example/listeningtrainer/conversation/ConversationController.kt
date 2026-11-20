@@ -146,6 +146,18 @@ class ConversationController(
         _ui.update { it.copy(autoMode = enabled) }
     }
 
+    /** Кнопка «New conversation»: учитель забывает историю, экран очищается. Только между кругами. */
+    fun newConversation() {
+        if (job?.isActive == true) {
+            log.event(SOURCE, "New conversation ignored: circle is running")
+            return
+        }
+        tutor.newConversation()
+        silenceCount = 0
+        _ui.update { it.copy(studentText = "", teacherText = "", currentChunk = "", status = "New conversation.") }
+        log.event(SOURCE, "New conversation: tutor history cleared")
+    }
+
     /** Сервис закрывается. Если круг ещё идёт — он заканчивается с причиной «service destroyed». */
     fun release() {
         stop(EndReason.SERVICE_DESTROYED)
