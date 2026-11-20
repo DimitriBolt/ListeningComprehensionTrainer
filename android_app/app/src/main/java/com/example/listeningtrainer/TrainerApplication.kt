@@ -5,6 +5,7 @@ import android.app.Application
 import android.app.ApplicationExitInfo
 import android.os.Build
 import android.util.Log
+import com.example.listeningtrainer.conversation.ConversationController
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.eventlog.FileEventLog
 import java.io.File
@@ -21,7 +22,7 @@ class TrainerApplication : Application() {
         AppLog.sink = FileEventLog(
             dir = File(filesDir, LOG_DIR),
             mirror = { source, text, isError ->
-                val tag = if (source == TIMING_SOURCE) TrainerService.TIMING_TAG else LOGCAT_TAG
+                val tag = if (source == ConversationController.TIMING_SOURCE) TrainerService.TIMING_TAG else LOGCAT_TAG
                 if (isError) Log.e(tag, "[$source] $text") else Log.i(tag, "[$source] $text")
             },
         )
@@ -90,8 +91,6 @@ class TrainerApplication : Application() {
     companion object {
         /** Каталог журнала в filesDir; его же читает tools/pull-log.sh. */
         const val LOG_DIR = "logs"
-        /** Источник строк замера скорости; в Logcat они идут под тегом LCT-Timing, как в S01. */
-        const val TIMING_SOURCE = "Timing"
         private const val LOGCAT_TAG = "LCT"
     }
 }

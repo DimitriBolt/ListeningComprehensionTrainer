@@ -45,6 +45,7 @@ class AudioRecorder(private val outputFile: File) : AudioInput {
 
             val buffer = ShortArray(bufferSize)
             var totalAudioLen = 0L
+            var peakDb = 0f
             isRecording = true
             turnDetector.reset(System.currentTimeMillis())
             try {
@@ -65,6 +66,7 @@ class AudioRecorder(private val outputFile: File) : AudioInput {
                     for (i in 0 until read) sum += buffer[i] * buffer[i]
                     val rms = sqrt(sum / read)
                     val db = (if (rms > 0) 20 * log10(rms) else 0.0).toFloat()
+                    if (db > peakDb) peakDb = db
                     onLevel(db)
                     if (turnDetector.onLevel(db, System.currentTimeMillis())) isRecording = false
                 }
@@ -76,7 +78,12 @@ class AudioRecorder(private val outputFile: File) : AudioInput {
                 writeWavHeader(outputFile, totalAudioLen)
             }
             ensureActive() // отменённая запись результата не даёт
-            RecordedAudio(outputFile)
+            RecordedAudio(
+                file = outputFile,
+                durationMs = totalAudioLen * 1000 / (SAMPLE_RATE * CHANNELS * 2),
+                heardSpeech = turnDetector.heardSpeech,
+                peakDb = peakDb,
+            )
         }
 
     override fun finish() {

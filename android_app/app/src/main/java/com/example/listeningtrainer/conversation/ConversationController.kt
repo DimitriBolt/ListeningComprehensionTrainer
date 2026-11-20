@@ -1,5 +1,7 @@
 package com.example.listeningtrainer.conversation
 
+import com.example.listeningtrainer.eventlog.EventLog
+import com.example.listeningtrainer.eventlog.NoEventLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -38,9 +40,9 @@ data class ConversationUi(
  * Машина состояний разговора: Idle → Listening → Thinking → Speaking → (авто-режим: Listening) / Idle.
  * Чистый Kotlin (инвариант 3): компоненты приходят через интерфейсы, время — через [clock].
  *
- * В [timingLog] на каждый круг пишется одна строка (тег LCT-Timing на Android): сколько мс
+ * В [log] пишутся события круга — без ключа и без текстов, только их длины. На каждый круг
+ * одна строка замера с источником [TIMING_SOURCE] (в Logcat — тег LCT-Timing): сколько мс
  * от конца записи до текста ученика, до ответа учителя и до запуска первого звука.
- * Ни ключа, ни текстов в ней нет.
  */
 class ConversationController(
     private val scope: CoroutineScope,
@@ -52,7 +54,7 @@ class ConversationController(
     private val synthesizer: Synthesizer,
     private val output: AudioOutput,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val timingLog: (String) -> Unit = {},
+    private val log: EventLog = NoEventLog,
     /** Пауза между концом речи учителя и сигналом «твоя очередь» в авто-режиме. */
     private val autoListenDelayMs: Long = 700L,
     /** Сколько молчаний подряд в авто-режиме — и учитель прощается. */
@@ -118,6 +120,17 @@ class ConversationController(
         }
         val recordedAt = clock()
         _ui.update { it.copy(levelDb = 0f) }
+        log.event(
+            SOURCE,
+            "recording: ${audio.durationMs} ms, above threshold: ${yesNo(audio.heardSpeech)}, peak ${audio.peakDb.toInt()} dB",
+        )
+
+        // Молчание определяется по звуку: в записи без речи распознаватель «слышит» `Thank you.`
+        // и т. п., поэтому его не вызываем (и не платим за тишину).
+        if (!audio.heardSpeech) {
+            log.event(SOURCE, "counted as silence: yes (nothing above threshold, transcription skipped)")
+            return onSilence()
+        }
 
         // --- Thinking: распознавание ---
         _ui.update { it.copy(state = ConversationState.Thinking, status = "Transcribing...") }
@@ -131,7 +144,10 @@ class ConversationController(
         val transcribedAt = clock()
         _ui.update { it.copy(studentText = studentText) }
 
-        if (studentText.trim().length < 2) return onSilence()
+        // Запасной путь: речь была, а текста нет.
+        val silent = studentText.trim().length < 2
+        log.event(SOURCE, "transcript: ${studentText.trim().length} chars, counted as silence: ${yesNo(silent)}")
+        if (silent) return onSilence()
         silenceCount = 0
 
         val ok = answer(recordedAt, transcribedAt) { onStatus -> tutor.reply(studentText, onStatus) }
@@ -212,7 +228,15 @@ class ConversationController(
 
     private fun logTimings(recordedAt: Long, transcribedAt: Long, repliedAt: Long, firstSoundAt: Long?) {
         val first = firstSoundAt?.let { (it - recordedAt).toString() } ?: "-"
-        timingLog("stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} first_audio=$first")
+        log.event(TIMING_SOURCE, "stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} first_audio=$first")
+    }
+
+    private fun yesNo(value: Boolean) = if (value) "yes" else "no"
+
+    companion object {
+        private const val SOURCE = "Controller"
+        /** Источник строки замера скорости (в Logcat — тег LCT-Timing, как в S01). */
+        const val TIMING_SOURCE = "Timing"
     }
 
     private fun idle(status: String) {

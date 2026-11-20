@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -25,6 +24,7 @@ import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import com.example.listeningtrainer.conversation.SpeechPlanner
 import com.example.listeningtrainer.conversation.TurnDetector
+import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.openai.ChatTutor
 import com.example.listeningtrainer.openai.TtsSynthesizer
 import com.example.listeningtrainer.openai.WhisperTranscriber
@@ -75,7 +75,7 @@ class TrainerService : Service() {
             planner = SpeechPlanner(),
             synthesizer = TtsSynthesizer(apiKey, cacheDir),
             output = MediaPlayerOutput(),
-            timingLog = { line -> Log.i(TIMING_TAG, line) },
+            log = AppLog,
         )
         scope.launch { controller.ui.collect { _ui.value = it } }
     }

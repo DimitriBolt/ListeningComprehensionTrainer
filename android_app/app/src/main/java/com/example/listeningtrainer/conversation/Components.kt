@@ -6,8 +6,18 @@ import java.io.File
 // Здесь только интерфейсы и данные, без Android-классов. Смена модели или поставщика —
 // новая реализация интерфейса, а не правка контроллера.
 
-/** Записанная реплика ученика. Сейчас — WAV-файл. */
-data class RecordedAudio(val file: File)
+/**
+ * Записанная реплика ученика. Сейчас — WAV-файл.
+ * [heardSpeech] — был ли хоть один замер громче порога [TurnDetector]. Нет — это молчание,
+ * распознаватель не вызывается (он «слышит» в тишине фразы вроде `Thank you.`).
+ */
+data class RecordedAudio(
+    val file: File,
+    val durationMs: Long,
+    val heardSpeech: Boolean,
+    /** Самый громкий замер записи, дБ (для журнала). */
+    val peakDb: Float,
+)
 
 /** Микрофон. */
 interface AudioInput {
@@ -28,6 +38,9 @@ interface TurnDetector {
 
     /** Очередной замер громкости. `true` — реплика закончена. */
     fun onLevel(db: Float, nowMs: Long): Boolean
+
+    /** Был ли с начала реплики хоть один замер, похожий на речь. */
+    val heardSpeech: Boolean
 }
 
 /** Звук → текст. */

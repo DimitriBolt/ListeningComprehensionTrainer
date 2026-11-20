@@ -39,4 +39,22 @@ class SilenceTurnDetectorTest {
         detector.reset(5000)
         assertFalse(detector.onLevel(30f, 7000))
     }
+
+    @Test
+    fun `no level above threshold - no speech heard`() {
+        for (t in 0L..3000L step 100) detector.onLevel(50f, t)
+        assertFalse(detector.heardSpeech)
+        detector.onLevel(59f, 3100) // ровно порог — ещё тишина
+        assertFalse(detector.heardSpeech)
+    }
+
+    @Test
+    fun `one level above threshold is enough for speech, reset clears it`() {
+        detector.onLevel(40f, 100)
+        detector.onLevel(60f, 200)
+        detector.onLevel(40f, 300)
+        assertTrue(detector.heardSpeech)
+        detector.reset(400)
+        assertFalse(detector.heardSpeech)
+    }
 }

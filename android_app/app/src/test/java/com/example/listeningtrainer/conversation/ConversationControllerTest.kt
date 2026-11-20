@@ -1,5 +1,6 @@
 package com.example.listeningtrainer.conversation
 
+import com.example.listeningtrainer.eventlog.EventLog
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -25,14 +26,20 @@ class ConversationControllerTest {
         val statesAtRecord = mutableListOf<ConversationState>()
         /** true — запись ждёт finish() (или отмены). */
         var hold = false
+        /** Была ли речь в очередной записи; очередь пуста — была. */
+        val speech = ArrayDeque<Boolean>()
+        /** Ошибка микрофона в очередной записи. */
+        var error: Exception? = null
         private var pending: CompletableDeferred<Unit>? = null
 
         override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio {
             records++
             statesAtRecord += ui().state
-            onLevel(65f)
+            error?.let { throw it }
+            val heard = speech.removeFirstOrNull() ?: true
+            onLevel(if (heard) 65f else 40f)
             if (hold) CompletableDeferred<Unit>().also { pending = it }.await()
-            return RecordedAudio(File("rec$records.wav"))
+            return RecordedAudio(File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f)
         }
 
         override fun finish() {
@@ -103,6 +110,14 @@ class ConversationControllerTest {
         override fun release() {}
     }
 
+    private class FakeLog : EventLog {
+        val lines = mutableListOf<String>()
+        override fun event(source: String, message: String) { lines += "[$source] $message" }
+        override fun error(source: String, message: String, error: Throwable?) {
+            lines += "[$source] ERROR $message: ${error?.javaClass?.simpleName}"
+        }
+    }
+
     private class Rig(scope: TestScope, vararg transcripts: Any) {
         lateinit var controller: ConversationController
         private val ui = { controller.ui.value }
@@ -112,7 +127,8 @@ class ConversationControllerTest {
         val tutor = FakeTutor()
         val synth = FakeSynth()
         val output = FakeOutput(ui, clock)
-        val timing = mutableListOf<String>()
+        val log = FakeLog()
+        val timing get() = log.lines.filter { it.startsWith("[Timing] ") }.map { it.removePrefix("[Timing] ") }
 
         init {
             controller = ConversationController(
@@ -125,7 +141,7 @@ class ConversationControllerTest {
                 synthesizer = synth,
                 output = output,
                 clock = clock,
-                timingLog = { timing += it },
+                log = log,
             )
         }
 
@@ -221,6 +237,35 @@ class ConversationControllerTest {
         assertFalse(rig.controller.ui.value.autoMode)
         assertEquals(ConversationState.Idle, rig.state)
         assertTrue(rig.timing.isEmpty()) // прощание — не круг ученика
+    }
+
+    @Test
+    fun `recording without speech is silence even if the recognizer would hear Thank you`() = runTest {
+        // Дефект S01: whisper-1 на тишине «слышит» `Thank you.`, молчание засчитывалось как реплика.
+        val rig = Rig(this, "Thank you.", "Thank you.", "Thank you.")
+        repeat(3) { rig.input.speech.addLast(false) }
+        rig.controller.setAutoMode(true)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(0, rig.transcriber.calls) // на записи без речи распознаватель не вызывается
+        assertEquals(3, rig.input.records)
+        assertTrue(rig.tutor.replies.isEmpty())
+        assertEquals(1, rig.tutor.farewells)
+        assertFalse(rig.controller.ui.value.autoMode)
+        assertEquals(ConversationState.Idle, rig.state)
+        assertEquals(3, rig.log.lines.count { "counted as silence: yes (nothing above threshold" in it })
+        assertTrue(rig.log.lines.any { "recording: 3000 ms, above threshold: no, peak 40 dB" in it })
+    }
+
+    @Test
+    fun `transcript length and silence decision are logged`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertTrue(rig.log.lines.contains("[Controller] recording: 3000 ms, above threshold: yes, peak 65 dB"))
+        assertTrue(rig.log.lines.contains("[Controller] transcript: 9 chars, counted as silence: no"))
     }
 
     @Test
