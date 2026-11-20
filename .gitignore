@@ -69,3 +69,6 @@ responses/
 tools/probe/out/
 tools/probe/.venv/
 .pytest_cache/
+
+# Журналы, выгруженные с телефона
+diagnostics/
