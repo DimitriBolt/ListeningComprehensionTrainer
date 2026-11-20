@@ -20,7 +20,12 @@ class ConversationControllerTest {
 
     // ---- подставные компоненты -----------------------------------------------------------
 
-    private class FakeInput(private val ui: () -> ConversationUi) : AudioInput {
+    /** Общая лента событий подставных компонентов: в каком порядке что случилось. */
+    private class Timeline {
+        val events = mutableListOf<String>()
+    }
+
+    private class FakeInput(private val ui: () -> ConversationUi, private val timeline: Timeline) : AudioInput {
         var records = 0
         var finishes = 0
         val statesAtRecord = mutableListOf<ConversationState>()
@@ -28,12 +33,13 @@ class ConversationControllerTest {
         var hold = false
         /** Была ли речь в очередной записи; очередь пуста — была. */
         val speech = ArrayDeque<Boolean>()
-        /** Ошибка микрофона в очередной записи. */
+        /** Ошибка микрофона. */
         var error: Exception? = null
         private var pending: CompletableDeferred<Unit>? = null
 
         override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio {
             records++
+            timeline.events += "record"
             statesAtRecord += ui().state
             error?.let { throw it }
             val heard = speech.removeFirstOrNull() ?: true
@@ -67,9 +73,11 @@ class ConversationControllerTest {
         val replies = mutableListOf<String>()
         var farewells = 0
         var error: Exception? = null
+        var farewellError: Exception? = null
+        var replyDelayMs = 1000L
         override suspend fun reply(studentText: String, onStatus: (String) -> Unit): TutorReply {
             replies += studentText
-            delay(1000)
+            delay(replyDelayMs)
             error?.let { throw it }
             return TutorReply(replyText)
         }
@@ -77,6 +85,7 @@ class ConversationControllerTest {
         override suspend fun farewell(onStatus: (String) -> Unit): TutorReply {
             farewells++
             delay(1000)
+            farewellError?.let { throw it }
             return TutorReply("Let's take a break.")
         }
     }
@@ -84,30 +93,44 @@ class ConversationControllerTest {
     private class FakeSynth : Synthesizer {
         override val leadInMs = 1000L
         val texts = mutableListOf<String>()
+        var error: Exception? = null
         override suspend fun synthesize(text: String): SpeechAudio {
             texts += text
             delay(200)
+            error?.let { throw it }
             return SpeechAudioFile(File(text))
         }
     }
 
-    private class FakeOutput(private val ui: () -> ConversationUi, private val clock: () -> Long) : AudioOutput {
+    private class FakeOutput(
+        private val ui: () -> ConversationUi,
+        private val clock: () -> Long,
+        private val timeline: Timeline,
+    ) : AudioOutput {
         val played = mutableListOf<String>()
         val startTimes = mutableListOf<Long>()
         val cues = mutableListOf<Cue>()
+        val cueTimes = mutableListOf<Long>()
         val statesAtPlay = mutableListOf<ConversationState>()
         var playMs = 0L
         var stops = 0
+        var released = false
         override suspend fun play(audio: SpeechAudio, onStarted: () -> Unit) {
             statesAtPlay += ui().state
             played += (audio as SpeechAudioFile).file.path
+            timeline.events += "play"
             startTimes += clock()
             onStarted()
             delay(playMs)
         }
-        override fun playCue(cue: Cue) { cues += cue }
+        override fun playCue(cue: Cue) {
+            cues += cue
+            cueTimes += clock()
+            timeline.events += "cue:${cue.name}"
+        }
+        override suspend fun awaitCues() { timeline.events += "awaitCues" }
         override fun stop() { stops++ }
-        override fun release() {}
+        override fun release() { released = true }
     }
 
     private class FakeLog : EventLog {
@@ -122,13 +145,15 @@ class ConversationControllerTest {
         lateinit var controller: ConversationController
         private val ui = { controller.ui.value }
         private val clock = { scope.testScheduler.currentTime }
-        val input = FakeInput(ui)
+        val timeline = Timeline()
+        val input = FakeInput(ui, timeline)
         val transcriber = FakeTranscriber(ui, *transcripts)
         val tutor = FakeTutor()
         val synth = FakeSynth()
-        val output = FakeOutput(ui, clock)
+        val output = FakeOutput(ui, clock, timeline)
         val log = FakeLog()
         val timing get() = log.lines.filter { it.startsWith("[Timing] ") }.map { it.removePrefix("[Timing] ") }
+        val circleEnds get() = log.lines.filter { "circle end: " in it }.map { it.substringAfter("circle end: ").substringBefore(' ') }
 
         init {
             controller = ConversationController(
@@ -161,7 +186,6 @@ class ConversationControllerTest {
         assertEquals(listOf("I am fine"), rig.tutor.replies)
         assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
         assertTrue(rig.output.statesAtPlay.all { it == ConversationState.Speaking })
-        assertEquals(listOf(Cue.PROCESSING), rig.output.cues)
 
         val ui = rig.controller.ui.value
         assertEquals(ConversationState.Idle, ui.state)
@@ -170,6 +194,52 @@ class ConversationControllerTest {
         assertEquals("Hello there. How are you?", ui.teacherText)
         assertEquals("", ui.currentChunk)
         assertEquals(1, rig.input.records) // ручной режим: один круг
+    }
+
+    @Test
+    fun `manual turn cues - listen before recording, processing, end after the reply`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.END), rig.output.cues)
+        // «говори» дозвучал до начала записи, «конец» — после речи учителя
+        assertEquals(
+            listOf("cue:LISTEN", "awaitCues", "record", "cue:PROCESSING", "play", "play", "cue:END"),
+            rig.timeline.events,
+        )
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `state transitions are logged with reasons`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        val transitions = rig.log.lines.filter { " -> " in it }
+        assertEquals(
+            listOf(
+                "[Controller] Idle -> Listening (Talk button)",
+                "[Controller] Listening -> Thinking (recording finished)",
+                "[Controller] Thinking -> Speaking (first group ready)",
+                "[Controller] Speaking -> Idle (reply finished)",
+            ),
+            transitions,
+        )
+        assertTrue(rig.log.lines.contains("[Controller] circle end: REPLY_FINISHED (reply finished, auto-mode off)"))
+    }
+
+    @Test
+    fun `log has lengths but never the texts`() = runTest {
+        val rig = Rig(this, "my secret words")
+        rig.tutor.replyText = "Hidden teacher answer."
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertTrue(rig.log.lines.contains("[Controller] transcript: 15 chars, counted as silence: no"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 22 chars, 1 groups"))
+        assertFalse(rig.log.lines.any { "secret" in it || "Hidden" in it || "teacher answer" in it })
     }
 
     @Test
@@ -206,37 +276,84 @@ class ConversationControllerTest {
         assertEquals(listOf("stt=300 tutor=1300 first_audio=1500"), rig.timing)
     }
 
+    // ---- ожидание учителя ----------------------------------------------------------------
+
+    @Test
+    fun `waiting longer than 5 s ticks every 3 s until the teacher speaks`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.replyDelayMs = 12_000 // до первого звука: 300 + 12000 + 200 = 12,5 с
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        val ticks = rig.output.cueTimes.filterIndexed { i, _ -> rig.output.cues[i] == Cue.WAITING }
+        assertEquals(listOf(5_000L, 8_000L, 11_000L), ticks) // от конца записи (t = 0)
+        assertTrue(ticks.all { it < rig.output.startTimes.first() })
+        assertEquals(Cue.END, rig.output.cues.last())
+    }
+
+    @Test
+    fun `no ticks on a normal wait`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertFalse(Cue.WAITING in rig.output.cues)
+    }
+
+    @Test
+    fun `ticks stop on error`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.replyDelayMs = 7_000
+        rig.tutor.error = java.io.IOException("timeout")
+        rig.controller.startTurn()
+        advanceTimeBy(60_000)
+        runCurrent()
+
+        assertEquals(1, rig.output.cues.count { it == Cue.WAITING }) // только на 5 с
+        assertEquals(listOf(Cue.WAITING, Cue.ERROR, Cue.END), rig.output.cues.takeLast(3))
+    }
+
     // ---- авто-режим и молчание -----------------------------------------------------------
 
     @Test
-    fun `auto mode listens again after the reply`() = runTest {
+    fun `auto mode listens again after the reply, listen cue before every recording`() = runTest {
         val rig = Rig(this, "one", "two")
         rig.controller.setAutoMode(true)
         rig.controller.startTurn()
-        advanceTimeBy(10_000)
+        advanceTimeBy(5_000) // два ответа и третья запись; дальше пустые расшифровки привели бы к прощанию
         runCurrent()
 
         assertTrue(rig.input.records >= 3)
         assertEquals(listOf("one", "two"), rig.tutor.replies.take(2))
-        assertTrue(Cue.YOUR_TURN in rig.output.cues)
-        rig.controller.stop()
+        val events = rig.timeline.events
+        events.forEachIndexed { i, e -> if (e == "record") assertEquals(listOf("cue:LISTEN", "awaitCues"), events.subList(i - 2, i)) }
+        assertFalse(Cue.END in rig.output.cues) // круг продолжается
+        rig.controller.stop(EndReason.STOP_BUTTON)
     }
 
     @Test
     fun `three silences in a row in auto mode - farewell and auto mode off`() = runTest {
-        val rig = Rig(this, "", "", "")
+        val rig = Rig(this, "", "", "") // запасной путь: речь была, а текста нет
         rig.controller.setAutoMode(true)
         rig.controller.startTurn()
         advanceUntilIdle()
 
         assertEquals(3, rig.input.records)
-        assertEquals(2, rig.output.cues.count { it == Cue.YOUR_TURN })
         assertEquals(1, rig.tutor.farewells)
         assertEquals(emptyList<String>(), rig.tutor.replies)
         assertEquals(listOf("Let's take a break."), rig.output.played)
         assertFalse(rig.controller.ui.value.autoMode)
         assertEquals(ConversationState.Idle, rig.state)
         assertTrue(rig.timing.isEmpty()) // прощание — не круг ученика
+        assertEquals(
+            listOf(
+                Cue.LISTEN, Cue.PROCESSING, Cue.NOT_HEARD,
+                Cue.LISTEN, Cue.PROCESSING, Cue.NOT_HEARD,
+                Cue.LISTEN, Cue.PROCESSING, Cue.NOT_HEARD,
+                Cue.END,
+            ),
+            rig.output.cues,
+        )
+        assertEquals(listOf("FAREWELL"), rig.circleEnds)
     }
 
     @Test
@@ -254,8 +371,13 @@ class ConversationControllerTest {
         assertEquals(1, rig.tutor.farewells)
         assertFalse(rig.controller.ui.value.autoMode)
         assertEquals(ConversationState.Idle, rig.state)
+        assertEquals(
+            listOf(Cue.LISTEN, Cue.NOT_HEARD, Cue.LISTEN, Cue.NOT_HEARD, Cue.LISTEN, Cue.NOT_HEARD, Cue.END),
+            rig.output.cues,
+        )
         assertEquals(3, rig.log.lines.count { "counted as silence: yes (nothing above threshold" in it })
         assertTrue(rig.log.lines.any { "recording: 3000 ms, above threshold: no, peak 40 dB" in it })
+        assertEquals(listOf("FAREWELL"), rig.circleEnds)
     }
 
     @Test
@@ -281,7 +403,21 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `silence in manual mode - Nothing heard and stop`() = runTest {
+    fun `no speech in manual mode - not heard, end, recognizer not called`() = runTest {
+        val rig = Rig(this, "Thank you.")
+        rig.input.speech.addLast(false)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(0, rig.transcriber.calls)
+        assertEquals(ConversationState.Idle, rig.state)
+        assertEquals("Nothing heard.", rig.controller.ui.value.status)
+        assertEquals(listOf(Cue.LISTEN, Cue.NOT_HEARD, Cue.END), rig.output.cues)
+        assertEquals(listOf("SILENCE_MANUAL"), rig.circleEnds)
+    }
+
+    @Test
+    fun `empty transcript in manual mode - Nothing heard and stop`() = runTest {
         val rig = Rig(this, " ")
         rig.controller.startTurn()
         advanceUntilIdle()
@@ -291,12 +427,29 @@ class ConversationControllerTest {
         assertEquals("Nothing heard.", rig.controller.ui.value.status)
         assertEquals(0, rig.tutor.farewells)
         assertTrue(rig.tutor.replies.isEmpty())
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.NOT_HEARD, Cue.END), rig.output.cues)
     }
 
-    // ---- ошибки --------------------------------------------------------------------------
+    @Test
+    fun `turning auto mode off mid-turn stops after the reply with end cue`() = runTest {
+        val rig = Rig(this, "Hello", "more")
+        rig.controller.setAutoMode(true)
+        rig.controller.startTurn()
+        advanceTimeBy(500)
+        rig.controller.setAutoMode(false)
+        advanceUntilIdle()
+
+        assertEquals(1, rig.input.records)
+        assertEquals(listOf("Hello"), rig.tutor.replies)
+        assertEquals(ConversationState.Idle, rig.state)
+        assertEquals(Cue.END, rig.output.cues.last())
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    // ---- ошибки: «ошибка», затем «конец» -------------------------------------------------
 
     @Test
-    fun `network error in transcription - Error state, next Talk works`() = runTest {
+    fun `network error in transcription - error and end cues, next Talk works`() = runTest {
         val rig = Rig(this, java.io.IOException("timeout"), "Hello")
         rig.controller.startTurn()
         advanceUntilIdle()
@@ -304,6 +457,10 @@ class ConversationControllerTest {
         assertEquals(ConversationState.Error("Whisper error: timeout"), rig.state)
         assertTrue(rig.tutor.replies.isEmpty())
         assertTrue(rig.output.played.isEmpty())
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+        assertEquals(listOf("TRANSCRIPTION_ERROR"), rig.circleEnds)
+        assertTrue(rig.log.lines.contains("[Controller] ERROR transcription error: IOException"))
+        assertTrue(rig.log.lines.contains("[Controller] Thinking -> Error (transcription error)"))
 
         rig.controller.startTurn()
         advanceUntilIdle()
@@ -312,7 +469,7 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `network error in tutor - Error state, nothing played, auto loop ends`() = runTest {
+    fun `network error in tutor - error and end, nothing played, auto loop ends`() = runTest {
         val rig = Rig(this, "Hello", "again")
         rig.tutor.error = java.io.IOException("HTTP 500")
         rig.controller.setAutoMode(true)
@@ -322,12 +479,53 @@ class ConversationControllerTest {
         assertEquals(ConversationState.Error("Error: HTTP 500"), rig.state)
         assertTrue(rig.output.played.isEmpty())
         assertEquals(1, rig.input.records)
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+        assertEquals(listOf("TUTOR_ERROR"), rig.circleEnds)
     }
 
-    // ---- остановка пользователем ---------------------------------------------------------
+    @Test
+    fun `microphone error - error and end`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.input.error = IllegalStateException("startRecording() called on an uninitialized AudioRecord.")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertTrue(rig.state is ConversationState.Error)
+        assertEquals(0, rig.transcriber.calls)
+        assertEquals(listOf(Cue.LISTEN, Cue.ERROR, Cue.END), rig.output.cues)
+        assertEquals(listOf("RECORDING_ERROR"), rig.circleEnds)
+    }
 
     @Test
-    fun `Stop in the middle of speech - Idle, auto mode off, rest not played`() = runTest {
+    fun `synthesis error - error and end`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.synth.error = java.io.IOException("HTTP 429")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(ConversationState.Error("Error: HTTP 429"), rig.state)
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+        assertEquals(listOf("SPEECH_ERROR"), rig.circleEnds)
+    }
+
+    @Test
+    fun `farewell error - error and end, auto mode stays off`() = runTest {
+        val rig = Rig(this)
+        repeat(3) { rig.input.speech.addLast(false) }
+        rig.tutor.farewellError = java.io.IOException("timeout")
+        rig.controller.setAutoMode(true)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertFalse(rig.controller.ui.value.autoMode)
+        assertEquals(listOf(Cue.NOT_HEARD, Cue.ERROR, Cue.END), rig.output.cues.takeLast(3))
+        assertEquals(listOf("TUTOR_ERROR"), rig.circleEnds)
+    }
+
+    // ---- остановка извне -----------------------------------------------------------------
+
+    @Test
+    fun `Stop in the middle of speech - Idle, auto mode off, rest not played, end cue`() = runTest {
         val rig = Rig(this, "Hello")
         rig.tutor.replyText = "One. Two. Three. Four."
         rig.output.playMs = 2000
@@ -337,7 +535,7 @@ class ConversationControllerTest {
         runCurrent()
         assertEquals(ConversationState.Speaking, rig.state)
 
-        rig.controller.stop()
+        rig.controller.stop(EndReason.STOP_BUTTON)
         advanceUntilIdle()
 
         val ui = rig.controller.ui.value
@@ -348,20 +546,85 @@ class ConversationControllerTest {
         assertEquals(listOf("One."), rig.output.played)
         assertTrue(rig.output.stops >= 1)
         assertEquals(1, rig.input.records) // авто-режим не продолжился
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.END), rig.output.cues)
+        assertEquals(listOf("STOP_BUTTON"), rig.circleEnds)
+        assertTrue(rig.log.lines.contains("[Controller] Speaking -> Idle (Stop button)"))
     }
 
     @Test
-    fun `Stop while listening - nothing is transcribed`() = runTest {
+    fun `Stop while listening - nothing is transcribed, end cue`() = runTest {
         val rig = Rig(this, "Hello")
         rig.input.hold = true
         rig.controller.startTurn()
         runCurrent()
         assertEquals(ConversationState.Listening, rig.state)
 
-        rig.controller.stop()
+        rig.controller.stop(EndReason.STOP_BUTTON)
         advanceUntilIdle()
         assertEquals(ConversationState.Idle, rig.state)
         assertEquals(0, rig.transcriber.calls)
+        assertEquals(listOf(Cue.LISTEN, Cue.END), rig.output.cues)
+    }
+
+    @Test
+    fun `Stop button with no circle running - no end cue`() = runTest {
+        val rig = Rig(this)
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+        assertTrue(rig.output.cues.isEmpty())
+        assertTrue(rig.circleEnds.isEmpty())
+    }
+
+    @Test
+    fun `Back during a circle - end cue once, reason Back`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.input.hold = true
+        rig.controller.startTurn()
+        runCurrent()
+
+        rig.controller.stop(EndReason.BACK)
+        rig.controller.release() // затем сервис закрывается
+        advanceUntilIdle()
+
+        assertEquals(listOf(Cue.LISTEN, Cue.END), rig.output.cues)
+        assertEquals(listOf("BACK"), rig.circleEnds)
+        assertTrue(rig.output.released)
+    }
+
+    @Test
+    fun `Back with no circle running still plays end - conversation closed`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.controller.startTurn()
+        advanceUntilIdle() // ответ прозвучал, «конец» уже был
+        rig.output.cues.clear()
+
+        rig.controller.stop(EndReason.BACK)
+        advanceUntilIdle()
+        assertEquals(listOf(Cue.END), rig.output.cues)
+    }
+
+    @Test
+    fun `service destroyed during a circle - end cue, reason logged`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.replyDelayMs = 5_000
+        rig.controller.startTurn()
+        advanceTimeBy(1000)
+        runCurrent()
+        assertEquals(ConversationState.Thinking, rig.state)
+
+        rig.controller.release()
+        advanceUntilIdle()
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.END), rig.output.cues)
+        assertEquals(listOf("SERVICE_DESTROYED"), rig.circleEnds)
+        assertTrue(rig.output.played.isEmpty())
+    }
+
+    @Test
+    fun `service destroyed with no circle running - no cue`() = runTest {
+        val rig = Rig(this)
+        rig.controller.release()
+        advanceUntilIdle()
+        assertTrue(rig.output.cues.isEmpty())
     }
 
     @Test
@@ -379,25 +642,12 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `turning auto mode off mid-turn stops after the reply`() = runTest {
-        val rig = Rig(this, "Hello", "more")
-        rig.controller.setAutoMode(true)
-        rig.controller.startTurn()
-        advanceTimeBy(500)
-        rig.controller.setAutoMode(false)
-        advanceUntilIdle()
-
-        assertEquals(1, rig.input.records)
-        assertEquals(listOf("Hello"), rig.tutor.replies)
-        assertEquals(ConversationState.Idle, rig.state)
-    }
-
-    @Test
     fun `Talk while a turn is running does not start a second one`() = runTest {
         val rig = Rig(this, "Hello")
         rig.controller.startTurn()
         rig.controller.startTurn()
         advanceUntilIdle()
         assertEquals(1, rig.input.records)
+        assertEquals(1, rig.output.cues.count { it == Cue.END })
     }
 }

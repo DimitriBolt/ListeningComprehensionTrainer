@@ -1,24 +1,24 @@
 package com.example.listeningtrainer.audio
 
-import android.media.AudioManager
 import android.media.MediaPlayer
-import android.media.ToneGenerator
 import com.example.listeningtrainer.conversation.AudioOutput
 import com.example.listeningtrainer.conversation.Cue
 import com.example.listeningtrainer.conversation.SpeechAudio
 import com.example.listeningtrainer.conversation.SpeechAudioFile
+import com.example.listeningtrainer.eventlog.AppLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 /**
- * Воспроизведение файлов через один MediaPlayer, сигналы — ToneGenerator.
+ * Воспроизведение файлов через один MediaPlayer, сигналы — [CuePlayer].
  * Щит Bluetooth сейчас — тишина в начале самого файла (см. TtsSynthesizer).
  */
 class MediaPlayerOutput : AudioOutput {
 
     private var mediaPlayer: MediaPlayer? = null
+    private val cues = CuePlayer()
 
     @Volatile
     private var stopped = false
@@ -41,7 +41,11 @@ class MediaPlayerOutput : AudioOutput {
             suspendCancellableCoroutine { cont ->
                 cont.invokeOnCancellation { stop() }
                 player.setOnCompletionListener { if (cont.isActive) cont.resume(Unit) }
-                player.setOnErrorListener { _, _, _ -> if (cont.isActive) cont.resume(Unit); true }
+                player.setOnErrorListener { _, what, extra ->
+                    AppLog.event("Audio", "MediaPlayer error what=$what extra=$extra, group skipped")
+                    if (cont.isActive) cont.resume(Unit)
+                    true
+                }
                 if (!stopped) {
                     player.start()
                     onStarted()
@@ -51,21 +55,13 @@ class MediaPlayerOutput : AudioOutput {
             throw e
         } catch (e: Exception) {
             // Как и раньше: сбой плеера (или остановка посреди подготовки) — идём дальше.
+            if (!stopped) AppLog.error("Audio", "MediaPlayer failed, group skipped", e)
         }
     }
 
-    override fun playCue(cue: Cue) {
-        try {
-            val toneGen = when (cue) {
-                Cue.PROCESSING -> ToneGenerator(AudioManager.STREAM_MUSIC, 70)
-                Cue.YOUR_TURN -> ToneGenerator(AudioManager.STREAM_MUSIC, 50) // чуть тише
-            }
-            when (cue) {
-                Cue.PROCESSING -> toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                Cue.YOUR_TURN -> toneGen.startTone(ToneGenerator.TONE_SUP_PIP, 100) // высокий короткий
-            }
-        } catch (e: RuntimeException) {}
-    }
+    override fun playCue(cue: Cue) = cues.play(cue)
+
+    override suspend fun awaitCues() = cues.awaitAll()
 
     override fun stop() {
         stopped = true
@@ -75,5 +71,6 @@ class MediaPlayerOutput : AudioOutput {
     override fun release() {
         mediaPlayer?.release()
         mediaPlayer = null
+        cues.release() // уже поставленные сигналы дозвучат
     }
 }

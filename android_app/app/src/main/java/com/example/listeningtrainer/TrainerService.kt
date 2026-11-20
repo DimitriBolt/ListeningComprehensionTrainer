@@ -20,6 +20,7 @@ import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.conversation.AudioInput
 import com.example.listeningtrainer.conversation.ConversationController
 import com.example.listeningtrainer.conversation.ConversationUi
+import com.example.listeningtrainer.conversation.EndReason
 import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import com.example.listeningtrainer.conversation.SpeechPlanner
@@ -88,7 +89,7 @@ class TrainerService : Service() {
         when (intent?.action) {
             ACTION_TALK -> controller.startTurn()
             ACTION_FINISH_RECORDING -> controller.finishRecording()
-            ACTION_STOP -> controller.stop()
+            ACTION_STOP -> controller.stop(EndReason.STOP_BUTTON)
             ACTION_SET_AUTO -> controller.setAutoMode(intent.getBooleanExtra(EXTRA_ENABLED, false))
         }
         // Без экрана перезапуск сервиса с микрофоном не нужен (и на Android 14 запрещён из фона).
