@@ -1,6 +1,7 @@
 package com.example.listeningtrainer.openai
 
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.eventlog.AppLog
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.Dispatcher
@@ -20,6 +21,7 @@ object OpenAiClient {
             maxRequests = ModelConfig.MAX_PARALLEL_REQUESTS
             maxRequestsPerHost = ModelConfig.MAX_PARALLEL_REQUESTS
         })
+        .addInterceptor(NetworkLogInterceptor(AppLog))
         .build()
 
     val api: OpenAiService by lazy {
