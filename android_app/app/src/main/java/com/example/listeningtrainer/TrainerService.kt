@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.example.listeningtrainer.audio.AudioRecorder
+import com.example.listeningtrainer.audio.AudioSession
 import com.example.listeningtrainer.audio.MediaPlayerOutput
 import com.example.listeningtrainer.audio.exportToPublicMusic
 import com.example.listeningtrainer.audio.lastUserSpeechFile
@@ -44,17 +45,21 @@ import kotlinx.coroutines.launch
  *
  * Сервис запускается первой командой («Talk» или авто-режим) — уже после разрешения на
  * микрофон: foreground-сервис с типом microphone без него на Android 14 падает.
- * Останавливается кнопкой «Back» ([stop]); вместе с ним заканчивается и история диалога.
+ * Пока он жив, приложение держит аудиофокус ([AudioSession]).
+ * Останавливается кнопкой «Back» ([stop]): круг заканчивается с причиной «Back», звучит «конец».
  */
 class TrainerService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var controller: ConversationController
+    private lateinit var audioSession: AudioSession
 
     override fun onCreate() {
         super.onCreate()
+        AppLog.event(SOURCE, "onCreate")
         createNotificationChannel()
         running = true
+        audioSession = AudioSession(this, AppLog).also { it.start() }
 
         val keyStore = ApiKeyStore(this)
         val apiKey = { keyStore.current() }
@@ -86,22 +91,42 @@ class TrainerService : Service() {
             this, NOTIFICATION_ID, createNotification(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
         )
-        when (intent?.action) {
+        val action = intent?.action
+        AppLog.event(SOURCE, "command ${action?.substringAfterLast('.') ?: "none (restart)"}")
+        when (action) {
             ACTION_TALK -> controller.startTurn()
             ACTION_FINISH_RECORDING -> controller.finishRecording()
             ACTION_STOP -> controller.stop(EndReason.STOP_BUTTON)
             ACTION_SET_AUTO -> controller.setAutoMode(intent.getBooleanExtra(EXTRA_ENABLED, false))
+            ACTION_EXIT -> {
+                controller.stop(EndReason.BACK)
+                stopSelf()
+            }
         }
         // Без экрана перезапуск сервиса с микрофоном не нужен (и на Android 14 запрещён из фона).
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        controller.release()
+        AppLog.event(SOURCE, "onDestroy")
+        controller.release() // если круг ещё шёл — «конец» с причиной «service destroyed»
+        audioSession.stop()
         _ui.value = controller.ui.value
         scope.cancel()
         running = false
         super.onDestroy()
+    }
+
+    /** Приложение смахнули из списка недавних; сервис при этом может продолжать работать. */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        AppLog.event(SOURCE, "onTaskRemoved (app swiped from recents)")
+        super.onTaskRemoved(rootIntent)
+    }
+
+    /** Система просит освободить память — подсказка, если процесс потом убьют. */
+    override fun onTrimMemory(level: Int) {
+        AppLog.event(SOURCE, "onTrimMemory level=$level")
+        super.onTrimMemory(level)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -134,6 +159,7 @@ class TrainerService : Service() {
     }
 
     companion object {
+        private const val SOURCE = "Service"
         private const val CHANNEL_ID = "TrainerServiceChannel"
         private const val NOTIFICATION_ID = 1
         const val TIMING_TAG = "LCT-Timing"
@@ -142,6 +168,7 @@ class TrainerService : Service() {
         private const val ACTION_FINISH_RECORDING = "com.example.listeningtrainer.FINISH_RECORDING"
         private const val ACTION_STOP = "com.example.listeningtrainer.STOP"
         private const val ACTION_SET_AUTO = "com.example.listeningtrainer.SET_AUTO"
+        private const val ACTION_EXIT = "com.example.listeningtrainer.EXIT"
         private const val EXTRA_ENABLED = "enabled"
 
         private val _ui = MutableStateFlow(ConversationUi())
@@ -169,9 +196,9 @@ class TrainerService : Service() {
             send(context, ACTION_SET_AUTO) { putExtra(EXTRA_ENABLED, enabled) }
         }
 
-        /** «Back»: разговор и сервис заканчиваются. */
+        /** «Back»: круг останавливается с причиной «Back», звучит «конец», сервис закрывается. */
         fun stop(context: Context) {
-            context.stopService(Intent(context, TrainerService::class.java))
+            if (running) send(context, ACTION_EXIT)
         }
 
         private fun send(context: Context, action: String, extras: Intent.() -> Unit = {}) {
