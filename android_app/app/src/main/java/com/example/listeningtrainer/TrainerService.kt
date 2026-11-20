@@ -65,8 +65,8 @@ class TrainerService : Service() {
         val tutor = (application as TrainerApplication).tutor
         AppLog.event(SOURCE, "tutor history: ${tutor.historySize} messages")
         val recorder = AudioRecorder(lastUserSpeechFile(this))
-        // Копия каждой записи в общую папку Music — отладка, как было до S01.
-        val input = object : AudioInput by recorder {
+        // Копия каждой записи в общую папку Music — только в debug-сборке, последние 20 файлов.
+        val input: AudioInput = if (!BuildConfig.DEBUG) recorder else object : AudioInput by recorder {
             override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio =
                 recorder.record(turnDetector, onLevel).also { audio ->
                     scope.launch(Dispatchers.IO) { exportToPublicMusic(this@TrainerService, audio.file) }
