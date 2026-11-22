@@ -26,8 +26,12 @@ object CueTones {
     /** Нота: [hz] = 0 — пауза. [buzz] — с нечётными обертонами (резкий звук ошибки). */
     data class Note(val hz: Double, val ms: Int, val amplitude: Double = 0.0, val buzz: Boolean = false)
 
-    private const val LOUD = 0.25
-    private const val QUIET = 0.08
+    /**
+     * Громкость сигналов — чуть тише голоса учителя (его RMS приводится к −16 дБFS):
+     * синус 0,14 — RMS ≈ −20 дБFS, пик ≈ −17 дБFS. «Тик» — на 10 дБ тише.
+     */
+    const val LOUD = 0.14
+    const val QUIET = 0.044
     private const val FADE_MS = 5
 
     fun notes(cue: Cue): List<Note> = when (cue) {
