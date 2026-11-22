@@ -5,7 +5,6 @@ import com.example.listeningtrainer.eventlog.NoEventLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -64,10 +63,13 @@ enum class EndReason(val description: String, val isError: Boolean = false) {
  * [waitTickEveryMs], если ученик ждёт учителя дольше [waitTickAfterMs], «не услышал» на молчании,
  * «ошибка» и «конец» на выходе из круга.
  *
+ * Ответ учителя озвучивает [SpeechPipeline]: [synthesizer] (Realtime) по порядку групп со сверкой,
+ * [fallbackSynthesizer] (Android TextToSpeech) — на отдельную группу или на остаток ответа.
+ *
  * В [log] пишутся каждый переход состояния с причиной и причина каждого выхода из круга —
  * без ключа и без текстов, только их длины. На каждый круг одна строка замера с источником
  * [TIMING_SOURCE] (в Logcat — тег LCT-Timing): сколько мс от конца записи до текста ученика,
- * до ответа учителя и до запуска первого звука.
+ * до ответа учителя, до запуска первого звука и до момента, когда голос **слышен** (после щита).
  */
 class ConversationController(
     private val scope: CoroutineScope,
@@ -76,7 +78,8 @@ class ConversationController(
     private val transcriber: Transcriber,
     private val tutor: Tutor,
     private val planner: SpeechPlanner,
-    private val synthesizer: Synthesizer,
+    synthesizer: Synthesizer,
+    fallbackSynthesizer: Synthesizer,
     private val output: AudioOutput,
     private val clock: () -> Long = System::currentTimeMillis,
     private val log: EventLog = NoEventLog,
@@ -88,7 +91,11 @@ class ConversationController(
     private val waitTickAfterMs: Long = 5_000L,
     /** Как часто звучит «тик», пока ученик ждёт. */
     private val waitTickEveryMs: Long = 3_000L,
+    /** Сколько групп держать готовыми вперёд. */
+    speechLookahead: Int = 3,
 ) {
+    private val speech = SpeechPipeline(synthesizer, fallbackSynthesizer, log, clock, speechLookahead)
+
     private val _ui = MutableStateFlow(ConversationUi())
     val ui: StateFlow<ConversationUi> = _ui.asStateFlow()
 
@@ -158,10 +165,14 @@ class ConversationController(
         log.event(SOURCE, "New conversation: tutor history cleared")
     }
 
+    /** Сервис стартовал: заранее открыть сессию синтеза, чтобы подключение не попало во время ответа. */
+    fun prepare() = speech.prepare()
+
     /** Сервис закрывается. Если круг ещё идёт — он заканчивается с причиной «service destroyed». */
     fun release() {
         stop(EndReason.SERVICE_DESTROYED)
         output.release()
+        speech.release()
     }
 
     // ---- круг --------------------------------------------------------------------------------
@@ -197,6 +208,8 @@ class ConversationController(
         setState(ConversationState.Listening, why) {
             it.copy(studentText = "", teacherText = "", currentChunk = "")
         }
+        // Сессия синтеза — заранее, пока ученик говорит (если оборвалась — переподключится сейчас).
+        speech.prepare()
         // Запись — после сигнала: микрофон его не слышит, и 3 с тишины отсчитываются от конца сигнала.
         output.playCue(Cue.LISTEN)
         output.awaitCues()
@@ -272,7 +285,7 @@ class ConversationController(
     }
 
     /**
-     * Ответ учителя: текст → группы → параллельный синтез → воспроизведение по очереди.
+     * Ответ учителя: текст → группы → синтез по порядку с опережением → воспроизведение по очереди.
      * `null` — прозвучал, иначе — причина ошибки.
      */
     private suspend fun answer(
@@ -297,30 +310,32 @@ class ConversationController(
         val chunks = planner.plan(reply.text)
         log.event(SOURCE, "reply: ${reply.text.length} chars, ${chunks.size} groups")
         if (chunks.isEmpty()) {
-            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, null)
+            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, null, 0)
             setState(ConversationState.Idle, "empty reply") { it.copy(status = "Ready.") }
             return null
         }
         try {
             coroutineScope {
-                val audios = chunks.map { chunk -> async { synthesizer.synthesize(chunk.text) } }
+                // Щит Bluetooth — только если звук сейчас идёт в Bluetooth (выход проверяется перед ответом).
+                val shieldMs = output.prepareReply()
+                val groups = speech.start(this, chunks)
                 var firstSoundAt: Long? = null
                 for (i in chunks.indices) {
                     if (i > 0) startWaitTicks() // долгий синтез посреди ответа — тоже ожидание
-                    val audio = audios[i].await()
+                    val audio = groups.receive()
                     if (i > 0) stopWaitTicks()
                     setState(ConversationState.Speaking, "first group ready") {
                         it.copy(currentChunk = chunks[i].text, status = "Speaking ${i + 1}/${chunks.size} 🔊")
                     }
-                    output.play(audio) {
+                    output.play(audio, shieldMs) {
                         if (firstSoundAt == null) {
                             firstSoundAt = clock()
                             stopWaitTicks()
-                            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, firstSoundAt)
+                            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, firstSoundAt, shieldMs)
                         }
                     }
-                    // Опережающий запуск: в начале звука leadInMs тишины (щит Bluetooth).
-                    if (i < chunks.size - 1) delay(maxOf(10L, chunks[i].pauseMs - synthesizer.leadInMs))
+                    // Опережающий запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
+                    if (i < chunks.size - 1) delay(maxOf(10L, chunks[i].pauseMs - shieldMs))
                 }
             }
         } catch (e: CancellationException) {
@@ -371,9 +386,14 @@ class ConversationController(
         return reason
     }
 
-    private fun logTimings(recordedAt: Long, transcribedAt: Long, repliedAt: Long, firstSoundAt: Long?) {
+    /** `first_audio` — запуск звука первой группы; `audible` — голос слышен (после щита, если он есть). */
+    private fun logTimings(recordedAt: Long, transcribedAt: Long, repliedAt: Long, firstSoundAt: Long?, shieldMs: Long) {
         val first = firstSoundAt?.let { (it - recordedAt).toString() } ?: "-"
-        log.event(TIMING_SOURCE, "stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} first_audio=$first")
+        val audible = firstSoundAt?.let { (it + shieldMs - recordedAt).toString() } ?: "-"
+        log.event(
+            TIMING_SOURCE,
+            "stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} first_audio=$first audible=$audible",
+        )
     }
 
     /** Имя состояния для журнала. Текст ошибки сюда не идёт — он пишется отдельно, через log.error. */

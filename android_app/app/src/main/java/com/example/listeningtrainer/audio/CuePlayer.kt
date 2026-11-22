@@ -4,7 +4,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import com.example.listeningtrainer.conversation.Cue
-import com.example.listeningtrainer.eventlog.AppLog
+import com.example.listeningtrainer.eventlog.EventLog
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -12,8 +12,9 @@ import java.util.concurrent.RejectedExecutionException
 /**
  * Сигналы из [CueTones] через AudioTrack. Один поток: сигналы звучат по очереди и не накладываются.
  * [release] не обрывает очередь — дозвучит всё, что уже поставлено (например, «конец» после «Back»).
+ * Каждый сыгранный сигнал — строка журнала `[Audio] cue: END` в момент, когда он начинает звучать.
  */
-class CuePlayer {
+class CuePlayer(private val log: EventLog) {
 
     private val executor = Executors.newSingleThreadExecutor { r -> Thread(r, "cue-player").apply { isDaemon = true } }
     private val sounds: Map<Cue, ShortArray> = Cue.values().associateWith { CueTones.render(it) }
@@ -65,10 +66,11 @@ class CuePlayer {
                 .build()
             track.write(pcm, 0, pcm.size)
             track.play()
+            log.event("Audio", "cue: ${cue.name}")
             Thread.sleep(CueTones.durationMs(cue) + TAIL_MS)
             track.stop()
         } catch (e: Exception) {
-            AppLog.error("Audio", "cue ${cue.name} failed", e)
+            log.error("Audio", "cue ${cue.name} failed", e)
         } finally {
             track?.release()
         }

@@ -15,7 +15,8 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.example.listeningtrainer.audio.AudioRecorder
 import com.example.listeningtrainer.audio.AudioSession
-import com.example.listeningtrainer.audio.MediaPlayerOutput
+import com.example.listeningtrainer.audio.AndroidTtsSynthesizer
+import com.example.listeningtrainer.audio.AudioTrackOutput
 import com.example.listeningtrainer.audio.exportToPublicMusic
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.conversation.AudioInput
@@ -27,7 +28,8 @@ import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import com.example.listeningtrainer.conversation.SpeechPlanner
 import com.example.listeningtrainer.conversation.TurnDetector
 import com.example.listeningtrainer.eventlog.AppLog
-import com.example.listeningtrainer.openai.TtsSynthesizer
+import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.openai.RealtimeSynthesizer
 import com.example.listeningtrainer.openai.WhisperTranscriber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -80,10 +82,14 @@ class TrainerService : Service() {
             transcriber = WhisperTranscriber(apiKey),
             tutor = tutor,
             planner = SpeechPlanner(),
-            synthesizer = TtsSynthesizer(apiKey, cacheDir),
-            output = MediaPlayerOutput(),
+            synthesizer = RealtimeSynthesizer(apiKey, AppLog),
+            fallbackSynthesizer = AndroidTtsSynthesizer(this, AppLog),
+            output = AudioTrackOutput(this, AppLog),
             log = AppLog,
+            speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
         )
+        // Сессия Realtime и запасной движок — заранее, чтобы подключение не попало во время ответа.
+        controller.prepare()
         scope.launch { controller.ui.collect { _ui.value = it } }
     }
 
@@ -125,9 +131,15 @@ class TrainerService : Service() {
         super.onTaskRemoved(rootIntent)
     }
 
-    /** Система просит освободить память — подсказка, если процесс потом убьют. */
+    /** Последний записанный уровень onTrimMemory: система шлёт один и тот же уровень сотнями раз. */
+    private var lastTrimLevel: Int? = null
+
+    /** Система просит освободить память — подсказка, если процесс потом убьют. Пишется только смена уровня. */
     override fun onTrimMemory(level: Int) {
-        AppLog.event(SOURCE, "onTrimMemory level=$level")
+        if (level != lastTrimLevel) {
+            AppLog.event(SOURCE, "onTrimMemory level=$level (was ${lastTrimLevel ?: "-"})")
+            lastTrimLevel = level
+        }
         super.onTrimMemory(level)
     }
 

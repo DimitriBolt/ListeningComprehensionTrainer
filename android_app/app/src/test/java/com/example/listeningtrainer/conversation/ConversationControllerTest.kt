@@ -93,15 +93,28 @@ class ConversationControllerTest {
         override fun newConversation() { newConversations++ }
     }
 
-    private class FakeSynth : Synthesizer {
-        override val leadInMs = 1000L
+    /**
+     * Подставной синтез. Звук каждой группы — тишина своей длины: по длине [FakeOutput] узнаёт,
+     * какой текст играет (нормализация громкости длину не меняет).
+     */
+    private class FakeSynth(override val name: String, private val sounds: MutableMap<Int, String>) : Synthesizer {
         val texts = mutableListOf<String>()
+        val textTimes = mutableListOf<Long>()
         var error: Exception? = null
-        override suspend fun synthesize(text: String): SpeechAudio {
+        var delayMs = 200L
+        var prepares = 0
+        var releases = 0
+        var clock: () -> Long = { 0L }
+        override fun prepare() { prepares++ }
+        override fun release() { releases++ }
+        override suspend fun synthesize(text: String): SynthesizedSpeech {
             texts += text
-            delay(200)
+            textTimes += clock()
+            delay(delayMs)
             error?.let { throw it }
-            return SpeechAudioFile(File(text))
+            val size = 1000 + sounds.size
+            sounds[size] = text
+            return SynthesizedSpeech(SpeechAudio(ShortArray(size), 24_000), transcript = text)
         }
     }
 
@@ -111,16 +124,26 @@ class ConversationControllerTest {
         private val timeline: Timeline,
     ) : AudioOutput {
         val played = mutableListOf<String>()
+        val shields = mutableListOf<Long>()
         val startTimes = mutableListOf<Long>()
+        /** Тишина щита, которую вернёт prepareReply: 0 — проводные наушники, 1000 — Bluetooth. */
+        var shieldMs = 0L
+        var prepareReplies = 0
+        var sounds: Map<Int, String> = emptyMap()
         val cues = mutableListOf<Cue>()
         val cueTimes = mutableListOf<Long>()
         val statesAtPlay = mutableListOf<ConversationState>()
         var playMs = 0L
         var stops = 0
         var released = false
-        override suspend fun play(audio: SpeechAudio, onStarted: () -> Unit) {
+        override fun prepareReply(): Long {
+            prepareReplies++
+            return shieldMs
+        }
+        override suspend fun play(audio: SpeechAudio, shieldMs: Long, onStarted: () -> Unit) {
             statesAtPlay += ui().state
-            played += (audio as SpeechAudioFile).file.path
+            played += sounds.getValue(audio.pcm.size)
+            shields += shieldMs
             timeline.events += "play"
             startTimes += clock()
             onStarted()
@@ -152,8 +175,10 @@ class ConversationControllerTest {
         val input = FakeInput(ui, timeline)
         val transcriber = FakeTranscriber(ui, *transcripts)
         val tutor = FakeTutor()
-        val synth = FakeSynth()
-        val output = FakeOutput(ui, clock, timeline)
+        private val sounds = mutableMapOf<Int, String>()
+        val synth = FakeSynth("realtime", sounds).also { it.clock = clock }
+        val fallback = FakeSynth("android", sounds).also { it.clock = clock }
+        val output = FakeOutput(ui, clock, timeline).also { it.sounds = sounds }
         val log = FakeLog()
         val timing get() = log.lines.filter { it.startsWith("[Timing] ") }.map { it.removePrefix("[Timing] ") }
         val circleEnds get() = log.lines.filter { "circle end: " in it }.map { it.substringAfter("circle end: ").substringBefore(' ') }
@@ -167,6 +192,7 @@ class ConversationControllerTest {
                 tutor = tutor,
                 planner = SpeechPlanner(),
                 synthesizer = synth,
+                fallbackSynthesizer = fallback,
                 output = output,
                 clock = clock,
                 log = log,
@@ -220,7 +246,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        val transitions = rig.log.lines.filter { " -> " in it }
+        val transitions = rig.log.lines.filter { it.startsWith("[Controller]") && " -> " in it }
         assertEquals(
             listOf(
                 "[Controller] Idle -> Listening (Talk button)",
@@ -246,16 +272,33 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `next group starts at reference pause minus Bluetooth lead-in`() = runTest {
+    fun `wired headphones - no shield, pauses exactly as the reference`() = runTest {
         val rig = Rig(this, "Hi")
         rig.tutor.replyText = "One, two.\nThree."
         rig.controller.startTurn()
         advanceUntilIdle()
 
         assertEquals(listOf("One,", "two.", "Three."), rig.output.played)
+        assertEquals(listOf(0L, 0L, 0L), rig.output.shields)
+        val t = rig.output.startTimes // звук групп в подставном выходе — 0 мс
+        assertEquals(600L, t[1] - t[0])   // запятая
+        assertEquals(1600L, t[2] - t[1])  // абзац
+    }
+
+    @Test
+    fun `Bluetooth - shield before every group, next group starts earlier by the shield`() = runTest {
+        val rig = Rig(this, "Hi")
+        rig.output.shieldMs = 1000
+        rig.output.playMs = 1000 // группа звучит дольше, чем синтезируется следующая
+        rig.tutor.replyText = "One, two.\nThree."
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1000L, 1000L, 1000L), rig.output.shields)
         val t = rig.output.startTimes
-        assertEquals(10L, t[1] - t[0])   // 600 - 1000 → не меньше 10
-        assertEquals(600L, t[2] - t[1])  // абзац 1600 - 1000
+        assertEquals(1000L + 10L, t[1] - t[0])   // звук 1000, пауза 600 - 1000 → не меньше 10
+        assertEquals(1000L + 600L, t[2] - t[1])  // звук 1000, абзац 1600 - 1000
+        assertEquals(1, rig.output.prepareReplies) // выход проверяется один раз на ответ
     }
 
     @Test
@@ -275,8 +318,76 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        // распознавание 300 мс, учитель +1000, синтез +200
-        assertEquals(listOf("stt=300 tutor=1300 first_audio=1500"), rig.timing)
+        // распознавание 300 мс, учитель +1000, синтез +200; щита нет — слышно сразу
+        assertEquals(listOf("stt=300 tutor=1300 first_audio=1500 audible=1500"), rig.timing)
+    }
+
+    @Test
+    fun `timing - with Bluetooth the voice is audible after the shield`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.output.shieldMs = 1200
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("stt=300 tutor=1300 first_audio=1500 audible=2700"), rig.timing)
+    }
+
+    @Test
+    fun `speech session is prepared at service start and before every recording`() = runTest {
+        val rig = Rig(this, "Hi")
+        rig.controller.prepare()
+        assertEquals(1, rig.synth.prepares)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(2, rig.synth.prepares)
+        assertEquals(2, rig.fallback.prepares)
+        rig.controller.release()
+        assertEquals(1, rig.synth.releases)
+    }
+
+    @Test
+    fun `groups are synthesized in order, the first one first`() = runTest {
+        val rig = Rig(this, "Hi")
+        rig.tutor.replyText = "One, two, three, four, five, six."
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("One,", "two,", "three,", "four,", "five,", "six."), rig.synth.texts)
+        assertEquals(rig.synth.texts, rig.output.played)
+        assertEquals(1300L, rig.synth.textTimes.first()) // сразу после ответа учителя, без очереди
+        assertTrue(rig.fallback.texts.isEmpty())
+    }
+
+    @Test
+    fun `Realtime unavailable - the reply is read by the fallback`() = runTest {
+        val rig = Rig(this, "Hi")
+        rig.tutor.replyText = "One, two."
+        rig.synth.error = SynthesisException("network: UnknownHostException", unavailable = true)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("One,"), rig.synth.texts) // после недоступности Realtime больше не пробуется
+        assertEquals(listOf("One,", "two."), rig.fallback.texts)
+        assertEquals(listOf("One,", "two."), rig.output.played)
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+        assertTrue(rig.log.lines.any { "realtime unavailable (network: UnknownHostException)" in it })
+    }
+
+    @Test
+    fun `Stop during speech stops playback and pending synthesis`() = runTest {
+        val rig = Rig(this, "Hi")
+        rig.tutor.replyText = "One, two, three, four, five, six, seven, eight."
+        rig.output.playMs = 2000
+        rig.controller.startTurn()
+        advanceTimeBy(1300 + 200 + 500) // идёт первая группа
+        val requested = rig.synth.texts.size
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+
+        assertEquals(listOf("One,"), rig.output.played)
+        assertEquals(requested, rig.synth.texts.size) // новых запросов синтеза после Stop нет
+        assertTrue(requested <= 1 + 3) // первая + не больше 3 вперёд
+        assertEquals(listOf("STOP_BUTTON"), rig.circleEnds)
     }
 
     // ---- ожидание учителя ----------------------------------------------------------------
@@ -322,7 +433,7 @@ class ConversationControllerTest {
         val rig = Rig(this, "one", "two")
         rig.controller.setAutoMode(true)
         rig.controller.startTurn()
-        advanceTimeBy(5_000) // два ответа и третья запись; дальше пустые расшифровки привели бы к прощанию
+        advanceTimeBy(7_000) // два ответа (по 3,2 с) и третья запись; дальше пустые расшифровки привели бы к прощанию
         runCurrent()
 
         assertTrue(rig.input.records >= 3)
@@ -502,11 +613,12 @@ class ConversationControllerTest {
     @Test
     fun `synthesis error - error and end`() = runTest {
         val rig = Rig(this, "Hello")
-        rig.synth.error = java.io.IOException("HTTP 429")
+        rig.synth.error = SynthesisException("http 429", unavailable = true)
+        rig.fallback.error = SynthesisException("android tts: no English voice data", unavailable = true)
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(ConversationState.Error("Error: HTTP 429"), rig.state)
+        assertEquals(ConversationState.Error("Error: android tts: no English voice data"), rig.state)
         assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
         assertEquals(listOf("SPEECH_ERROR"), rig.circleEnds)
     }

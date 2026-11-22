@@ -64,26 +64,42 @@ interface Tutor {
 }
 
 /**
- * Звук одной смысловой группы. Синтезатор отдаёт его, [AudioOutput] умеет его играть;
- * контроллер внутрь не смотрит. Сейчас есть только [SpeechAudioFile] (MP3 от `tts-1`).
- * В S02 сюда добавится поток PCM 24 кГц от Realtime API — новый вариант этого интерфейса
- * и его проигрывание в `AudioOutput`, контроллер не меняется.
+ * Звук одной смысловой группы: PCM 16 бит, моно, [sampleRate] Гц (Realtime — 24 кГц, запасной
+ * синтез — сколько даст движок телефона). Играет его [AudioOutput], контроллер внутрь не смотрит.
  */
-sealed interface SpeechAudio
+class SpeechAudio(val pcm: ShortArray, val sampleRate: Int) {
+    val durationMs: Long get() = pcm.size * 1000L / sampleRate
+}
 
-/** Готовый звуковой файл (сейчас MP3). */
-data class SpeechAudioFile(val file: File) : SpeechAudio
+/**
+ * Что вернул синтезатор. [transcript] — что модель, по её же расшифровке, произнесла
+ * (у Realtime); `null` — сверить нельзя (Android `TextToSpeech` читает текст как есть).
+ */
+class SynthesizedSpeech(val audio: SpeechAudio, val transcript: String?)
+
+/** Ошибка синтеза. [unavailable] — синтезатор недоступен целиком (нет сети, 401, 429, сессия). */
+class SynthesisException(
+    message: String,
+    val unavailable: Boolean,
+    cause: Throwable? = null,
+) : Exception(message, cause)
 
 /** Смысловая группа → звук. */
 interface Synthesizer {
-    /**
-     * Сколько миллисекунд тишины в начале каждого звука (щит Bluetooth). На столько раньше
-     * эталонной паузы контроллер запускает следующую группу. 0 — щита в звуке нет.
-     */
-    val leadInMs: Long
+    /** Короткое имя для журнала: `realtime`, `android`. */
+    val name: String
 
-    /** Можно вызывать параллельно для всех групп ответа. */
-    suspend fun synthesize(text: String): SpeechAudio
+    /** Подготовиться заранее (открыть сессию, поднять движок), не дожидаясь. */
+    fun prepare() {}
+
+    /**
+     * Звук группы. Вызывается по одной группе за раз. Ошибка — [SynthesisException]
+     * (или любое другое исключение — тогда это ошибка только этой группы).
+     */
+    suspend fun synthesize(text: String): SynthesizedSpeech
+
+    /** Закрыть сессию и движок (сервис останавливается). */
+    fun release() {}
 }
 
 /**
@@ -107,8 +123,17 @@ enum class Cue {
 
 /** Воспроизведение. */
 interface AudioOutput {
-    /** Играет звук до конца. [onStarted] — в момент запуска воспроизведения. */
-    suspend fun play(audio: SpeechAudio, onStarted: () -> Unit = {})
+    /**
+     * Перед каждым ответом: куда сейчас идёт звук (пишется в журнал) и сколько миллисекунд
+     * тишины ставить перед каждой группой (щит Bluetooth, D17). 0 — проводные и динамик, щита нет.
+     */
+    fun prepareReply(): Long
+
+    /**
+     * Играет звук до конца: сначала [shieldMs] тишины (нули), потом сама группа.
+     * [onStarted] — в момент запуска воспроизведения (с началом тишины).
+     */
+    suspend fun play(audio: SpeechAudio, shieldMs: Long, onStarted: () -> Unit = {})
 
     /**
      * Ставит сигнал в очередь и сразу возвращается. Сигналы звучат по одному, в порядке вызова,

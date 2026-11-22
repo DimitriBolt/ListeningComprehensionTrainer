@@ -77,30 +77,12 @@ class AudioSession(context: Context, private val log: EventLog) {
     }
 
     private fun logOutputs(what: String, devices: Array<out AudioDeviceInfo>) {
-        val outputs = devices.filter { it.isSink }.map { outputKind(it.type) }.distinct()
+        val outputs = devices.filter { it.isSink }.map { AudioRoutes.label(it.type) }.distinct()
         if (outputs.isNotEmpty()) log.event(SOURCE, "$what: ${outputs.joinToString()}")
     }
 
     private companion object {
         const val SOURCE = "Audio"
-
-        /** Только тип выхода: динамик, проводные, Bluetooth… Имена устройств не пишутся. */
-        fun outputKind(type: Int): String = when (type) {
-            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "speaker"
-            AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "earpiece"
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "wired (headphones)"
-            AudioDeviceInfo.TYPE_WIRED_HEADSET -> "wired (headset)"
-            AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_ACCESSORY -> "usb"
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "bluetooth (a2dp)"
-            AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "bluetooth (sco)"
-            TYPE_BLE_HEADSET, TYPE_BLE_SPEAKER -> "bluetooth (le)"
-            AudioDeviceInfo.TYPE_HDMI -> "hdmi"
-            else -> "other (type $type)"
-        }
-
-        // Константы Android 12 (API 31); значения стабильны, сравниваем числа и на старых версиях.
-        const val TYPE_BLE_HEADSET = 26
-        const val TYPE_BLE_SPEAKER = 27
 
         fun focusChangeName(change: Int): String = when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> "gained"

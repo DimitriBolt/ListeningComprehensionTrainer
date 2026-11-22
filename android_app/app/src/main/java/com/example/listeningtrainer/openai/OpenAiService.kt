@@ -1,18 +1,15 @@
 @file:OptIn(kotlinx.serialization.InternalSerializationApi::class)
 package com.example.listeningtrainer.openai
 
-import com.example.listeningtrainer.config.ModelConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
-import retrofit2.http.Streaming
 
 @Serializable
 data class ChatRequest(
@@ -68,15 +65,6 @@ data class Choice(
 )
 
 @Serializable
-data class TtsRequest(
-    val model: String = ModelConfig.TTS_MODEL,
-    val input: String,
-    val voice: String = ModelConfig.TTS_VOICE,
-    val response_format: String = ModelConfig.TTS_FORMAT,
-    val speed: Float = ModelConfig.TTS_SPEED
-)
-
-@Serializable
 data class TranscriptionResponse(
     val text: String
 )
@@ -87,13 +75,6 @@ interface OpenAiService {
         @Header("Authorization") authHeader: String,
         @Body request: ChatRequest
     ): ChatResponse
-
-    @Streaming
-    @POST("v1/audio/speech")
-    suspend fun generateSpeech(
-        @Header("Authorization") authHeader: String,
-        @Body request: TtsRequest
-    ): ResponseBody
 
     @Multipart
     @POST("v1/audio/transcriptions")

@@ -4,23 +4,18 @@ import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.eventlog.AppLog
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
-import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
 
-/** Один HTTP-клиент и один Retrofit на процесс: их делят распознавание, учитель, синтез и проверка ключа. */
+/** Один HTTP-клиент и один Retrofit на процесс: их делят распознавание, учитель, синтез (WebSocket Realtime) и проверка ключа. */
 object OpenAiClient {
 
     val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(ModelConfig.CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .readTimeout(ModelConfig.READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .writeTimeout(ModelConfig.WRITE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        .dispatcher(Dispatcher().apply {
-            maxRequests = ModelConfig.MAX_PARALLEL_REQUESTS
-            maxRequestsPerHost = ModelConfig.MAX_PARALLEL_REQUESTS
-        })
         .addInterceptor(NetworkLogInterceptor(AppLog))
         .build()
 
