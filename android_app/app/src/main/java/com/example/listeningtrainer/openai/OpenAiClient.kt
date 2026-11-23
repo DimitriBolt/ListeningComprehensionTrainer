@@ -29,5 +29,11 @@ object OpenAiClient {
             .create(OpenAiService::class.java)
     }
 
+    /** Распознавание и учитель (свои пределы времени появятся здесь же). */
+    val transcribeApi: OpenAiService get() = api
+    val tutorApi: OpenAiService get() = api
+    /** Инструменты учителя: погода и поиск. */
+    val toolsHttp: OkHttpClient get() = http
+
     fun bearer(apiKey: String) = "Bearer ${apiKey.trim()}"
 }

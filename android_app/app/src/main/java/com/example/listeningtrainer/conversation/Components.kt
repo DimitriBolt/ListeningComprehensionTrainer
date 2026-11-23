@@ -45,13 +45,17 @@ interface TurnDetector {
     val heardSpeech: Boolean
 }
 
-/** Звук → текст. */
+/** Звук → текст. [prompt] — короткий контекст для модели ([TranscriptionPrompt]). */
 interface Transcriber {
-    suspend fun transcribe(audio: RecordedAudio): String
+    suspend fun transcribe(audio: RecordedAudio, prompt: String): String
 }
 
-/** Ответ учителя. [text] может начинаться со служебной метки — она только для экрана. */
-data class TutorReply(val text: String)
+/**
+ * Ответ учителя. [text] может начинаться со служебной метки — она только для экрана.
+ * [searched] — учитель вызывал инструмент (поиск, погода); [firstRequestMs] — время первого
+ * запроса к модели (для строки `[Timing]`).
+ */
+data class TutorReply(val text: String, val searched: Boolean = false, val firstRequestMs: Long? = null)
 
 /** Учитель: история диалога, системный промпт, инструменты. */
 interface Tutor {
@@ -60,6 +64,9 @@ interface Tutor {
 
     /** Короткое прощание после долгого молчания ученика. */
     suspend fun farewell(onStatus: (String) -> Unit): TutorReply
+
+    /** Последний ответ учителя (для подсказки распознаванию); `null` — разговор только начался. */
+    val lastTeacherText: String?
 
     /** Забыть историю диалога: следующий ответ — как в начале разговора. */
     fun newConversation()

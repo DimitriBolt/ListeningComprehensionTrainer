@@ -5,6 +5,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import retrofit2.http.GET
 import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.Multipart
@@ -16,7 +18,9 @@ data class ChatRequest(
     val model: String,
     val messages: List<Message>,
     val tools: List<Tool>? = null,
-    val tool_choice: String? = null
+    val tool_choice: String? = null,
+    /** `gpt-6-luna` в Chat Completions вызывает инструменты только при `none` (docs/research/00-models.md). */
+    val reasoning_effort: String? = null,
 )
 
 @Serializable
@@ -70,11 +74,16 @@ data class TranscriptionResponse(
 )
 
 interface OpenAiService {
+    /** Разговор с учителем. */
     @POST("v1/chat/completions")
-    suspend fun checkKey(
+    suspend fun chat(
         @Header("Authorization") authHeader: String,
         @Body request: ChatRequest
     ): ChatResponse
+
+    /** Проверка ключа: список моделей — бесплатно, без запроса к модели. */
+    @GET("v1/models")
+    suspend fun listModels(@Header("Authorization") authHeader: String): ResponseBody
 
     @Multipart
     @POST("v1/audio/transcriptions")
@@ -82,6 +91,7 @@ interface OpenAiService {
         @Header("Authorization") authHeader: String,
         @Part file: MultipartBody.Part,
         @Part("model") model: RequestBody,
-        @Part("language") language: RequestBody
+        @Part("languages[]") language: RequestBody,
+        @Part("prompt") prompt: RequestBody,
     ): TranscriptionResponse
 }

@@ -31,7 +31,7 @@ import com.example.listeningtrainer.conversation.TurnDetector
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.openai.RealtimeSynthesizer
-import com.example.listeningtrainer.openai.WhisperTranscriber
+import com.example.listeningtrainer.openai.FileTranscriber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -80,7 +80,7 @@ class TrainerService : Service() {
             scope = scope,
             input = input,
             turnDetector = SilenceTurnDetector(),
-            transcriber = WhisperTranscriber(apiKey),
+            transcriber = FileTranscriber(apiKey),
             tutor = tutor,
             planner = SpeechPlanner(),
             synthesizer = RealtimeSynthesizer(apiKey, AppLog),

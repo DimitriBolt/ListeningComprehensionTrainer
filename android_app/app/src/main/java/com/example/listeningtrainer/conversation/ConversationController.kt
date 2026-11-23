@@ -1,5 +1,6 @@
 package com.example.listeningtrainer.conversation
 
+import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.eventlog.EventLog
 import com.example.listeningtrainer.eventlog.NoEventLog
 import kotlinx.coroutines.CancellationException
@@ -239,11 +240,14 @@ class ConversationController(
         startWaitTicks()
         setState(ConversationState.Thinking, "recording finished") { it.copy(status = "Transcribing...") }
         val studentText = try {
-            transcriber.transcribe(audio)
+            transcriber.transcribe(
+                audio,
+                TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS),
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            return fail(EndReason.TRANSCRIPTION_ERROR, "Whisper error: ${e.localizedMessage}", e)
+            return fail(EndReason.TRANSCRIPTION_ERROR, "Transcription error: ${e.localizedMessage}", e)
         }
         val transcribedAt = clock()
         _ui.update { it.copy(studentText = studentText) }

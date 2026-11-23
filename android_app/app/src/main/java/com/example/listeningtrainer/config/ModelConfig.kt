@@ -9,8 +9,11 @@ object ModelConfig {
     const val OPENAI_BASE_URL = "https://api.openai.com/"
 
     /** Распознавание речи ученика. */
-    const val TRANSCRIBE_MODEL = "whisper-1"
+    /** `/v1/audio/transcriptions`, поле `languages[]` (D10, проба S00b). */
+    const val TRANSCRIBE_MODEL = "gpt-transcribe"
     const val TRANSCRIBE_LANGUAGE = "en"
+    /** Сколько знаков последнего предложения учителя класть в `prompt` распознавания. */
+    const val TRANSCRIBE_PROMPT_TEACHER_CHARS = 200
 
     // --- Запись ученика (S02b, D6) ---
     /** Микрофон: PCM 16 бит, моно, 16 кГц. */
@@ -24,8 +27,11 @@ object ModelConfig {
     /** Битрейт AAC: 32 кбит/с ≈ 4 КБ на секунду речи. */
     const val RECORD_AAC_BIT_RATE = 32_000
 
-    /** Учитель (Chat Completions) и проверка ключа. */
-    const val TUTOR_MODEL = "gpt-4o-mini"
+    /** Учитель: Chat Completions (D11). Инструменты работают только при `reasoning_effort: none`. */
+    const val TUTOR_MODEL = "gpt-6-luna"
+    const val TUTOR_REASONING_EFFORT = "none"
+    /** История учителя (D27): системный промпт + не больше стольких последних сообщений. */
+    const val TUTOR_HISTORY_MESSAGES = 30
 
     // --- Синтез речи учителя (S02, решения D8, D9) ---
     /** Realtime API по WebSocket: к адресу добавляется модель. */

@@ -25,7 +25,7 @@ class TrainerApplication : Application() {
      */
     val tutor: ChatTutor by lazy {
         val keyStore = ApiKeyStore(this)
-        ChatTutor(apiKey = { keyStore.current() })
+        ChatTutor(apiKey = { keyStore.current() }, log = AppLog)
     }
 
     override fun onCreate() {

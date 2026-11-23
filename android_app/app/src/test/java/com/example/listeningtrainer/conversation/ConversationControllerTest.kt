@@ -58,8 +58,10 @@ class ConversationControllerTest {
         private val queue = ArrayDeque(answers.toList())
         val statesAtCall = mutableListOf<ConversationState>()
         var calls = 0
-        override suspend fun transcribe(audio: RecordedAudio): String {
+        val prompts = mutableListOf<String>()
+        override suspend fun transcribe(audio: RecordedAudio, prompt: String): String {
             calls++
+            prompts += prompt
             statesAtCall += ui().state
             delay(300)
             return when (val a = queue.removeFirstOrNull() ?: "") {
@@ -89,6 +91,7 @@ class ConversationControllerTest {
             return TutorReply("Let's take a break.")
         }
 
+        override var lastTeacherText: String? = null
         var newConversations = 0
         override fun newConversation() { newConversations++ }
     }
@@ -257,6 +260,18 @@ class ConversationControllerTest {
             transitions,
         )
         assertTrue(rig.log.lines.contains("[Controller] circle end: REPLY_FINISHED (reply finished, auto-mode off)"))
+    }
+
+    @Test
+    fun `transcription prompt carries the last teacher sentence`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.tutor.lastTeacherText = "Nice to meet you. How are you today?"
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(
+            listOf("${TranscriptionPrompt.CONTEXT} The teacher just said: \"How are you today?\""),
+            rig.transcriber.prompts,
+        )
     }
 
     @Test
@@ -486,7 +501,7 @@ class ConversationControllerTest {
 
     @Test
     fun `recording without speech is silence even if the recognizer would hear Thank you`() = runTest {
-        // Дефект S01: whisper-1 на тишине «слышит» `Thank you.`, молчание засчитывалось как реплика.
+        // Дефект S01: распознаватель на тишине «слышит» `Thank you.`, молчание засчитывалось как реплика.
         val rig = Rig(this, "Thank you.", "Thank you.", "Thank you.")
         repeat(3) { rig.input.speech.addLast(false) }
         rig.controller.setAutoMode(true)
@@ -582,7 +597,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(ConversationState.Error("Whisper error: timeout"), rig.state)
+        assertEquals(ConversationState.Error("Transcription error: timeout"), rig.state)
         assertTrue(rig.tutor.replies.isEmpty())
         assertTrue(rig.output.played.isEmpty())
         assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)

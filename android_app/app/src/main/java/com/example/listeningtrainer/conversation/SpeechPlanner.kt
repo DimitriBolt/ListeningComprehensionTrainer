@@ -65,7 +65,7 @@ class SpeechPlanner {
         /** Метки, которые учитель ставит перед ответом после поиска в интернете. */
         const val LABEL_LIVE_WEB = "(Live Web Data):"
         const val LABEL_SEARCH_FALLBACK = "(Search attempted, fallback):"
-        private val SERVICE_LABELS = listOf(LABEL_LIVE_WEB, LABEL_SEARCH_FALLBACK)
+        val SERVICE_LABELS = listOf(LABEL_LIVE_WEB, LABEL_SEARCH_FALLBACK)
 
         private val HEADING_REGEX = Regex("(?m)\\s*((?:^[ \\t]*\\d{1,2}\\.[ \\t]+)?\\*\\*.*?\\*\\*)")
         private val HEADING_CHUNK_REGEX = Regex("(?:\\d{1,2}\\.\\s+)?\\*\\*.*\\*\\*")
