@@ -263,6 +263,14 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
             )
         }
 
+        // Средняя кнопка гарнитуры (D29) делает то же, что большая кнопка: начать запись / закончить реплику.
+        Text(
+            "Headset middle button: start / finish",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.Gray,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
         if (ui.autoMode) {
             Text(
                 "Auto-mode is ON: I will listen after I finish speaking.",
