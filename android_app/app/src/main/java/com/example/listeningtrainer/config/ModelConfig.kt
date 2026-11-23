@@ -26,6 +26,11 @@ object ModelConfig {
     const val TRANSCRIBE_UPLOAD_COMPRESSED = true
     /** Битрейт AAC: 32 кбит/с ≈ 4 КБ на секунду речи. */
     const val RECORD_AAC_BIT_RATE = 32_000
+    /**
+     * Сколько мс после начала «пульса» (60 мс) запись не учитывает громкость: сам звук плюс задержки
+     * выхода и входа звука (S03, D28).
+     */
+    const val LISTEN_PULSE_MIC_MASK_MS = 350L
 
     /** Учитель: Chat Completions (D11). Инструменты работают только при `reasoning_effort: none`. */
     const val TUTOR_MODEL = "gpt-6-luna"

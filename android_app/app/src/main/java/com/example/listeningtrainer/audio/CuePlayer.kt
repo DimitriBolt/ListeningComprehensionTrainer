@@ -12,9 +12,11 @@ import java.util.concurrent.RejectedExecutionException
 /**
  * Сигналы из [CueTones] через AudioTrack. Один поток: сигналы звучат по очереди и не накладываются.
  * [release] не обрывает очередь — дозвучит всё, что уже поставлено (например, «конец» после «Back»).
- * Каждый сыгранный сигнал — строка журнала `[Audio] cue: END` в момент, когда он начинает звучать.
+ * Каждый сыгранный сигнал — строка журнала `[Audio] cue: END` в момент, когда он начинает звучать;
+ * кроме «пульса»: он звучит каждые 2 с, его число пишет контроллер в строке `recording: …`.
+ * Начало «пульса» отмечается в [pulseGate], чтобы запись его не учитывала.
  */
-class CuePlayer(private val log: EventLog) {
+class CuePlayer(private val log: EventLog, private val pulseGate: PulseEchoGate? = null) {
 
     private val executor = Executors.newSingleThreadExecutor { r -> Thread(r, "cue-player").apply { isDaemon = true } }
     private val sounds: Map<Cue, ShortArray> = Cue.values().associateWith { CueTones.render(it) }
@@ -65,8 +67,9 @@ class CuePlayer(private val log: EventLog) {
                 .setBufferSizeInBytes(pcm.size * 2)
                 .build()
             track.write(pcm, 0, pcm.size)
+            if (cue == Cue.PULSE) pulseGate?.pulseStarted(System.currentTimeMillis())
             track.play()
-            log.event("Audio", "cue: ${cue.name}")
+            if (cue != Cue.PULSE) log.event("Audio", "cue: ${cue.name}")
             Thread.sleep(CueTones.durationMs(cue) + TAIL_MS)
             track.stop()
         } catch (e: Exception) {

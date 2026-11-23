@@ -135,6 +135,8 @@ class ConversationControllerTest {
         val startTimes = mutableListOf<Long>()
         /** Тишина щита, которую вернёт prepareReply: 0 — проводные наушники, 1000 — Bluetooth. */
         var shieldMs = 0L
+        /** Наушники (пульс можно) или динамик. */
+        var headphones = true
         var prepareReplies = 0
         var sounds: Map<Int, String> = emptyMap()
         val cues = mutableListOf<Cue>()
@@ -147,6 +149,7 @@ class ConversationControllerTest {
             prepareReplies++
             return shieldMs
         }
+        override fun listenPulseAllowed() = headphones
         override suspend fun play(audio: SpeechAudio, shieldMs: Long, onStarted: () -> Unit) {
             statesAtPlay += ui().state
             played += sounds.getValue(audio.pcm.size)
@@ -534,7 +537,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertTrue(rig.log.lines.contains("[Controller] recording: 3000 ms, above threshold: yes, peak 65 dB"))
+        assertTrue(rig.log.lines.contains("[Controller] recording: 3000 ms, above threshold: yes, peak 65 dB, pulses: 0"))
         assertTrue(rig.log.lines.contains("[Controller] transcript: 9 chars, counted as silence: no"))
     }
 
@@ -1002,5 +1005,76 @@ class ConversationControllerTest {
         runCurrent()
         assertEquals(ConversationState.Idle, rig.state)
         assertEquals(0, rig.input.records)
+    }
+
+    // ---- «пульс» слушания (S03, D28) ---------------------------------------------------------
+
+    @Test
+    fun `listen pulse every 2 s while recording, first 2 s after the listen cue, none after`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.input.hold = true
+        rig.controller.startTurn()
+        runCurrent()
+        val recordAt = testScheduler.currentTime
+        advanceTimeBy(7_000)
+        rig.controller.finishRecording()
+        advanceUntilIdle()
+
+        val pulseTimes = rig.output.cues.indices.filter { rig.output.cues[it] == Cue.PULSE }.map { rig.output.cueTimes[it] - recordAt }
+        assertEquals(listOf(2_000L, 4_000L, 6_000L), pulseTimes)
+        // после записи пульса нет: «обрабатываю» идёт после последнего пульса, дальше пульсов нет
+        val afterRecord = rig.output.cues.dropWhile { it != Cue.PROCESSING }
+        assertFalse(Cue.PULSE in afterRecord)
+        assertTrue(rig.log.lines.any { it.endsWith("peak 65 dB, pulses: 3") })
+        // строки на каждый пульс нет
+        assertEquals(1, rig.log.lines.count { "pulse" in it })
+    }
+
+    @Test
+    fun `listen pulse stops on the headset button and on Stop`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.input.hold = true
+        rig.controller.headsetButton(HeadsetButton.KEYCODE_HEADSETHOOK, 100)
+        advanceTimeBy(4_500)
+        rig.controller.headsetButton(HeadsetButton.KEYCODE_HEADSETHOOK, 100)
+        advanceUntilIdle()
+        assertEquals(2, rig.output.cues.count { it == Cue.PULSE })
+
+        rig.input.hold = true
+        rig.controller.startTurn()
+        advanceTimeBy(2_500)
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceTimeBy(10_000)
+        assertEquals(3, rig.output.cues.count { it == Cue.PULSE })
+    }
+
+    @Test
+    fun `no listen pulse on the speaker`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.output.headphones = false
+        rig.input.hold = true
+        rig.controller.startTurn()
+        advanceTimeBy(7_000)
+        rig.controller.finishRecording()
+        advanceUntilIdle()
+        assertFalse(Cue.PULSE in rig.output.cues)
+        assertTrue(rig.log.lines.any { it.endsWith("pulses: 0") })
+    }
+
+    @Test
+    fun `listen pulse in auto mode - every recording`() = runTest {
+        val rig = Rig(this, "Hello", "Again")
+        rig.controller.setAutoMode(true)
+        rig.input.hold = true
+        rig.controller.startTurn()
+        advanceTimeBy(2_500)
+        rig.controller.finishRecording()
+        advanceTimeBy(10_000) // ответ, пауза, снова запись
+        assertEquals(2, rig.input.records)
+        assertTrue(rig.log.lines.any { it.endsWith("pulses: 1") }) // первая запись — 2,5 с
+        // вторая запись тоже с пульсом: он звучит после второго «говори»
+        val secondListen = rig.output.cues.lastIndexOf(Cue.LISTEN)
+        assertTrue(Cue.PULSE in rig.output.cues.drop(secondListen))
+        rig.controller.stop(EndReason.STOP_BUTTON)
     }
 }

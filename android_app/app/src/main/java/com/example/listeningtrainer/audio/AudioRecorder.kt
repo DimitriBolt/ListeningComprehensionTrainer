@@ -29,11 +29,14 @@ import java.nio.ByteOrder
  * Громкость считается кусками по [ModelConfig.RECORD_LEVEL_WINDOW_MS] — как раньше (≈ 80 мс на
  * кусок при 44,1 кГц), чтобы порог 59 дБ и 3 с тишины вели себя по-прежнему.
  * Предохранитель: через [ModelConfig.RECORD_MAX_MS] запись заканчивается сама, как по «Stop Recording».
+ * Куски, в которых звучал «пульс» слушания ([pulseGate]), в громкость и правило конца реплики не идут
+ * ([RecordingMeter]).
  */
 class AudioRecorder(
     private val wavFile: File,
     private val m4aFile: File,
     private val log: EventLog,
+    private val pulseGate: PulseEchoGate? = null,
 ) : AudioInput {
 
     @Volatile
@@ -67,10 +70,10 @@ class AudioRecorder(
             val buffer = ShortArray(window)
             val bytes = ByteArray(window * 2)
             var totalSamples = 0L
-            var peakDb = 0f
             var limitReached = false
+            val meter = RecordingMeter(turnDetector, pulseGate, ModelConfig.RECORD_LEVEL_WINDOW_MS.toLong())
             isRecording = true
-            turnDetector.reset(System.currentTimeMillis())
+            meter.start(System.currentTimeMillis())
             try {
                 audioRecord.startRecording()
                 while (isRecording && isActive) {
@@ -93,10 +96,7 @@ class AudioRecorder(
                         }
                     }
 
-                    val db = PcmLevel.db(buffer, read)
-                    if (db > peakDb) peakDb = db
-                    onLevel(db)
-                    if (turnDetector.onLevel(db, System.currentTimeMillis())) isRecording = false
+                    if (meter.onWindow(PcmLevel.db(buffer, read), System.currentTimeMillis(), onLevel)) isRecording = false
                     if (totalSamples >= maxSamples) {
                         limitReached = true
                         isRecording = false
@@ -131,7 +131,8 @@ class AudioRecorder(
                 encodeMs = (System.nanoTime() - prepareStarted) / 1_000_000,
                 durationMs = durationMs,
                 heardSpeech = turnDetector.heardSpeech,
-                peakDb = peakDb,
+                peakDb = meter.peakDb,
+                pulseMaskedWindows = meter.maskedWindows,
             )
         }
 

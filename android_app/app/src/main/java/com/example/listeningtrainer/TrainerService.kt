@@ -18,6 +18,7 @@ import com.example.listeningtrainer.audio.AudioSession
 import com.example.listeningtrainer.audio.AndroidTtsSynthesizer
 import com.example.listeningtrainer.audio.AudioTrackOutput
 import com.example.listeningtrainer.audio.HeadsetButtons
+import com.example.listeningtrainer.audio.PulseEchoGate
 import com.example.listeningtrainer.audio.exportToPublicMusic
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.audio.lastUserUploadFile
@@ -74,7 +75,9 @@ class TrainerService : Service() {
         val apiKey = { keyStore.current() }
         val tutor = (application as TrainerApplication).tutor
         AppLog.event(SOURCE, "tutor history: ${tutor.historySize} messages")
-        val recorder = AudioRecorder(lastUserSpeechFile(this), lastUserUploadFile(this), AppLog)
+        // «Пульс» слушания (D28): проигрыватель отмечает его начало, запись эти куски не учитывает.
+        val pulseGate = PulseEchoGate(ModelConfig.LISTEN_PULSE_MIC_MASK_MS)
+        val recorder = AudioRecorder(lastUserSpeechFile(this), lastUserUploadFile(this), AppLog, pulseGate)
         // Копия каждой записи в общую папку Music — только в debug-сборке, последние 20 файлов.
         val input: AudioInput = if (!BuildConfig.DEBUG) recorder else object : AudioInput by recorder {
             override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio =
@@ -92,7 +95,7 @@ class TrainerService : Service() {
             planner = SpeechPlanner(),
             synthesizer = RealtimeSynthesizer(apiKey, AppLog),
             fallbackSynthesizer = AndroidTtsSynthesizer(this, AppLog),
-            output = AudioTrackOutput(this, AppLog),
+            output = AudioTrackOutput(this, AppLog, pulseGate),
             log = AppLog,
             speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
         )

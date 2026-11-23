@@ -61,7 +61,8 @@ enum class EndReason(val description: String, val isError: Boolean = false) {
  * Чистый Kotlin (инвариант 3): компоненты приходят через интерфейсы, время — через [clock].
  *
  * Звуковые сигналы ([Cue]) выбирает контроллер, играет [AudioOutput]:
- * «говори» перед каждой записью, «обрабатываю» после записи с речью, «тик» каждые
+ * «говори» перед каждой записью, «пульс» каждые [listenPulseEveryMs] всё время записи (только в
+ * наушниках, D28), «обрабатываю» после записи с речью, «тик» каждые
  * [waitTickEveryMs], если ученик ждёт учителя дольше [waitTickAfterMs], «не услышал» на молчании,
  * «ошибка» и «конец» на выходе из круга.
  *
@@ -93,6 +94,8 @@ class ConversationController(
     private val waitTickAfterMs: Long = 5_000L,
     /** Как часто звучит «тик», пока ученик ждёт. */
     private val waitTickEveryMs: Long = 3_000L,
+    /** Как часто звучит «пульс», пока идёт запись (первый — через столько же после «говори»). */
+    private val listenPulseEveryMs: Long = 2_000L,
     /** Сколько групп держать готовыми вперёд. */
     speechLookahead: Int = 3,
 ) {
@@ -112,6 +115,8 @@ class ConversationController(
     private var closing = false
     /** «Тики» ожидания; дочерняя корутина круга. */
     private var waitTicks: Job? = null
+    /** Сколько «пульсов» прозвучало в текущей записи. */
+    private var pulseCount = 0
 
     /** Кнопка «Talk» (или средняя кнопка гарнитуры — [why]): начать круг. Если круг уже идёт — ничего не делает. */
     fun startTurn(why: String = "Talk button") {
@@ -268,20 +273,25 @@ class ConversationController(
         // Запись — после сигнала: микрофон его не слышит, и 3 с тишины отсчитываются от конца сигнала.
         output.playCue(Cue.LISTEN)
         output.awaitCues()
+        val pulses = startListenPulses()
         val audio = try {
             input.record(turnDetector) { db -> _ui.update { it.copy(levelDb = db) } }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             return fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e)
+        } finally {
+            pulses?.cancel() // конец записи любым путём: тишина, кнопка, «Stop Recording», предохранитель
         }
         // Конец записи — до сжатия: время сжатия ученик тоже ждёт, оно входит в `stt` (поле `enc`).
         val recordedAt = clock() - audio.encodeMs
         lastEncodeMs = audio.encodeMs
         _ui.update { it.copy(levelDb = 0f) }
+        val skipped = if (audio.pulseMaskedWindows > 0) " (level skipped in ${audio.pulseMaskedWindows} windows)" else ""
         log.event(
             SOURCE,
-            "recording: ${audio.durationMs} ms, above threshold: ${yesNo(audio.heardSpeech)}, peak ${audio.peakDb.toInt()} dB",
+            "recording: ${audio.durationMs} ms, above threshold: ${yesNo(audio.heardSpeech)}, peak ${audio.peakDb.toInt()} dB, " +
+                "pulses: $pulseCount$skipped",
         )
 
         // Молчание определяется по звуку: в записи без речи распознаватель «слышит» `Thank you.`
@@ -410,6 +420,25 @@ class ConversationController(
         }
         setState(ConversationState.Idle, "reply finished") { it.copy(currentChunk = "", status = "Ready.") }
         return null
+    }
+
+    // ---- «пульс» слушания (D28) ------------------------------------------------------------
+
+    /**
+     * Пока идёт запись: «пульс» каждые [listenPulseEveryMs], первый — через столько же после «говори».
+     * Только в наушниках ([AudioOutput.listenPulseAllowed]); `null` — пульса нет. Строки на каждый
+     * пульс нет: число — в строке `recording: …`.
+     */
+    private suspend fun startListenPulses(): Job? {
+        pulseCount = 0
+        if (!output.listenPulseAllowed()) return null
+        return CoroutineScope(currentCoroutineContext()).launch {
+            while (true) {
+                delay(listenPulseEveryMs)
+                output.playCue(Cue.PULSE)
+                pulseCount++
+            }
+        }
     }
 
     // ---- «тики» ожидания -------------------------------------------------------------------

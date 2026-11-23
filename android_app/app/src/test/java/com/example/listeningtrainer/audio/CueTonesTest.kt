@@ -5,6 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
+import kotlin.math.log10
+import kotlin.math.sqrt
 
 class CueTonesTest {
 
@@ -49,10 +51,38 @@ class CueTonesTest {
     }
 
     @Test
-    fun `tick is the quietest, nothing clips`() {
-        val tick = peak(Cue.WAITING)
-        for (cue in Cue.values().toList() - Cue.WAITING) assertTrue("$cue", peak(cue) > tick * 2)
+    fun `tick and pulse are the quiet ones, nothing clips`() {
+        // «Пульс» — короткий удар: пик выше, чем у ровного тона, поэтому сравниваем среднюю громкость.
+        val quiet = listOf(Cue.WAITING, Cue.PULSE)
+        val loudest = quiet.maxOf { rmsDb(it) }
+        for (cue in Cue.values().toList() - quiet) assertTrue("$cue", rmsDb(cue) > loudest + 6)
         for (cue in Cue.values()) assertTrue("$cue", peak(cue) < Short.MAX_VALUE / 2)
+    }
+
+    private fun rmsDb(cue: Cue): Double {
+        val pcm = CueTones.render(cue)
+        return 20 * log10(sqrt(pcm.sumOf { it.toDouble() * it } / pcm.size) / Short.MAX_VALUE)
+    }
+
+    @Test
+    fun `pulse is short and as quiet as the tick or a bit quieter`() {
+        assertTrue(CueTones.durationMs(Cue.PULSE) <= 80)
+        val diff = rmsDb(Cue.PULSE) - rmsDb(Cue.WAITING)
+        assertTrue("pulse vs tick $diff dB", diff <= 0.0 && diff >= -6.0)
+    }
+
+    @Test
+    fun `pulse differs from the tick - lower, gliding down, fading`() {
+        val pulse = CueTones.notes(Cue.PULSE).single()
+        val tick = CueTones.notes(Cue.WAITING).single()
+        assertTrue(pulse.hz < tick.hz / 2)
+        assertTrue(pulse.glideToHz in 1.0..pulse.hz)
+        assertTrue(pulse.decayMs > 0 && tick.decayMs == 0.0)
+        // «тук» в конце почти затих: последние 10 мс тише первых 10 мс хотя бы в 5 раз
+        val pcm = CueTones.render(Cue.PULSE)
+        val n = CueTones.SAMPLE_RATE / 100
+        fun peakOf(r: IntRange) = r.maxOf { abs(pcm[it].toInt()) }
+        assertTrue(peakOf(0 until n) > 5 * peakOf(pcm.size - n until pcm.size))
     }
 
     @Test

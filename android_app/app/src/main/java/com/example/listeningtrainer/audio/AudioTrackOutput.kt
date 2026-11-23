@@ -24,10 +24,14 @@ import kotlin.math.min
  * Щит Bluetooth — нули в начале каждой группы ([play], `shieldMs`); нужен ли он, решает
  * [prepareReply] по выходу звука перед каждым ответом ([BluetoothShield]).
  */
-class AudioTrackOutput(context: Context, private val log: EventLog) : AudioOutput {
+class AudioTrackOutput(
+    context: Context,
+    private val log: EventLog,
+    pulseGate: PulseEchoGate? = null,
+) : AudioOutput {
 
     private val audioManager = context.getSystemService(AudioManager::class.java)
-    private val cues = CuePlayer(log)
+    private val cues = CuePlayer(log, pulseGate)
 
     @Volatile
     private var current: AudioTrack? = null
@@ -40,6 +44,13 @@ class AudioTrackOutput(context: Context, private val log: EventLog) : AudioOutpu
         val shield = BluetoothShield.shieldMs(type?.let(AudioRoutes::kind))
         log.event(SOURCE, "reply output: ${type?.let(AudioRoutes::label) ?: "unknown"}, shield $shield ms")
         return shield
+    }
+
+    override fun listenPulseAllowed(): Boolean {
+        val type = AudioRoutes.current(audioManager, SPEECH_ATTRIBUTES)
+        val allowed = ListenPulse.allowed(type?.let(AudioRoutes::kind))
+        if (!allowed) log.event(SOURCE, "listen pulse off: output ${type?.let(AudioRoutes::label) ?: "unknown"}")
+        return allowed
     }
 
     override suspend fun play(audio: SpeechAudio, shieldMs: Long, onStarted: () -> Unit) {
