@@ -19,6 +19,8 @@ data class RecordedAudio(
     val heardSpeech: Boolean,
     /** Самый громкий замер записи, дБ (для журнала). */
     val peakDb: Float,
+    /** Сколько мс после конца записи ушло на подготовку [upload] (сжатие) — входит в замер `stt`. */
+    val encodeMs: Long = 0,
 )
 
 /** Микрофон. */

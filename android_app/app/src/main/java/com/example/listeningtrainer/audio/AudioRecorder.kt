@@ -21,9 +21,10 @@ import java.nio.ByteOrder
 
 /**
  * Микрофон телефона → WAV-файл, PCM 16 кГц, моно, 16 бит (D6). Каждая запись перезаписывает
- * [wavFile]. После записи WAV сжимается в AAC `.m4a` ([m4aFile]) — его и загружает распознавание
- * (≈ 4 КБ на секунду вместо 32). Если сжатие не удалось или выключено в [ModelConfig] —
- * загружается WAV. Формат и размер загрузки — в журнал.
+ * [wavFile]. Одновременно, кусок за куском, звук сжимается в AAC `.m4a` ([m4aFile]) — его и загружает
+ * распознавание (≈ 4 КБ на секунду вместо 32); после конца записи остаётся дожать последние кадры.
+ * Если сжатие не удалось или выключено в [ModelConfig] — загружается WAV. Формат, размер загрузки
+ * и время дожимания — в журнал.
  *
  * Громкость считается кусками по [ModelConfig.RECORD_LEVEL_WINDOW_MS] — как раньше (≈ 80 мс на
  * кусок при 44,1 кГц), чтобы порог 59 дБ и 3 с тишины вели себя по-прежнему.
@@ -55,6 +56,14 @@ class AudioRecorder(
             // Резервируем 44 байта под заголовок WAV
             outputStream.write(ByteArray(WAV_HEADER_SIZE))
 
+            // Сжатие — во время записи (S02b): после «Stop Recording» ждать почти нечего.
+            var encoder: AacEncoder? = if (!ModelConfig.TRANSCRIBE_UPLOAD_COMPRESSED) null else try {
+                AacEncoder(m4aFile, SAMPLE_RATE, ModelConfig.RECORD_AAC_BIT_RATE)
+            } catch (e: Exception) {
+                log.error(SOURCE, "m4a encoder did not start, uploading wav", e)
+                null
+            }
+
             val buffer = ShortArray(window)
             val bytes = ByteArray(window * 2)
             var totalSamples = 0L
@@ -74,6 +83,15 @@ class AudioRecorder(
                     }
                     outputStream.write(bytes, 0, read * 2)
                     totalSamples += read
+                    encoder?.let { enc ->
+                        try {
+                            enc.feed(buffer, read)
+                        } catch (e: Exception) {
+                            log.error(SOURCE, "m4a encoding failed during recording, uploading wav", e)
+                            enc.release()
+                            encoder = null
+                        }
+                    }
 
                     val db = PcmLevel.db(buffer, read)
                     if (db > peakDb) peakDb = db
@@ -84,6 +102,9 @@ class AudioRecorder(
                         isRecording = false
                     }
                 }
+            } catch (e: Throwable) {
+                encoder?.release()
+                throw e
             } finally {
                 isRecording = false
                 outputStream.close()
@@ -91,15 +112,23 @@ class AudioRecorder(
                 audioRecord.release()
                 writeWavHeader(wavFile, totalSamples * 2)
             }
+            if (!isActive) encoder?.release()
             ensureActive() // отменённая запись результата не даёт
             val durationMs = totalSamples * 1000 / SAMPLE_RATE
             if (limitReached) {
                 log.event(SOURCE, "recording limit ${ModelConfig.RECORD_MAX_MS / 1000} s reached: recording finished")
             }
-            val upload = if (turnDetector.heardSpeech) uploadFile(durationMs) else wavFile
+            val prepareStarted = System.nanoTime()
+            val upload = if (turnDetector.heardSpeech) {
+                uploadFile(encoder, durationMs)
+            } else {
+                encoder?.release() // молчание не загружается
+                wavFile
+            }
             RecordedAudio(
                 file = wavFile,
                 upload = upload,
+                encodeMs = (System.nanoTime() - prepareStarted) / 1_000_000,
                 durationMs = durationMs,
                 heardSpeech = turnDetector.heardSpeech,
                 peakDb = peakDb,
@@ -110,18 +139,19 @@ class AudioRecorder(
         isRecording = false
     }
 
-    /** Файл для распознавания: сжатый m4a, при сбое — WAV. Формат и размер — в журнал. */
-    private fun uploadFile(durationMs: Long): File {
+    /** Файл для распознавания: дожатый m4a, при сбое — WAV. Формат, размер и время дожимания — в журнал. */
+    private fun uploadFile(encoder: AacEncoder?, durationMs: Long): File {
         val seconds = maxOf(1L, durationMs) / 1000.0
-        if (ModelConfig.TRANSCRIBE_UPLOAD_COMPRESSED) {
+        if (encoder != null) {
             val started = System.nanoTime()
             try {
-                AacEncoder.encode(wavFile, m4aFile, SAMPLE_RATE, ModelConfig.RECORD_AAC_BIT_RATE)
+                encoder.finish()
                 val ms = (System.nanoTime() - started) / 1_000_000
-                log.event(SOURCE, "upload: m4a ${kb(m4aFile.length())} KB (${perSecond(m4aFile.length(), seconds)} KB/s), encoded in $ms ms")
+                log.event(SOURCE, "upload: m4a ${kb(m4aFile.length())} KB (${perSecond(m4aFile.length(), seconds)} KB/s), encoder finish $ms ms")
                 return m4aFile
             } catch (e: Exception) {
-                log.error(SOURCE, "m4a encoding failed, uploading wav", e)
+                encoder.release()
+                log.error(SOURCE, "m4a encoding failed at the end, uploading wav", e)
             }
         }
         log.event(SOURCE, "upload: wav ${kb(wavFile.length())} KB (${perSecond(wavFile.length(), seconds)} KB/s)")

@@ -105,6 +105,8 @@ class ConversationController(
     private var silenceCount = 0
     /** Сбой, о котором после «ошибки» скажет голос телефона (тип — из [ServiceException]). */
     private var failure: FailureKind? = null
+    /** Время сжатия последней записи — для строки `[Timing]`. */
+    private var lastEncodeMs = 0L
     /** Круг уже записан в журнал как законченный, идёт голосовое сообщение об ошибке. */
     private var closing = false
     /** «Тики» ожидания; дочерняя корутина круга. */
@@ -256,7 +258,9 @@ class ConversationController(
         } catch (e: Exception) {
             return fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e)
         }
-        val recordedAt = clock()
+        // Конец записи — до сжатия: время сжатия ученик тоже ждёт, оно входит в `stt` (поле `enc`).
+        val recordedAt = clock() - audio.encodeMs
+        lastEncodeMs = audio.encodeMs
         _ui.update { it.copy(levelDb = 0f) }
         log.event(
             SOURCE,
@@ -432,8 +436,8 @@ class ConversationController(
     }
 
     /**
-     * Строка замера. Все времена — мс от конца записи, кроме `llm1` — длительности первого запроса
-     * к учителю. `search` — вызывал ли учитель инструмент, `reply_chars` — длина ответа.
+     * Строка замера. Все времена — мс от конца записи, кроме `enc` — сжатия записи (входит в `stt`)
+     * и `llm1` — длительности первого запроса к учителю. `search` — вызывал ли учитель инструмент, `reply_chars` — длина ответа.
      * `first_audio` — запуск звука первой группы; `audible` — голос слышен (после щита, если он есть).
      */
     private fun logTimings(
@@ -443,7 +447,7 @@ class ConversationController(
         val audible = firstSoundAt?.let { (it + shieldMs - recordedAt).toString() } ?: "-"
         log.event(
             TIMING_SOURCE,
-            "stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} llm1=${reply.firstRequestMs ?: "-"} " +
+            "enc=$lastEncodeMs stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} llm1=${reply.firstRequestMs ?: "-"} " +
                 "search=${yesNo(reply.searched)} reply_chars=${reply.text.length} first_audio=$first audible=$audible",
         )
     }

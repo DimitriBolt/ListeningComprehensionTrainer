@@ -35,6 +35,8 @@ class ConversationControllerTest {
         val speech = ArrayDeque<Boolean>()
         /** Ошибка микрофона. */
         var error: Exception? = null
+        /** Сколько «длилось» сжатие (оно уже прошло к возврату записи). */
+        var encodeMs = 0L
         private var pending: CompletableDeferred<Unit>? = null
 
         override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio {
@@ -45,7 +47,7 @@ class ConversationControllerTest {
             val heard = speech.removeFirstOrNull() ?: true
             onLevel(if (heard) 65f else 40f)
             if (hold) CompletableDeferred<Unit>().also { pending = it }.await()
-            return RecordedAudio(File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f)
+            return RecordedAudio(File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f, encodeMs = encodeMs)
         }
 
         override fun finish() {
@@ -336,7 +338,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         // распознавание 300 мс, учитель +1000, синтез +200; щита нет — слышно сразу
-        assertEquals(listOf("stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=1500"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=1500"), rig.timing)
     }
 
     @Test
@@ -361,7 +363,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=2700"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=2700"), rig.timing)
     }
 
     @Test
@@ -697,6 +699,16 @@ class ConversationControllerTest {
     }
 
     @Test
+    fun `encoding time counts in stt - the student waited for it`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.input.encodeMs = 400
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        // сжатие 400 (уже прошло) + распознавание 300; дальше всё на те же 400 больше
+        assertEquals(listOf("enc=400 stt=700 tutor=1700 llm1=- search=no reply_chars=25 first_audio=1900 audible=1900"), rig.timing)
+    }
+
+    @Test
     fun `timing line has search, reply length and first tutor request`() = runTest {
         val rig = Rig(this, "Gas price?")
         rig.tutor.searched = true
@@ -704,7 +716,7 @@ class ConversationControllerTest {
         rig.tutor.replyText = "It is three dollars."
         rig.controller.startTurn()
         advanceUntilIdle()
-        assertEquals(listOf("stt=300 tutor=1300 llm1=640 search=yes reply_chars=20 first_audio=1500 audible=1500"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 tutor=1300 llm1=640 search=yes reply_chars=20 first_audio=1500 audible=1500"), rig.timing)
     }
 
     @Test
