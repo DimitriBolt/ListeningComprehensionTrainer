@@ -1002,6 +1002,7 @@ class ConversationControllerTest {
     fun `other keys are not consumed`() = runTest {
         val rig = Rig(this, "Hello")
         assertFalse(rig.controller.headsetButton(HeadsetButton.KEYCODE_MEDIA_NEXT, 100))
+        assertFalse(rig.controller.headsetButton(HeadsetButton.KEYCODE_HEADSETHOOK, 1_200)) // долгое — системе
         runCurrent()
         assertEquals(ConversationState.Idle, rig.state)
         assertEquals(0, rig.input.records)

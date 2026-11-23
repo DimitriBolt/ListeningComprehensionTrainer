@@ -7,6 +7,7 @@ import com.example.listeningtrainer.conversation.HeadsetButton.Companion.KEYCODE
 import com.example.listeningtrainer.conversation.HeadsetButton.Companion.KEYCODE_MEDIA_PLAY
 import com.example.listeningtrainer.conversation.HeadsetButton.Companion.KEYCODE_MEDIA_PLAY_PAUSE
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,6 +38,7 @@ class HeadsetButtonTest {
             val d = press(HeadsetButton(), state, 1_000)
             assertEquals(Action.NONE, d.action)
             assertTrue(d.log, "ignored (teacher is thinking or speaking)" in d.log)
+            assertTrue(d.consumed) // наше, но без действия: YouTube не должен проснуться
         }
     }
 
@@ -59,6 +61,7 @@ class HeadsetButtonTest {
     fun `other media keys are not the middle button`() {
         val d = press(HeadsetButton(), ConversationState.Idle, 1_000, key = KEYCODE_MEDIA_NEXT)
         assertEquals(Action.NONE, d.action)
+        assertFalse(d.consumed)
         assertEquals("headset key KEYCODE_MEDIA_NEXT in Idle: not the middle button, ignored", d.log)
         assertEquals("KEYCODE_24", HeadsetButton.keyName(24))
     }
@@ -67,6 +70,7 @@ class HeadsetButtonTest {
     fun `long press is left to the system`() {
         val d = press(HeadsetButton(), ConversationState.Idle, 1_000, pressMs = 900)
         assertEquals(Action.NONE, d.action)
+        assertFalse(d.consumed)
         assertTrue(d.log, "long press (900 ms)" in d.log)
     }
 

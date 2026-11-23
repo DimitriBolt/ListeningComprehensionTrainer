@@ -18,8 +18,11 @@ class HeadsetButton(
 ) {
     enum class Action { TALK, FINISH_RECORDING, NONE }
 
-    /** [action] — что сделать; [log] — строка журнала (код клавиши, состояние, итог). */
-    data class Decision(val action: Action, val log: String)
+    /**
+     * [action] — что сделать; [log] — строка журнала (код клавиши, состояние, итог);
+     * [consumed] — нажатие наше, дальше его не передавать (`false` — другая клавиша или долгое нажатие).
+     */
+    data class Decision(val action: Action, val log: String, val consumed: Boolean = true)
 
     private var lastAcceptedMs: Long? = null
 
@@ -30,9 +33,11 @@ class HeadsetButton(
     fun onRelease(keyCode: Int, pressMs: Long, state: ConversationState, nowMs: Long): Decision {
         val key = keyName(keyCode)
         val where = "in ${stateName(state)}"
-        if (!isMiddleButton(keyCode)) return Decision(Action.NONE, "headset key $key $where: not the middle button, ignored")
+        if (!isMiddleButton(keyCode)) {
+            return Decision(Action.NONE, "headset key $key $where: not the middle button, ignored", consumed = false)
+        }
         if (pressMs >= longPressMs) {
-            return Decision(Action.NONE, "headset key $key $where: long press ($pressMs ms), not handled")
+            return Decision(Action.NONE, "headset key $key $where: long press ($pressMs ms), not handled", consumed = false)
         }
         lastAcceptedMs?.let { last ->
             val since = nowMs - last

@@ -151,7 +151,7 @@ class ConversationController(
             HeadsetButton.Action.FINISH_RECORDING -> input.finish()
             HeadsetButton.Action.NONE -> Unit
         }
-        return HeadsetButton.isMiddleButton(keyCode)
+        return decision.consumed
     }
 
     /**
