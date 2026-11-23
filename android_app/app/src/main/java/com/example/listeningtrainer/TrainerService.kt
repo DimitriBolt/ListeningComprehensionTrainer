@@ -80,7 +80,7 @@ class TrainerService : Service() {
             scope = scope,
             input = input,
             turnDetector = SilenceTurnDetector(),
-            transcriber = FileTranscriber(apiKey),
+            transcriber = FileTranscriber(apiKey, log = AppLog),
             tutor = tutor,
             planner = SpeechPlanner(),
             synthesizer = RealtimeSynthesizer(apiKey, AppLog),

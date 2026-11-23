@@ -32,6 +32,7 @@ class ChatTutor(
     private val clock: () -> Long = System::currentTimeMillis,
     private val historyLimit: Int = ModelConfig.TUTOR_HISTORY_MESSAGES,
     private val today: () -> Date = ::Date,
+    private val retryPauseMs: Long = ModelConfig.RETRY_PAUSE_MS,
 ) : Tutor {
 
     private val chatHistory = mutableListOf<Message>()
@@ -90,7 +91,7 @@ class ChatTutor(
 
     private suspend fun request(n: Int, auth: String, body: ChatRequest): ChatResponse {
         log.event(SOURCE, "tutor request $n: history ${body.messages.size} messages")
-        return api.chat(auth, body)
+        return withRetry("tutor request $n", log, retryPauseMs) { api.chat(auth, body) }
     }
 
     private fun trim() {

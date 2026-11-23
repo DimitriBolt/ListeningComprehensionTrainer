@@ -21,7 +21,7 @@ class NetworkLogInterceptor(private val log: EventLog) : Interceptor {
         val response = try {
             chain.proceed(request)
         } catch (e: Exception) {
-            log.event(SOURCE, "$what failed after ${elapsedMs(started)} ms: ${e.javaClass.simpleName}")
+            log.event(SOURCE, failureLine(what, elapsedMs(started), e, chain.call().isCanceled()))
             throw e
         }
         log.event(SOURCE, "$what -> ${response.code} in ${elapsedMs(started)} ms")
@@ -33,6 +33,13 @@ class NetworkLogInterceptor(private val log: EventLog) : Interceptor {
     companion object {
         private const val SOURCE = "Network"
         private val OPENAI_HOST = ModelConfig.OPENAI_BASE_URL.toHttpUrl().host
+
+        /**
+         * Строка о неудачном вызове. Отмена пользователем («Stop», «Back») — `cancelled`, а не
+         * `failed … IOException`: так она не путается с настоящими сбоями.
+         */
+        fun failureLine(what: String, ms: Long, e: Exception, canceled: Boolean): String =
+            if (canceled) "$what cancelled after $ms ms" else "$what failed after $ms ms: ${e.javaClass.simpleName}"
 
         /** «POST api.openai.com/v1/audio/transcriptions, up 96 KB» или «GET duckduckgo.com». */
         fun describe(request: Request): String {

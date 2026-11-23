@@ -77,11 +77,13 @@ class ConversationControllerTest {
         var error: Exception? = null
         var farewellError: Exception? = null
         var replyDelayMs = 1000L
+        var searched = false
+        var firstRequestMs: Long? = null
         override suspend fun reply(studentText: String, onStatus: (String) -> Unit): TutorReply {
             replies += studentText
             delay(replyDelayMs)
             error?.let { throw it }
-            return TutorReply(replyText)
+            return TutorReply(replyText, searched = searched, firstRequestMs = firstRequestMs)
         }
 
         override suspend fun farewell(onStatus: (String) -> Unit): TutorReply {
@@ -334,7 +336,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         // распознавание 300 мс, учитель +1000, синтез +200; щита нет — слышно сразу
-        assertEquals(listOf("stt=300 tutor=1300 first_audio=1500 audible=1500"), rig.timing)
+        assertEquals(listOf("stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=1500"), rig.timing)
     }
 
     @Test
@@ -358,7 +360,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("stt=300 tutor=1300 first_audio=1500 audible=2700"), rig.timing)
+        assertEquals(listOf("stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=2700"), rig.timing)
     }
 
     @Test
@@ -624,6 +626,84 @@ class ConversationControllerTest {
         assertEquals(1, rig.input.records)
         assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
         assertEquals(listOf("TUTOR_ERROR"), rig.circleEnds)
+    }
+
+    @Test
+    fun `no network after retry - error cue, phone voice says so, then end`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.error = ServiceException(FailureKind.NO_NETWORK, "UnknownHostException")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf(FailureKind.Phrases.NO_NETWORK), rig.fallback.texts)
+        assertTrue(rig.synth.texts.isEmpty()) // Realtime для сообщения об ошибке не нужен
+        assertEquals(listOf(FailureKind.Phrases.NO_NETWORK), rig.output.played)
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+        // «ошибка» — до фразы, «конец» — после
+        val tail = rig.timeline.events.takeLast(4)
+        assertEquals(listOf("cue:ERROR", "awaitCues", "play", "cue:END"), tail)
+        assertEquals(listOf("TUTOR_ERROR"), rig.circleEnds)
+        assertTrue(rig.log.lines.contains("[Controller] circle end: TUTOR_ERROR (tutor error, no_network)"))
+        assertTrue(rig.log.lines.contains("[Controller] error message spoken: no_network"))
+    }
+
+    @Test
+    fun `each kind of failure has its own phrase, unknown errors - cues only`() = runTest {
+        val cases = mapOf(
+            FailureKind.TIMEOUT to FailureKind.Phrases.NO_ANSWER,
+            FailureKind.SERVER to FailureKind.Phrases.NO_ANSWER,
+            FailureKind.KEY to FailureKind.Phrases.KEY,
+            FailureKind.QUOTA to FailureKind.Phrases.QUOTA,
+        )
+        for ((kind, phrase) in cases) {
+            val rig = Rig(this, ServiceException(kind, "x"))
+            rig.controller.startTurn()
+            advanceUntilIdle()
+            assertEquals(listOf(phrase), rig.fallback.texts)
+            assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+            assertEquals(listOf("TRANSCRIPTION_ERROR"), rig.circleEnds)
+        }
+        val rig = Rig(this, ServiceException(FailureKind.BAD_REQUEST, "http 400"))
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertTrue(rig.fallback.texts.isEmpty())
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+    }
+
+    @Test
+    fun `phone voice unavailable - error message is skipped, cues only`() = runTest {
+        val rig = Rig(this, ServiceException(FailureKind.NO_NETWORK, "x"))
+        rig.fallback.error = SynthesisException("no English voice data", unavailable = true)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertTrue(rig.output.played.isEmpty())
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+        assertEquals(listOf("TRANSCRIPTION_ERROR"), rig.circleEnds)
+        assertTrue(rig.log.lines.contains("[Controller] error message not spoken (no English voice data): cues only"))
+    }
+
+    @Test
+    fun `Stop during the error message - one end cue, one circle end`() = runTest {
+        val rig = Rig(this, ServiceException(FailureKind.NO_NETWORK, "x"))
+        rig.output.playMs = 3000
+        rig.controller.startTurn()
+        advanceTimeBy(300 + 200 + 500) // распознавание, синтез фразы, фраза звучит
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.ERROR, Cue.END), rig.output.cues)
+        assertEquals(listOf("TRANSCRIPTION_ERROR"), rig.circleEnds)
+        assertTrue(rig.log.lines.contains("[Controller] stop (Stop button) during the error message"))
+    }
+
+    @Test
+    fun `timing line has search, reply length and first tutor request`() = runTest {
+        val rig = Rig(this, "Gas price?")
+        rig.tutor.searched = true
+        rig.tutor.firstRequestMs = 640
+        rig.tutor.replyText = "It is three dollars."
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("stt=300 tutor=1300 llm1=640 search=yes reply_chars=20 first_audio=1500 audible=1500"), rig.timing)
     }
 
     @Test

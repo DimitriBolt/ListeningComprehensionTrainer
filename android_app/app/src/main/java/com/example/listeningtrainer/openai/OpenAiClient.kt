@@ -9,7 +9,11 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
 
-/** Один HTTP-клиент и один Retrofit на процесс: их делят распознавание, учитель, синтез (WebSocket Realtime) и проверка ключа. */
+/**
+ * HTTP-клиенты процесса. Общий [http] (пул соединений один) — для WebSocket Realtime и проверки
+ * ключа; у распознавания, учителя и инструментов — свой общий предел на весь вызов
+ * (`callTimeout`, S02b): чтение и запись не дольше него же.
+ */
 object OpenAiClient {
 
     val http: OkHttpClient = OkHttpClient.Builder()
@@ -19,21 +23,32 @@ object OpenAiClient {
         .addInterceptor(NetworkLogInterceptor(AppLog))
         .build()
 
-    val api: OpenAiService by lazy {
+    /** Клиент с общим пределом [callTimeoutMs] на весь вызов. */
+    fun withCallTimeout(callTimeoutMs: Long): OkHttpClient = http.newBuilder()
+        .callTimeout(callTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(callTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(callTimeoutMs, TimeUnit.MILLISECONDS)
+        .build()
+
+    val transcribeHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TRANSCRIBE_CALL_TIMEOUT_MS) }
+    val tutorHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TUTOR_CALL_TIMEOUT_MS) }
+    /** Инструменты учителя: погода и поиск. */
+    val toolsHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TOOLS_CALL_TIMEOUT_MS) }
+
+    /** Проверка ключа. */
+    val api: OpenAiService by lazy { retrofit(http) }
+    val transcribeApi: OpenAiService by lazy { retrofit(transcribeHttp) }
+    val tutorApi: OpenAiService by lazy { retrofit(tutorHttp) }
+
+    private fun retrofit(client: OkHttpClient): OpenAiService {
         val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-        Retrofit.Builder()
+        return Retrofit.Builder()
             .baseUrl(ModelConfig.OPENAI_BASE_URL)
-            .client(http)
+            .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(OpenAiService::class.java)
     }
-
-    /** Распознавание и учитель (свои пределы времени появятся здесь же). */
-    val transcribeApi: OpenAiService get() = api
-    val tutorApi: OpenAiService get() = api
-    /** Инструменты учителя: погода и поиск. */
-    val toolsHttp: OkHttpClient get() = http
 
     fun bearer(apiKey: String) = "Bearer ${apiKey.trim()}"
 }

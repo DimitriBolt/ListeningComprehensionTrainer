@@ -102,6 +102,10 @@ class ConversationController(
 
     private var job: Job? = null
     private var silenceCount = 0
+    /** Сбой, о котором после «ошибки» скажет голос телефона (тип — из [ServiceException]). */
+    private var failure: FailureKind? = null
+    /** Круг уже записан в журнал как законченный, идёт голосовое сообщение об ошибке. */
+    private var closing = false
     /** «Тики» ожидания; дочерняя корутина круга. */
     private var waitTicks: Job? = null
 
@@ -112,6 +116,8 @@ class ConversationController(
             return
         }
         silenceCount = 0
+        failure = null
+        closing = false
         job = scope.launch { runCircle() }
     }
 
@@ -138,6 +144,11 @@ class ConversationController(
             it.copy(status = "Stopped.", currentChunk = "", autoMode = false, levelDb = 0f)
         }
         when {
+            wasActive && closing -> {
+                // Конец круга уже в журнале — «Stop» оборвал голосовое сообщение об ошибке.
+                log.event(SOURCE, "stop (${reason.description}) during the error message")
+                output.playCue(Cue.END)
+            }
             wasActive -> endCircle(reason)
             reason == EndReason.BACK -> {
                 log.event(SOURCE, "Back while no circle was running: end cue")
@@ -187,7 +198,8 @@ class ConversationController(
                 stopWaitTicks()
             }
             if (end != null) {
-                endCircle(end)
+                val kind = failure
+                if (end.isError && kind?.message != null) endWithMessage(end, kind) else endCircle(end)
                 return
             }
             // Авто-режим: пауза, затем «говори» и снова запись.
@@ -201,6 +213,28 @@ class ConversationController(
         if (reason.isError) output.playCue(Cue.ERROR)
         output.playCue(Cue.END)
         log.event(SOURCE, "circle end: ${reason.name} (${reason.description})")
+    }
+
+    /**
+     * Конец круга после сетевого сбоя: «ошибка», короткая фраза голосом телефона по типу сбоя
+     * (D21), «конец». Голоса телефона нет — только сигналы. Строка `circle end` пишется сразу.
+     */
+    private suspend fun endWithMessage(reason: EndReason, kind: FailureKind) {
+        closing = true
+        log.event(SOURCE, "circle end: ${reason.name} (${reason.description}, ${kind.name.lowercase()})")
+        output.playCue(Cue.ERROR)
+        try {
+            val audio = speech.speakFallback(kind.message!!)
+            output.awaitCues()
+            output.play(audio, output.prepareReply())
+            log.event(SOURCE, "error message spoken: ${kind.name.lowercase()}")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.event(SOURCE, "error message not spoken (${e.message ?: e.javaClass.simpleName}): cues only")
+        }
+        output.playCue(Cue.END)
+        closing = false
     }
 
     /** Один ход. `null` — продолжать (авто-режим), иначе — причина конца круга. */
@@ -314,7 +348,7 @@ class ConversationController(
         val chunks = planner.plan(reply.text)
         log.event(SOURCE, "reply: ${reply.text.length} chars, ${chunks.size} groups")
         if (chunks.isEmpty()) {
-            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, null, 0)
+            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, reply, null, 0)
             setState(ConversationState.Idle, "empty reply") { it.copy(status = "Ready.") }
             return null
         }
@@ -340,7 +374,7 @@ class ConversationController(
                         if (firstSoundAt == null) {
                             firstSoundAt = clock()
                             stopWaitTicks()
-                            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, firstSoundAt, shieldMs)
+                            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, reply, firstSoundAt, shieldMs)
                         }
                     }
                     // Опережающий запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
@@ -388,6 +422,7 @@ class ConversationController(
     /** Ошибка: круг заканчивается, авто-режим остаётся как был (как раньше). */
     private fun fail(reason: EndReason, message: String, error: Exception): EndReason {
         stopWaitTicks()
+        failure = (error as? ServiceException)?.kind
         log.error(SOURCE, reason.description, error)
         setState(ConversationState.Error(message), reason.description) {
             it.copy(status = message, currentChunk = "", levelDb = 0f)
@@ -395,13 +430,20 @@ class ConversationController(
         return reason
     }
 
-    /** `first_audio` — запуск звука первой группы; `audible` — голос слышен (после щита, если он есть). */
-    private fun logTimings(recordedAt: Long, transcribedAt: Long, repliedAt: Long, firstSoundAt: Long?, shieldMs: Long) {
+    /**
+     * Строка замера. Все времена — мс от конца записи, кроме `llm1` — длительности первого запроса
+     * к учителю. `search` — вызывал ли учитель инструмент, `reply_chars` — длина ответа.
+     * `first_audio` — запуск звука первой группы; `audible` — голос слышен (после щита, если он есть).
+     */
+    private fun logTimings(
+        recordedAt: Long, transcribedAt: Long, repliedAt: Long, reply: TutorReply, firstSoundAt: Long?, shieldMs: Long,
+    ) {
         val first = firstSoundAt?.let { (it - recordedAt).toString() } ?: "-"
         val audible = firstSoundAt?.let { (it + shieldMs - recordedAt).toString() } ?: "-"
         log.event(
             TIMING_SOURCE,
-            "stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} first_audio=$first audible=$audible",
+            "stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} llm1=${reply.firstRequestMs ?: "-"} " +
+                "search=${yesNo(reply.searched)} reply_chars=${reply.text.length} first_audio=$first audible=$audible",
         )
     }
 

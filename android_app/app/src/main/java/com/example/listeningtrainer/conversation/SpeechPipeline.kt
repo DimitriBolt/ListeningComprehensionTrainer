@@ -82,6 +82,19 @@ class SpeechPipeline(
             }
         }
 
+    /**
+     * Короткое сообщение голосом телефона (ошибка сети, D21): запасной синтез, та же громкость.
+     * Ошибка синтеза пробрасывается — тогда остаются только сигналы.
+     */
+    suspend fun speakFallback(text: String): SpeechAudio {
+        val audio = fallback.synthesize(text).audio
+        val norm = Loudness.normalize(
+            audio.pcm, audio.sampleRate,
+            ModelConfig.SPEECH_TARGET_RMS_DBFS, ModelConfig.SPEECH_PEAK_CEILING_DBFS, ModelConfig.SPEECH_MAX_GAIN_DB,
+        )
+        return SpeechAudio(norm.pcm, audio.sampleRate)
+    }
+
     /** Звук одной группы и как он получен (для журнала). */
     private suspend fun synthesizeGroup(
         number: String,

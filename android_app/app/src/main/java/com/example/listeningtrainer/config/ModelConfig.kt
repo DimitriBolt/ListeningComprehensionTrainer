@@ -86,4 +86,10 @@ object ModelConfig {
     const val CONNECT_TIMEOUT_MS = 10_000L
     const val READ_TIMEOUT_MS = 10_000L
     const val WRITE_TIMEOUT_MS = 10_000L
+    /** Общий предел на весь вызов (S02b, А4): распознавание, один запрос к учителю, поиск и погода. */
+    const val TRANSCRIBE_CALL_TIMEOUT_MS = 25_000L
+    const val TUTOR_CALL_TIMEOUT_MS = 20_000L
+    const val TOOLS_CALL_TIMEOUT_MS = 8_000L
+    /** Пауза перед единственным автоматическим повтором (сеть, таймаут, 5xx, 429). */
+    const val RETRY_PAUSE_MS = 1_000L
 }
