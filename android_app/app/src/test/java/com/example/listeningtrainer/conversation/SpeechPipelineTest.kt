@@ -188,6 +188,20 @@ class SpeechPipelineTest {
     }
 
     @Test
+    fun `group without words is not synthesized - no dot`() = runTest {
+        val primary = Fake("realtime")
+        val log = Log()
+        val audios = coroutineScope {
+            val groups = SpeechPipeline(primary, Fake("android"), log, { testScheduler.currentTime })
+                .start(this, chunks("1. **Make a plan**", ":", "write it down.", "-", "!"))
+            List(5) { groups.receive() }
+        }
+        assertEquals(listOf("1. Make a plan", "write it down."), primary.texts)
+        assertEquals(listOf(false, true, false, true, true), audios.map { it.pcm.isEmpty() })
+        assertTrue(log.lines.contains("[Audio] group 2/5: no words, not synthesized"))
+    }
+
+    @Test
     fun `cancel stops synthesis`() = runTest {
         val primary = Fake("realtime").apply { delayMs = 1000 }
         val pipeline = SpeechPipeline(primary, Fake("android"), Log(), { testScheduler.currentTime }, lookahead = 3)

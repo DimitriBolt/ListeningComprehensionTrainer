@@ -19,6 +19,8 @@ import kotlinx.coroutines.channels.produce
  * - Основной синтез недоступен целиком (нет сети, 401, 429, сессия) → остаток ответа читает
  *   [fallback]; следующий ответ снова начинается с основного.
  * - Громкость каждой группы приводится к целевой ([Loudness]).
+ * - Группа без единой буквы или цифры (`:`, `.`, `!`, `-` после заголовка) в синтез не идёт:
+ *   Realtime читал её как «dot». В канал уходит пустой звук — контроллер его не играет, пауза остаётся.
  *
  * В журнал (источник `Audio`) — только номер группы, каким синтезом, времена, длины, громкость;
  * тексты не пишутся.
@@ -58,6 +60,11 @@ class SpeechPipeline(
             chunks.forEachIndexed { index, chunk ->
                 val number = "${index + 1}/${chunks.size}"
                 val text = chunk.text.replace("**", "") // ** нужны только на экране
+                if (!hasWords(text)) {
+                    log.event(SOURCE, "group $number: no words, not synthesized")
+                    send(SpeechAudio(ShortArray(0), ModelConfig.SPEECH_SAMPLE_RATE))
+                    return@forEachIndexed
+                }
                 val started = clock()
                 val (speech, how) = synthesizeGroup(number, text, primaryAvailable) { primaryAvailable = false }
                 val readyMs = clock() - started
@@ -131,6 +138,9 @@ class SpeechPipeline(
 
     private companion object {
         const val SOURCE = "Audio"
+
+        /** Есть что произнести: хотя бы одна буква или цифра. */
+        fun hasWords(text: String) = text.any { it.isLetterOrDigit() }
         /** Первая попытка и один повтор. */
         const val ATTEMPTS = 2
     }

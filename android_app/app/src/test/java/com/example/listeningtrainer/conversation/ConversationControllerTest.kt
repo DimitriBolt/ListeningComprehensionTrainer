@@ -323,6 +323,20 @@ class ConversationControllerTest {
     }
 
     @Test
+    fun `punctuation-only group is not played, its pause is kept`() = runTest {
+        val rig = Rig(this, "Hi")
+        rig.tutor.replyText = "1. **Make a plan**: write it down."
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("1. Make a plan", "write it down."), rig.synth.texts)
+        assertEquals(listOf("1. Make a plan", "write it down."), rig.output.played)
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+        val t = rig.output.startTimes
+        assertTrue("gap ${t[1] - t[0]}", t[1] - t[0] > 0) // пауза группы «:» не пропала
+    }
+
+    @Test
     fun `timing - with Bluetooth the voice is audible after the shield`() = runTest {
         val rig = Rig(this, "I am fine")
         rig.output.shieldMs = 1200

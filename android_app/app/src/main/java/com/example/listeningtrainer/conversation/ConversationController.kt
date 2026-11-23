@@ -324,6 +324,11 @@ class ConversationController(
                     if (i > 0) startWaitTicks() // долгий синтез посреди ответа — тоже ожидание
                     val audio = groups.receive()
                     if (i > 0) stopWaitTicks()
+                    if (audio.pcm.isEmpty()) {
+                        // Произносить нечего (группа из одного знака или пустой звук) — только пауза.
+                        if (i < chunks.size - 1) delay(chunks[i].pauseMs)
+                        continue
+                    }
                     setState(ConversationState.Speaking, "first group ready") {
                         it.copy(currentChunk = chunks[i].text, status = "Speaking ${i + 1}/${chunks.size} 🔊")
                     }
