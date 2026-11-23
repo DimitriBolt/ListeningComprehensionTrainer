@@ -944,4 +944,63 @@ class ConversationControllerTest {
         assertEquals(1, rig.input.records)
         assertEquals(1, rig.output.cues.count { it == Cue.END })
     }
+
+    // ---- средняя кнопка гарнитуры (S03) ------------------------------------------------------
+
+    @Test
+    fun `headset button - Talk in idle, Stop Recording while listening, nothing while the teacher speaks`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.input.hold = true
+        assertTrue(rig.controller.headsetButton(HeadsetButton.KEYCODE_HEADSETHOOK, 120))
+        runCurrent()
+        assertEquals(ConversationState.Listening, rig.state)
+
+        advanceTimeBy(3_000)
+        rig.controller.headsetButton(HeadsetButton.KEYCODE_HEADSETHOOK, 120)
+        assertEquals(1, rig.input.finishes)
+        advanceTimeBy(600)
+        assertEquals(ConversationState.Thinking, rig.state)
+
+        rig.controller.headsetButton(HeadsetButton.KEYCODE_HEADSETHOOK, 120)
+        advanceUntilIdle()
+        assertEquals(listOf("Hello"), rig.tutor.replies)
+        assertEquals(1, rig.input.records)
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played) // ответ не оборван
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+
+        val lines = rig.log.lines.filter { "headset key" in it }
+        assertEquals(
+            listOf(
+                "[Controller] headset key KEYCODE_HEADSETHOOK in Idle: Talk",
+                "[Controller] headset key KEYCODE_HEADSETHOOK in Listening: Stop Recording",
+                "[Controller] headset key KEYCODE_HEADSETHOOK in Thinking: ignored (teacher is thinking or speaking)",
+            ),
+            lines,
+        )
+        assertTrue(rig.log.lines.contains("[Controller] Idle -> Listening (headset button)"))
+    }
+
+    @Test
+    fun `headset button in auto mode ends the turn, the circle goes on`() = runTest {
+        val rig = Rig(this, "Hello", "Again")
+        rig.controller.setAutoMode(true)
+        rig.input.hold = true
+        rig.controller.headsetButton(HeadsetButton.KEYCODE_MEDIA_PLAY_PAUSE, 100)
+        advanceTimeBy(2_000)
+        rig.controller.headsetButton(HeadsetButton.KEYCODE_MEDIA_PLAY_PAUSE, 100)
+        advanceTimeBy(10_000)
+        assertEquals(listOf("Hello"), rig.tutor.replies)
+        assertEquals(2, rig.input.records) // авто-режим: снова слушает
+        assertEquals(ConversationState.Listening, rig.state)
+        rig.controller.stop(EndReason.STOP_BUTTON)
+    }
+
+    @Test
+    fun `other keys are not consumed`() = runTest {
+        val rig = Rig(this, "Hello")
+        assertFalse(rig.controller.headsetButton(HeadsetButton.KEYCODE_MEDIA_NEXT, 100))
+        runCurrent()
+        assertEquals(ConversationState.Idle, rig.state)
+        assertEquals(0, rig.input.records)
+    }
 }

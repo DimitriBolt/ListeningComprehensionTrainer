@@ -17,6 +17,7 @@ import com.example.listeningtrainer.audio.AudioRecorder
 import com.example.listeningtrainer.audio.AudioSession
 import com.example.listeningtrainer.audio.AndroidTtsSynthesizer
 import com.example.listeningtrainer.audio.AudioTrackOutput
+import com.example.listeningtrainer.audio.HeadsetButtons
 import com.example.listeningtrainer.audio.exportToPublicMusic
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.audio.lastUserUploadFile
@@ -49,7 +50,8 @@ import kotlinx.coroutines.launch
  *
  * Сервис запускается первой командой («Talk» или авто-режим) — уже после разрешения на
  * микрофон: foreground-сервис с типом microphone без него на Android 14 падает.
- * Пока он жив, приложение держит аудиофокус ([AudioSession]).
+ * Пока он жив, приложение держит аудиофокус ([AudioSession]) и средняя кнопка гарнитуры работает как
+ * «Talk» / «Stop Recording» ([HeadsetButtons], D29).
  * Останавливается кнопкой «Back» ([stop]) или смахиванием из недавних: круг заканчивается, звучит
  * «конец». Без идущего круга и без видимого экрана закрывается сам через 10 мин (D18).
  * Системный жест «назад» сервис не трогает: разговор продолжается в фоне, как после «Домой».
@@ -59,6 +61,7 @@ class TrainerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var controller: ConversationController
     private lateinit var audioSession: AudioSession
+    private lateinit var headsetButtons: HeadsetButtons
 
     override fun onCreate() {
         super.onCreate()
@@ -93,6 +96,9 @@ class TrainerService : Service() {
             log = AppLog,
             speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
         )
+        // Средняя кнопка гарнитуры (D29): медиа-сеанс активен всё время жизни сервиса, как и аудиофокус.
+        headsetButtons = HeadsetButtons(this, AppLog) { keyCode, pressMs -> controller.headsetButton(keyCode, pressMs) }
+            .also { it.start() }
         // Сессия Realtime и запасной движок — заранее, чтобы подключение не попало во время ответа.
         controller.prepare()
         scope.launch { controller.ui.collect { _ui.value = it } }
@@ -133,6 +139,7 @@ class TrainerService : Service() {
     override fun onDestroy() {
         AppLog.event(SOURCE, "onDestroy")
         controller.release() // если круг ещё шёл — «конец» с причиной «service destroyed»
+        headsetButtons.release()
         audioSession.stop()
         _ui.value = controller.ui.value
         scope.cancel()

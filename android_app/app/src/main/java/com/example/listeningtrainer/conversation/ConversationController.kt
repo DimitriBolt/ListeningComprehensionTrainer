@@ -102,6 +102,7 @@ class ConversationController(
     val ui: StateFlow<ConversationUi> = _ui.asStateFlow()
 
     private var job: Job? = null
+    private val headset = HeadsetButton()
     private var silenceCount = 0
     /** Сбой, о котором после «ошибки» скажет голос телефона (тип — из [ServiceException]). */
     private var failure: FailureKind? = null
@@ -112,8 +113,8 @@ class ConversationController(
     /** «Тики» ожидания; дочерняя корутина круга. */
     private var waitTicks: Job? = null
 
-    /** Кнопка «Talk»: начать круг. Если круг уже идёт — ничего не делает. */
-    fun startTurn() {
+    /** Кнопка «Talk» (или средняя кнопка гарнитуры — [why]): начать круг. Если круг уже идёт — ничего не делает. */
+    fun startTurn(why: String = "Talk button") {
         if (job?.isActive == true) {
             log.event(SOURCE, "Talk ignored: circle already running")
             return
@@ -121,7 +122,7 @@ class ConversationController(
         silenceCount = 0
         failure = null
         closing = false
-        job = scope.launch { runCircle() }
+        job = scope.launch { runCircle(why) }
     }
 
     /** Кнопка «Stop Recording»: ученик закончил реплику, запись уходит на распознавание. */
@@ -130,6 +131,22 @@ class ConversationController(
             log.event(SOURCE, "Stop Recording button")
             input.finish()
         }
+    }
+
+    /**
+     * Средняя кнопка гарнитуры отпущена (D29): в простое — как «Talk», во время записи — как
+     * «Stop Recording», пока учитель думает или говорит — ничего. Каждое нажатие — строка журнала
+     * с кодом клавиши. `true` — нажатие наше (система не передаёт его дальше).
+     */
+    fun headsetButton(keyCode: Int, pressMs: Long): Boolean {
+        val decision = headset.onRelease(keyCode, pressMs, _ui.value.state, clock())
+        log.event(SOURCE, decision.log)
+        when (decision.action) {
+            HeadsetButton.Action.TALK -> startTurn("headset button")
+            HeadsetButton.Action.FINISH_RECORDING -> input.finish()
+            HeadsetButton.Action.NONE -> Unit
+        }
+        return HeadsetButton.isMiddleButton(keyCode)
     }
 
     /**
@@ -192,8 +209,8 @@ class ConversationController(
 
     // ---- круг --------------------------------------------------------------------------------
 
-    private suspend fun runCircle() {
-        var why = "Talk button"
+    private suspend fun runCircle(firstWhy: String) {
+        var why = firstWhy
         while (true) {
             val end = try {
                 runOneTurn(why)
