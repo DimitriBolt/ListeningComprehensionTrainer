@@ -1,7 +1,9 @@
 package com.example.listeningtrainer.openai
 
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.conversation.FailureKind
 import com.example.listeningtrainer.conversation.RecordedAudio
+import com.example.listeningtrainer.conversation.ServiceException
 import com.example.listeningtrainer.conversation.Transcriber
 import com.example.listeningtrainer.eventlog.EventLog
 import com.example.listeningtrainer.eventlog.NoEventLog
@@ -23,14 +25,23 @@ class FileTranscriber(
 ) : Transcriber {
 
     override suspend fun transcribe(audio: RecordedAudio, prompt: String): String {
+        try {
+            return send(audio.upload, prompt)
+        } catch (e: ServiceException) {
+            // Страховка: сжатый файл не принят (400) — тот же запрос один раз с WAV.
+            if (e.kind != FailureKind.BAD_REQUEST || audio.upload == audio.file) throw e
+            log.event(SOURCE, "transcription: m4a not accepted (${e.message}), sending wav")
+            return send(audio.file, prompt)
+        }
+    }
+
+    private suspend fun send(file: File, prompt: String): String {
         val textType = "text/plain".toMediaType()
         // Тело multipart одноразовое — для повтора собирается заново.
         val response = withRetry("transcription", log, retryPauseMs) {
             api.transcribeAudio(
                 OpenAiClient.bearer(apiKey()),
-                MultipartBody.Part.createFormData(
-                    "file", audio.upload.name, audio.upload.asRequestBody(mimeOf(audio.upload).toMediaType())
-                ),
+                MultipartBody.Part.createFormData("file", file.name, file.asRequestBody(mimeOf(file).toMediaType())),
                 ModelConfig.TRANSCRIBE_MODEL.toRequestBody(textType),
                 ModelConfig.TRANSCRIBE_LANGUAGE.toRequestBody(textType),
                 prompt.toRequestBody(textType),
@@ -40,4 +51,8 @@ class FileTranscriber(
     }
 
     private fun mimeOf(file: File) = if (file.extension == "m4a") "audio/mp4" else "audio/wav"
+
+    private companion object {
+        const val SOURCE = "Network"
+    }
 }
