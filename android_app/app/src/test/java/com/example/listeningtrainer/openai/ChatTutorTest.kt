@@ -87,6 +87,12 @@ class ChatTutorTest {
         assertEquals("Regular gas costs \$3.29", ToolResults.searchSnippets(html))
         assertEquals(ToolResults.SEARCH_EMPTY, ToolResults.searchSnippets("<html><body>DuckDuckGo lite page</body></html>"))
         assertEquals(ToolResults.WEATHER_EMPTY, ToolResults.weather("  "))
+        // В журнал — только число результатов и вид страницы, без текста.
+        assertEquals("search: 1 results (http 200, 1 KB)", ToolResults.searchLogLine(200, html))
+        assertEquals(
+            "search: no results (http 202, 1 KB, bot check page) -> NO_DATA",
+            ToolResults.searchLogLine(202, "<html>anomaly-modal</html>"),
+        )
         assertEquals("Tucson: Sunny +20C", ToolResults.weather("Tucson: Sunny +20C\n"))
     }
 

@@ -27,8 +27,8 @@ import java.util.Locale
 class ChatTutor(
     private val apiKey: () -> String,
     private val api: OpenAiService = OpenAiClient.tutorApi,
-    private val tools: TutorTools = WebTools(OpenAiClient.toolsHttp),
     private val log: EventLog = NoEventLog,
+    private val tools: TutorTools = WebTools(OpenAiClient.toolsHttp, log),
     private val clock: () -> Long = System::currentTimeMillis,
     private val historyLimit: Int = ModelConfig.TUTOR_HISTORY_MESSAGES,
     private val today: () -> Date = ::Date,
