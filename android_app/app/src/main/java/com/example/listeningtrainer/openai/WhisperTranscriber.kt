@@ -17,7 +17,7 @@ class WhisperTranscriber(
     override suspend fun transcribe(audio: RecordedAudio): String {
         val textType = "text/plain".toMediaType()
         val filePart = MultipartBody.Part.createFormData(
-            "file", audio.file.name, audio.file.asRequestBody("audio/wav".toMediaType())
+            "file", audio.upload.name, audio.upload.asRequestBody(mimeOf(audio.upload).toMediaType())
         )
         val response = api.transcribeAudio(
             OpenAiClient.bearer(apiKey()),
@@ -27,4 +27,6 @@ class WhisperTranscriber(
         )
         return response.text
     }
+
+    private fun mimeOf(file: java.io.File) = if (file.extension == "m4a") "audio/mp4" else "audio/wav"
 }

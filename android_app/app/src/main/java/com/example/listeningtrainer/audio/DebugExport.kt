@@ -13,6 +13,10 @@ import java.io.File
 fun lastUserSpeechFile(context: Context): File =
     File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "last_user_speech.wav")
 
+/** Сжатая копия последней записи — её загружает распознавание. */
+fun lastUserUploadFile(context: Context): File =
+    File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "last_user_speech.m4a")
+
 /** Сколько последних копий записей держать в Music/ListeningTrainer. */
 const val DEBUG_COPIES_KEEP = 20
 

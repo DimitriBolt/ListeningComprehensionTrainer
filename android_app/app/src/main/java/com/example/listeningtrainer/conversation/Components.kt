@@ -7,12 +7,14 @@ import java.io.File
 // новая реализация интерфейса, а не правка контроллера.
 
 /**
- * Записанная реплика ученика. Сейчас — WAV-файл.
+ * Записанная реплика ученика: [file] — WAV (кнопка «My Voice», копия в debug), [upload] — файл
+ * для распознавания (сжатый `.m4a` или тот же WAV).
  * [heardSpeech] — был ли хоть один замер громче порога [TurnDetector]. Нет — это молчание,
  * распознаватель не вызывается (он «слышит» в тишине фразы вроде `Thank you.`).
  */
 data class RecordedAudio(
     val file: File,
+    val upload: File = file,
     val durationMs: Long,
     val heardSpeech: Boolean,
     /** Самый громкий замер записи, дБ (для журнала). */

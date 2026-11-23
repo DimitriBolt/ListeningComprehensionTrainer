@@ -12,6 +12,18 @@ object ModelConfig {
     const val TRANSCRIBE_MODEL = "whisper-1"
     const val TRANSCRIBE_LANGUAGE = "en"
 
+    // --- Запись ученика (S02b, D6) ---
+    /** Микрофон: PCM 16 бит, моно, 16 кГц. */
+    const val RECORD_SAMPLE_RATE = 16_000
+    /** Кусок записи, по которому считается громкость для порога (как раньше: ≈ 80 мс при 44,1 кГц). */
+    const val RECORD_LEVEL_WINDOW_MS = 80
+    /** Предохранитель длины записи: дольше — запись заканчивается сама, как по «Stop Recording». */
+    const val RECORD_MAX_MS = 90_000
+    /** Загружать в распознавание сжатый AAC `.m4a` (false — WAV 16 кГц, 32 КБ/с). */
+    const val TRANSCRIBE_UPLOAD_COMPRESSED = true
+    /** Битрейт AAC: 32 кбит/с ≈ 4 КБ на секунду речи. */
+    const val RECORD_AAC_BIT_RATE = 32_000
+
     /** Учитель (Chat Completions) и проверка ключа. */
     const val TUTOR_MODEL = "gpt-4o-mini"
 
