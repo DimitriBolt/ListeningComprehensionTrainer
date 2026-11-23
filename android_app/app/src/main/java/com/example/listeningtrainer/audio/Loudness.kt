@@ -13,10 +13,20 @@ import kotlin.math.sqrt
  * Громкость голоса учителя. Чистый Kotlin.
  *
  * RMS считается только по звучащим кускам (окна 20 мс громче [ACTIVE_FLOOR_DBFS]): тишина в начале
- * и в конце группы и паузы между словами не занижают громкость. Нормализация — усиление до целевого
- * RMS (но не больше [maxGainDb]), затем ограничитель пика без перегрузки: огибающая усиления
- * плавно опускается перед пиком ([ATTACK_MS]) и плавно возвращается после ([RELEASE_MS]),
- * так что щелчков от резких скачков усиления нет. Края группы — короткое затухание ([EDGE_FADE_MS]).
+ * и в конце группы и паузы между словами не занижают громкость.
+ *
+ * Нормализация (S02b, D25 — цель −13 дБFS при пике ≤ −1 дБFS):
+ * 1. усиление до целевого RMS (но не больше [maxGainDb]);
+ * 2. **мягкое сжатие**: громкие места (выше цели на [COMP_THRESHOLD_ABOVE_TARGET_DB]) приглушаются
+ *    с отношением [COMP_RATIO] и мягким коленом [COMP_KNEE_DB]; приглушение нарастает заранее
+ *    и плавно ([COMP_ATTACK_DB_PER_MS]) и плавно отпускает ([COMP_RELEASE_MS]) — уровень не
+ *    «качается» на слогах;
+ * 3. добор усиления до цели (суммарно не больше [maxGainDb]);
+ * 4. ограничитель пика без перегрузки: огибающая плавно опускается перед пиком ([ATTACK_MS]) и
+ *    плавно возвращается после ([RELEASE_MS]) — щелчков нет. Края группы — затухание ([EDGE_FADE_MS]).
+ *
+ * Без сжатия при −13 дБFS ограничителю пришлось бы срезать почти каждый слог (у речи пик на
+ * 12–18 дБ выше RMS) — это слышно как хрип; сжатие делает ту же работу мягко и заранее.
  */
 object Loudness {
 
@@ -34,6 +44,11 @@ object Loudness {
     private const val ATTACK_MS = 5.0
     private const val RELEASE_MS = 80.0
     private const val EDGE_FADE_MS = 3
+    private const val COMP_THRESHOLD_ABOVE_TARGET_DB = 3.0
+    private const val COMP_RATIO = 3.0
+    private const val COMP_KNEE_DB = 6.0
+    private const val COMP_ATTACK_DB_PER_MS = 2.0
+    private const val COMP_RELEASE_MS = 120.0
 
     fun measure(pcm: ShortArray, sampleRate: Int): Level {
         if (pcm.isEmpty()) return Level(SILENCE_DBFS, SILENCE_DBFS)
@@ -66,10 +81,20 @@ object Loudness {
         val before = measure(pcm, sampleRate)
         if (pcm.isEmpty() || before.peakDbfs <= SILENCE_DBFS) return Result(pcm, before, before, 0.0)
 
-        val gainDb = min(maxGainDb, targetRmsDbfs - before.rmsDbfs)
-        val gain = 10.0.pow(gainDb / 20)
+        val preGainDb = min(maxGainDb, targetRmsDbfs - before.rmsDbfs)
+        val preGain = 10.0.pow(preGainDb / 20)
         val ceiling = 10.0.pow(peakCeilingDbfs / 20) * FULL_SCALE
-        val x = DoubleArray(pcm.size) { pcm[it] * gain }
+        val x = DoubleArray(pcm.size) { pcm[it] * preGain }
+
+        // Мягкое сжатие, затем добор до цели (общий предел усиления тот же).
+        compress(x, sampleRate, targetRmsDbfs + COMP_THRESHOLD_ABOVE_TARGET_DB)
+        val compressedRms = measureDouble(x, sampleRate)
+        val makeupDb = max(0.0, min(maxGainDb - preGainDb, targetRmsDbfs - compressedRms))
+        if (makeupDb > 0) {
+            val makeup = 10.0.pow(makeupDb / 20)
+            for (i in x.indices) x[i] *= makeup
+        }
+        val gainDb = preGainDb + makeupDb
 
         // Огибающая ограничителя: нужное усиление в каждой точке, затем плавный возврат вперёд
         // (release) и плавный спуск назад, к пику (attack). Оба прохода только уменьшают значения,
@@ -91,6 +116,39 @@ object Loudness {
             (x[i] * g[i] * edge).roundToInt().coerceIn(-32767, 32767).toShort()
         }
         return Result(out, before, measure(out, sampleRate), gainDb)
+    }
+
+    /**
+     * Сжатие на месте. Уровень — огибающая модуля сигнала: мгновенно поднимается на пике и плавно
+     * спадает ([COMP_RELEASE_MS]). Выше порога [thresholdDbfs] усиление уменьшается в [COMP_RATIO]
+     * раз по децибелам, у порога — плавный переход шириной [COMP_KNEE_DB]. Приглушение начинается
+     * заранее и нарастает плавно (не быстрее [COMP_ATTACK_DB_PER_MS]), как у ограничителя: начало
+     * громкого слога не проскакивает несжатым. Только уменьшает усиление.
+     */
+    private fun compress(x: DoubleArray, sampleRate: Int, thresholdDbfs: Double) {
+        if (x.isEmpty()) return
+        val release = exp(-1.0 / (COMP_RELEASE_MS * sampleRate / 1000))
+        val reduction = DoubleArray(x.size)
+        var env = 0.0
+        for (i in x.indices) {
+            env = max(abs(x[i]), env * release)
+            val over = db(env) - thresholdDbfs
+            reduction[i] = when {
+                over <= -COMP_KNEE_DB / 2 -> 0.0
+                over >= COMP_KNEE_DB / 2 -> over * (1 - 1 / COMP_RATIO)
+                else -> (1 - 1 / COMP_RATIO) * (over + COMP_KNEE_DB / 2).pow(2) / (2 * COMP_KNEE_DB)
+            }
+        }
+        // Упреждение: приглушение нарастает до пика плавно, а не скачком в момент пика.
+        val attackStep = COMP_ATTACK_DB_PER_MS * 1000.0 / sampleRate
+        for (i in x.size - 2 downTo 0) reduction[i] = max(reduction[i], reduction[i + 1] - attackStep)
+        for (i in x.indices) if (reduction[i] > 0) x[i] *= 10.0.pow(-reduction[i] / 20)
+    }
+
+    /** RMS по звучащим окнам для ещё не округлённого сигнала, дБFS. */
+    private fun measureDouble(x: DoubleArray, sampleRate: Int): Double {
+        val clipped = ShortArray(x.size) { x[it].roundToInt().coerceIn(-32767, 32767).toShort() }
+        return measure(clipped, sampleRate).rmsDbfs
     }
 
     private fun db(amplitude: Double): Double =

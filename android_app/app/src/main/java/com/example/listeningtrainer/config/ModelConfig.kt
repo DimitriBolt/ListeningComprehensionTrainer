@@ -70,7 +70,7 @@ object ModelConfig {
     const val BLUETOOTH_SHIELD_MS = 1200L
 
     /** Громкость голоса учителя: целевой RMS по звучащим кускам, потолок пика, предел усиления. */
-    const val SPEECH_TARGET_RMS_DBFS = -16.0
+    const val SPEECH_TARGET_RMS_DBFS = -13.0
     const val SPEECH_PEAK_CEILING_DBFS = -1.0
     const val SPEECH_MAX_GAIN_DB = 24.0
 

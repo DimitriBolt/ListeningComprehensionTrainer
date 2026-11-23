@@ -181,9 +181,10 @@ class SpeechPipelineTest {
             SpeechPipeline(Fake("realtime"), Fake("android"), log, { testScheduler.currentTime }).start(this, chunks("Secret words here.")).receive()
         }
         val level = Loudness.measure(audio.pcm, audio.sampleRate)
-        assertEquals(-16.0, level.rmsDbfs, 0.5)
+        // Цель −13 дБFS (D25); звук на −37 дБFS упирается в предел усиления +24 дБ.
+        assertEquals(-13.0, level.rmsDbfs, 1.0)
         val line = log.lines.single { it.startsWith("[Audio] group 1/1:") }
-        assertTrue(line, "ready in 100 ms, 100 ms of audio, rms -37.0 dBFS, peak -34.0 dBFS -> rms -16." in line)
+        assertTrue(line, "ready in 100 ms, 100 ms of audio, rms -37.0 dBFS, peak -34.0 dBFS -> rms -13." in line)
         assertFalse(log.lines.any { "Secret" in it })
     }
 

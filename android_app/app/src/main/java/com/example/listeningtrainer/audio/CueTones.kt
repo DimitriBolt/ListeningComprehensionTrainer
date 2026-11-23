@@ -27,11 +27,11 @@ object CueTones {
     data class Note(val hz: Double, val ms: Int, val amplitude: Double = 0.0, val buzz: Boolean = false)
 
     /**
-     * Громкость сигналов — чуть тише голоса учителя (его RMS приводится к −16 дБFS):
-     * синус 0,14 — RMS ≈ −20 дБFS, пик ≈ −17 дБFS. «Тик» — на 10 дБ тише.
+     * Громкость сигналов — чуть тише голоса учителя (его RMS приводится к −13 дБFS, D25):
+     * синус 0,2 — RMS ≈ −17 дБFS, пик ≈ −14 дБFS. «Тик» — на 10 дБ тише.
      */
-    const val LOUD = 0.14
-    const val QUIET = 0.044
+    const val LOUD = 0.2
+    const val QUIET = 0.063
     private const val FADE_MS = 5
 
     fun notes(cue: Cue): List<Note> = when (cue) {
