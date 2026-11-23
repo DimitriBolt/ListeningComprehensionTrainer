@@ -128,6 +128,21 @@ async def _fast_sleep(s):
     await _real_sleep(min(s, 0.01))
 
 
+def test_student_phrases_via_realtime(tmp_path, ws_url, monkeypatch):
+    monkeypatch.setattr(probe, "REALTIME_URL", ws_url + "?model={model}")
+    ctx = make_ctx(tmp_path, "vadservice")
+    p1, p2 = ctx.student_pcm24(probe.VAD_PART1, probe.VAD_PART2)
+    assert len(p1) == len(p2) == 3 * 4800  # три куска звука по 0,1 с от подставного сервера
+    _, source, marks = probe.vad_audio24(ctx)
+    assert "gpt-realtime-2.1-mini" in source and [m[0] for m in marks][1] == "часть 1"
+
+
+def test_no_retired_models_in_probe():
+    src = (Path(probe.__file__)).read_text()
+    for model in ('"tts-1"', '"gpt-4o-mini"', '"whisper-1"', "/audio/speech"):
+        assert model not in src, model
+
+
 def test_realtime_401(tmp_path, monkeypatch):
     async def reject(conn, request):
         return conn.respond(401, "nope")
@@ -149,11 +164,7 @@ def fake_http(request: httpx.Request) -> httpx.Response:
         body = request.content.decode("latin-1")
         if 'name="languages[]"' in body:
             return httpx.Response(200, json={"text": "Yesterday I went", "languages": [{"code": "en"}]})
-        if 'name="language"' in body and "whisper-1" in body:
-            return httpx.Response(200, json={"text": "Yesterday I went"})
         return httpx.Response(400, json={"error": {"message": "bad languages"}})
-    if path.endswith("/audio/speech"):
-        return httpx.Response(200, content=b"\x00\x00" * 24000)
     if path.endswith("/chat/completions"):
         body = json.loads(request.content)
         last = body["messages"][-1]
@@ -175,11 +186,15 @@ def install_fake_api(ctx):
     ctx._api = api
 
 
-def test_transcribe_against_fake(tmp_path):
+def test_transcribe_against_fake(tmp_path, ws_url, monkeypatch):
+    # Фраза ученика синтезируется через Realtime (подставной сервер), без tts-1.
+    monkeypatch.setattr(probe, "REALTIME_URL", ws_url + "?model={model}")
     ctx = make_ctx(tmp_path, "transcribe", ("--repeats", "2"))
     install_fake_api(ctx)
     probe.probe_transcribe(ctx)
     raw = json.loads((tmp_path / "out" / "results.json").read_text())["probes"]["transcribe"]["raw"]
+    assert "gpt-realtime-2.1-mini" in raw["source"]
+    assert set(raw["timing"]) == {"gpt-transcribe"}
     statuses = {v["label"].split(" ")[0]: v["status"] for v in raw["variants"]}
     assert statuses["languages[]=en"] == 200 and statuses["languages=en"] == 400
     assert len(raw["timing"]["gpt-transcribe"]) == 2
@@ -195,6 +210,7 @@ def test_tutor_against_fake(tmp_path):
     assert luna[2]["tool_calls"][0]["function"]["name"] == "search_live_web"
     assert luna[2]["format_problems"] == []
     assert luna[0]["reply"] == "reply from gpt-6-luna"
+    assert set(raw["results"]) == {"gpt-6-luna"}
     md = (tmp_path / "docs.md").read_text()
     assert "формат прежний" in md
 

@@ -12,7 +12,6 @@
   [R-ws]     https://developers.openai.com/api/docs/guides/voice-websockets
   [R-rtt]    https://developers.openai.com/api/docs/guides/realtime-transcription
   [STT]      https://developers.openai.com/api/docs/guides/speech-to-text
-  [TTS]      https://developers.openai.com/api/docs/guides/text-to-speech
   [LUNA]     https://developers.openai.com/api/docs/models/gpt-6-luna
   [RTM]      https://developers.openai.com/api/docs/models/gpt-realtime-2.1-mini
   [PRICE]    https://developers.openai.com/api/docs/pricing
@@ -54,30 +53,25 @@ REALTIME_URL = "wss://api.openai.com/v1/realtime?model={model}"
 REALTIME_TRANSCRIPTION_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
 
 M_REALTIME = "gpt-realtime-2.1-mini"   # [RTM]
-M_TTS_OLD = "tts-1"                    # [TTS], отключают 2027-01-06
 M_TUTOR_NEW = "gpt-6-luna"             # [LUNA]
-M_TUTOR_OLD = "gpt-4o-mini"
 M_STT_NEW = "gpt-transcribe"           # [STT]
-M_STT_OLD = "whisper-1"
 
 # [R-client]: голоса Realtime
 REALTIME_VOICES = ["alloy", "ash", "ballad", "coral", "echo", "sage",
                    "shimmer", "verse", "marin", "cedar"]
 DEFAULT_RT_VOICE = "marin"
-OLD_TTS_VOICE = "nova"
+STUDENT_VOICE = "alloy"                # голос «ученика» в синтезированных фразах проб
 SPEED = 0.88                           # эталон озвучки, docs/ARCHITECTURE.md
 RT_RATE = 24000                        # [R-client]: audio/pcm только 24 кГц
 APP_RATE = 16000                       # запись приложения, решение D6
-BT_SHIELD = " . . . . . . . . "        # префикс «щита Bluetooth» в нынешнем приложении
 
-# Цены, $ ([RTM], [LUNA], [PRICE]; tts-1 и whisper-1 — из docs/research/00-models.md)
+# Цены, $ ([RTM], [LUNA], [PRICE]). tts-1, gpt-4o-mini и whisper-1 отключают (2027-01-06,
+# 2027-01-14, 2027-02-26) — с S02b пробы их не вызывают; прежние сравнения — в 00b-results.md.
 PRICE = {
     "rt_text_in": 0.60 / 1e6, "rt_text_out": 2.40 / 1e6,
     "rt_audio_in": 10.0 / 1e6, "rt_audio_out": 20.0 / 1e6,
-    "tts1_char": 15.0 / 1e6,
     "luna_in": 0.10 / 1e6, "luna_out": 0.50 / 1e6,
-    "mini_in": 0.15 / 1e6, "mini_out": 0.60 / 1e6,
-    "stt_new_min": 0.0045, "stt_old_min": 0.006,
+    "stt_new_min": 0.0045,
 }
 
 # Фразы ученика (синтезируются, если не дан свой WAV)
@@ -571,23 +565,6 @@ class Api:
         self._check(r)
         return r.json(), dt
 
-    def speech(self, model: str, text: str, voice: str, speed: float, fmt: str) -> dict:
-        """/v1/audio/speech потоком: время до первого байта и до конца ([TTS])."""
-        body = {"model": model, "input": text, "voice": voice, "speed": speed,
-                "response_format": fmt}
-        t0 = time.perf_counter()
-        first = None
-        buf = bytearray()
-        with self.client.stream("POST", "/audio/speech", json=body) as r:
-            if r.status_code >= 400:
-                r.read()
-                self._check(r)
-            for part in r.iter_bytes():
-                if part and first is None:
-                    first = time.perf_counter() - t0
-                buf.extend(part)
-        return {"audio": bytes(buf), "t_first": first, "t_total": time.perf_counter() - t0}
-
     def transcribe(self, wav: bytes, fields: list[tuple[str, str]]) -> dict:
         """/v1/audio/transcriptions, multipart. Ошибку возвращает, а не бросает:
         для перебора вариантов `languages` отказ — тоже результат."""
@@ -836,10 +813,22 @@ class Ctx:
         p.write_bytes(pcm_to_wav(pcm, rate))
         return p
 
-    def student_pcm24(self, text: str) -> bytes:
-        """Фраза ученика синтезом tts-1 (формат pcm — 24 кГц, 16 бит, [TTS])."""
-        r = self.api.speech(M_TTS_OLD, text, "alloy", 1.0, "pcm")
-        return r["audio"]
+    def student_pcm24(self, *texts: str) -> list[bytes]:
+        """Фразы ученика синтезом gpt-realtime-2.1-mini, как синтез в приложении (PCM 24 кГц, 16 бит).
+        Одна сессия на все фразы; каждая — ответ вне разговора с промптом 1 («читающий движок»)."""
+        return asyncio.run(_student_say(self, list(texts)))
+
+
+async def _student_say(ctx: "Ctx", texts: list[str]) -> list[bytes]:
+    out = []
+    async with Realtime(ctx.key, ctx.timeout, REALTIME_URL.format(model=M_REALTIME)) as rt:
+        await rt.update_session(synth_session(STUDENT_VOICE, 1.0, 1))
+        for text in texts:
+            r = await rt_say(rt, text)
+            if r["error"] or not r["pcm"]:
+                raise ProbeError(f"Не удалось синтезировать фразу ученика: {r['error'] or 'нет звука'}")
+            out.append(r["pcm"])
+    return out
 
 
 def log(msg: str) -> None:
@@ -975,22 +964,7 @@ def probe_latency(ctx: Ctx) -> None:
     n = ctx.args.n
     step = max(1, len(chunks) // n)
     texts = chunks[::step][:n]
-    log(f"latency: {len(texts)} групп, {M_TTS_OLD} против {M_REALTIME}")
-    tts_rows = []
-    for text in texts:
-        row = {"text": text}
-        for label, inp, fmt in (("app", BT_SHIELD + text, "mp3"), ("pcm", text, "pcm")):
-            try:
-                r = ctx.api.speech(M_TTS_OLD, inp, OLD_TTS_VOICE, SPEED, fmt)
-                row[label] = {"t_first": r["t_first"], "t_total": r["t_total"], "bytes": len(r["audio"])}
-            except ProbeError as e:
-                row[label] = {"error": str(e)}
-                if "401" in str(e):
-                    raise
-            except Exception as e:
-                row[label] = {"error": redact(e)}
-        tts_rows.append(row)
-        log(f"  tts-1 mp3 {fmt_s(row['app'].get('t_total'))} с / pcm {fmt_s(row['pcm'].get('t_first'))} с  {text!r}")
+    log(f"latency: {len(texts)} групп, {M_REALTIME}")
     rt = asyncio.run(_latency_rt(ctx, texts))
 
     def mm(xs):
@@ -998,29 +972,19 @@ def probe_latency(ctx: Ctx) -> None:
         return f"{fmt_s(m)} / {fmt_s(x)}"
 
     rows = [
-        [f"`{M_TTS_OLD}` как в приложении (mp3, щит «. . .», файл целиком)", "до конца файла",
-         mm([r["app"].get("t_total") for r in tts_rows])],
-        [f"`{M_TTS_OLD}` как в приложении", "первый байт",
-         mm([r["app"].get("t_first") for r in tts_rows])],
-        [f"`{M_TTS_OLD}` потоком pcm, без щита", "первый байт",
-         mm([r["pcm"].get("t_first") for r in tts_rows])],
         [f"`{M_REALTIME}` (сессия открыта заранее)", "первый `output_audio.delta`",
          mm([r.get("t_first_audio") for r in rt["rows"]])],
         [f"`{M_REALTIME}`", "`output_audio.done`",
          mm([r.get("t_audio_done") for r in rt["rows"]])],
     ]
     L = ["## 2. latency — время до первого звука", "",
-         f"{len(texts)} одинаковых групп. `{M_TTS_OLD}`: голос `{OLD_TTS_VOICE}`, скорость {SPEED}. "
-         "Нынешнее приложение ждёт файл mp3 целиком, поэтому для него главная строка — «до конца файла». "
-         f"`{M_REALTIME}`: одна сессия на все группы; подключение {fmt_s(rt['connect'])} с и "
-         f"`session.update` {fmt_s(rt['session'])} с в цифры групп не входят.", "",
+         f"{len(texts)} групп, одна сессия `{M_REALTIME}` на все группы; подключение {fmt_s(rt['connect'])} с и "
+         f"`session.update` {fmt_s(rt['session'])} с в цифры групп не входят. Сравнение с `tts-1` (S00b) "
+         "больше не делается: модель отключают 2027-01-06.", "",
          md_table(["Способ", "Что измерено", "Медиана / макс., с"], rows), "",
-         md_table(["Группа", "tts-1 mp3 целиком, с", "tts-1 pcm первый байт, с", "realtime первый звук, с",
-                   "realtime ошибка"],
-                  [[t["text"], fmt_s(t["app"].get("t_total")), fmt_s(t["pcm"].get("t_first")),
-                    fmt_s(r.get("t_first_audio")), r.get("error") or ""]
-                   for t, r in zip(tts_rows, rt["rows"])])]
-    ctx.results.put("latency", {"texts": texts, "tts": tts_rows, "realtime": rt}, "\n".join(L))
+         md_table(["Группа", "realtime первый звук, с", "realtime ошибка"],
+                  [[r["text"], fmt_s(r.get("t_first_audio")), r.get("error") or ""] for r in rt["rows"]])]
+    ctx.results.put("latency", {"texts": texts, "realtime": rt}, "\n".join(L))
 
 
 # ---- 3. voices ------------------------------------------------------------
@@ -1032,7 +996,7 @@ async def _voice_one(ctx: Ctx, voice: str) -> dict:
 
 
 def probe_voices(ctx: Ctx) -> None:
-    log(f"voices: {len(REALTIME_VOICES)} голосов Realtime + {OLD_TTS_VOICE} через {M_TTS_OLD}")
+    log(f"voices: {len(REALTIME_VOICES)} голосов Realtime")
     rows = []
     for v in REALTIME_VOICES:
         try:
@@ -1049,13 +1013,6 @@ def probe_voices(ctx: Ctx) -> None:
         r["voice"], r["path"] = v, str(path) if path else None
         rows.append(r)
         log(f"  {v:<8} {r.get('verdict')} {r.get('transcript', r.get('error'))!r}")
-    old = {"voice": OLD_TTS_VOICE, "model": M_TTS_OLD}
-    try:
-        s = ctx.api.speech(M_TTS_OLD, VOICE_PHRASE, OLD_TTS_VOICE, SPEED, "pcm")
-        old["path"] = str(ctx.save_wav(f"voices/tts-1_{OLD_TTS_VOICE}.wav", s["audio"], RT_RATE))
-        old["t_first"] = s["t_first"]
-    except Exception as e:
-        old["error"] = redact(e)
 
     def render(public: bool) -> str:
         L = ["## 3. voices — голоса", "", f"Фраза: «{VOICE_PHRASE}», скорость {SPEED}, промпт 1.", ""]
@@ -1065,14 +1022,12 @@ def probe_voices(ctx: Ctx) -> None:
             tr = [r["voice"], r.get("verdict", ""), r.get("transcript", ""), fmt_s(r.get("t_first_audio")),
                   r.get("error") or ""]
             trs.append(tr if public else tr + [r.get("path") or ""])
-        otr = [f"{OLD_TTS_VOICE} (`{M_TTS_OLD}`)", "—", "—", fmt_s(old.get("t_first")), old.get("error", "")]
-        trs.append(otr if public else otr + [old.get("path", "")])
         L.append(md_table(hdr, trs))
         L += ["", "Выбор голоса на слух — за пользователем; впишите его сюда:", "",
               "- выбранный голос: …"]
         return "\n".join(L)
 
-    ctx.results.put("voices", {"phrase": VOICE_PHRASE, "realtime": rows, "tts1": old}, render(False), render(True))
+    ctx.results.put("voices", {"phrase": VOICE_PHRASE, "realtime": rows}, render(False), render(True))
 
 
 # ---- 4. tutor -------------------------------------------------------------
@@ -1193,9 +1148,9 @@ def run_tutor(ctx: Ctx, model: str) -> list[dict]:
 
 
 def probe_tutor(ctx: Ctx) -> None:
-    log(f"tutor: {M_TUTOR_NEW} (reasoning_effort=none) против {M_TUTOR_OLD}, {len(TUTOR_TURNS)} реплик")
-    res = {m: run_tutor(ctx, m) for m in (M_TUTOR_NEW, M_TUTOR_OLD)}
-    new, old = res[M_TUTOR_NEW], res[M_TUTOR_OLD]
+    log(f"tutor: {M_TUTOR_NEW} (reasoning_effort=none), {len(TUTOR_TURNS)} реплик")
+    res = {M_TUTOR_NEW: run_tutor(ctx, M_TUTOR_NEW)}
+    new = res[M_TUTOR_NEW]
 
     def tc_desc(t):
         if not t["tool_calls"]:
@@ -1208,18 +1163,15 @@ def probe_tutor(ctx: Ctx) -> None:
         return sum((u or {}).get("total_tokens", 0) for u in t["usage"])
 
     L = ["## 4. tutor — `gpt-6-luna` с инструментами", "",
-         f"`/v1/chat/completions`, нынешний системный промпт и `tools` из `TrainerViewModel.kt`. `{M_TUTOR_NEW}` — "
-         "с `reasoning_effort: \"none\"`. Один диалог из 5 реплик на модель; ответы инструментов — заглушки "
-         "(проверяется формат, а не поиск). Как в приложении, после ответа инструмента второй запрос идёт без `tools`.", ""]
-    L.append(md_table(["#", "Реплика ученика", f"Инструмент {M_TUTOR_NEW}", f"Инструмент {M_TUTOR_OLD}",
-                       f"Время {M_TUTOR_NEW}, с", f"Время {M_TUTOR_OLD}, с",
-                       f"Токены {M_TUTOR_NEW}", f"Токены {M_TUTOR_OLD}"],
-                      [[i, a["student"], tc_desc(a), tc_desc(b), fmt_s(a["seconds"]), fmt_s(b["seconds"]),
-                        tokens(a), tokens(b)] for i, (a, b) in enumerate(zip(new, old), 1)]))
-    L += ["", "### Ответы рядом", ""]
-    for i, (a, b) in enumerate(zip(new, old), 1):
-        L += [f"**{i}. Ученик:** {a['student']}", "",
-              f"- `{M_TUTOR_NEW}`: {a['error'] or a['reply']}", f"- `{M_TUTOR_OLD}`: {b['error'] or b['reply']}", ""]
+         f"`/v1/chat/completions`, системный промпт и `tools` как в приложении (S00b). `{M_TUTOR_NEW}` — "
+         "с `reasoning_effort: \"none\"`. Один диалог из 5 реплик; ответы инструментов — заглушки "
+         "(проверяется формат, а не поиск). Как в приложении, после ответа инструмента второй запрос идёт без `tools`. "
+         "Сравнение с `gpt-4o-mini` (S00b) больше не делается: модель отключают 2027-01-14.", ""]
+    L.append(md_table(["#", "Реплика ученика", "Инструмент", "Время, с", "Токены"],
+                      [[i, a["student"], tc_desc(a), fmt_s(a["seconds"]), tokens(a)] for i, a in enumerate(new, 1)]))
+    L += ["", "### Ответы", ""]
+    for i, a in enumerate(new, 1):
+        L += [f"**{i}. Ученик:** {a['student']}", "", f"- `{M_TUTOR_NEW}`: {a['error'] or a['reply']}", ""]
     ctx.results.put("tutor", {"turns": TUTOR_TURNS, "stubs": TOOL_STUBS, "results": res}, "\n".join(L))
 
 
@@ -1237,9 +1189,9 @@ def student_wav16(ctx: Ctx) -> tuple[bytes, str]:
     if ctx.args.wav:
         pcm, rate = wav_to_pcm(Path(ctx.args.wav).read_bytes())
         return pcm_to_wav(resample(pcm, rate, APP_RATE), APP_RATE), f"свой WAV ({rate} Гц → 16 кГц)"
-    pcm24 = ctx.student_pcm24(STUDENT_PHRASE)
+    pcm24 = ctx.student_pcm24(STUDENT_PHRASE)[0]
     pcm16 = resample(pcm24, RT_RATE, APP_RATE)
-    return pcm_to_wav(pcm16, APP_RATE), f"синтез `{M_TTS_OLD}`: «{STUDENT_PHRASE}», пересчёт 24 → 16 кГц"
+    return pcm_to_wav(pcm16, APP_RATE), f"синтез `{M_REALTIME}`: «{STUDENT_PHRASE}», пересчёт 24 → 16 кГц"
 
 
 def probe_transcribe(ctx: Ctx) -> None:
@@ -1259,9 +1211,9 @@ def probe_transcribe(ctx: Ctx) -> None:
         log(f"  {label}: {r.get('status')} {r.get('text', r.get('error'))!r}")
     accepted = [v for v in variants if v.get("status") == 200 and not v["label"].startswith("language=")]
     new_fields = LANGUAGE_VARIANTS[variants.index(accepted[0])][1] if accepted else []
-    timing = {M_STT_NEW: [], M_STT_OLD: []}
+    timing = {M_STT_NEW: []}
     for _ in range(ctx.args.repeats):
-        for model, fields in ((M_STT_NEW, new_fields), (M_STT_OLD, [("language", "en")])):
+        for model, fields in ((M_STT_NEW, new_fields),):
             try:
                 r = ctx.api.transcribe(wav, [("model", model)] + fields)
             except ProbeError:
@@ -1283,8 +1235,8 @@ def probe_transcribe(ctx: Ctx) -> None:
                   [[v["label"], v.get("status", "—"), v.get("text") or v.get("error", ""),
                     json.dumps(v.get("languages"), ensure_ascii=False) if v.get("languages") is not None else "—"]
                    for v in variants]), "",
-         f"### Время ответа ({ctx.args.repeats} повтора; `{M_STT_NEW}` — с первым принятым вариантом `languages`, "
-         f"`{M_STT_OLD}` — с `language=en`, как в приложении)", "",
+         f"### Время ответа ({ctx.args.repeats} повтора, первый принятый вариант `languages`; "
+         "сравнение с `whisper-1` (S00b) больше не делается: модель отключают 2027-02-26)", "",
          md_table(["Модель", "Медиана, с", "Макс., с", "Успешных", "Текст"], rows)]
     ctx.results.put("transcribe", {"source": source, "seconds": seconds, "variants": variants, "timing": timing},
                     "\n".join(L))
@@ -1298,8 +1250,7 @@ def vad_audio24(ctx: Ctx) -> tuple[bytes, str, list[tuple[str, float, float]]]:
         pcm, rate = wav_to_pcm(Path(ctx.args.vad_wav).read_bytes())
         pcm = resample(pcm, rate, RT_RATE)
         return pcm, f"свой WAV ({rate} Гц → 24 кГц)", [("весь файл", 0.0, pcm_seconds(pcm))]
-    p1 = ctx.student_pcm24(VAD_PART1)
-    p2 = ctx.student_pcm24(VAD_PART2)
+    p1, p2 = ctx.student_pcm24(VAD_PART1, VAD_PART2)
     parts = [("тишина", silence(0.5, RT_RATE)), ("часть 1", p1), ("пауза посреди фразы", silence(1.5, RT_RATE)),
              ("часть 2", p2), ("пауза в конце", silence(1.5, RT_RATE))]
     marks, pos, buf = [], 0.0, bytearray()
@@ -1308,7 +1259,7 @@ def vad_audio24(ctx: Ctx) -> tuple[bytes, str, list[tuple[str, float, float]]]:
         marks.append((name, round(pos, 3), round(pos + d, 3)))
         pos += d
         buf.extend(pcm)
-    return bytes(buf), f"синтез `{M_TTS_OLD}`: «{VAD_PART1}» … «{VAD_PART2}»", marks
+    return bytes(buf), f"синтез `{M_REALTIME}`: «{VAD_PART1}» … «{VAD_PART2}»", marks
 
 
 async def _stream_and_listen(rt: Realtime, pcm: bytes, tail: float, chunk_ms: int = 100) -> list[dict]:
@@ -1477,14 +1428,11 @@ def estimate_cost(n_chunks: int = 50, latency_n: int = 10, repeats: int = 3) -> 
     rt_group = group_audio * 20 * PRICE["rt_audio_out"] + 250 * PRICE["rt_text_in"] + 60 * PRICE["rt_text_out"]
     est = {
         "verbatim": 2 * n_chunks * rt_group,                      # с учётом второго промпта
-        "latency": latency_n * rt_group + 2 * latency_n * 60 * PRICE["tts1_char"],
+        "latency": latency_n * rt_group,
         "voices": len(REALTIME_VOICES) * (5 * 20 * PRICE["rt_audio_out"] + 300 * PRICE["rt_text_in"]),
-        "tutor": 12 * (2500 * PRICE["luna_in"] + 200 * PRICE["luna_out"]
-                       + 2500 * PRICE["mini_in"] + 200 * PRICE["mini_out"]),
-        "transcribe": (4 + repeats) * 6 / 60 * PRICE["stt_new_min"] + repeats * 6 / 60 * PRICE["stt_old_min"]
-                      + 80 * PRICE["tts1_char"],
-        "vadservice": 2 * (20 * 10 * PRICE["rt_audio_in"] + 20 / 60 * PRICE["stt_new_min"])
-                      + 60 * PRICE["tts1_char"],
+        "tutor": 12 * (2500 * PRICE["luna_in"] + 200 * PRICE["luna_out"]),
+        "transcribe": (4 + repeats) * 6 / 60 * PRICE["stt_new_min"] + rt_group,
+        "vadservice": 2 * (20 * 10 * PRICE["rt_audio_in"] + 20 / 60 * PRICE["stt_new_min"]) + 2 * rt_group,
     }
     est["total"] = sum(est.values())
     return est
@@ -1596,10 +1544,10 @@ OPTIONS = [
 
 COMMANDS = {
     "verbatim": "читает ли gpt-realtime-2.1-mini 50 групп дословно (главная проба)",
-    "latency": "время до первого звука: tts-1 против gpt-realtime-2.1-mini",
+    "latency": "время до первого звука gpt-realtime-2.1-mini",
     "voices": "одна фраза всеми голосами Realtime (WAV в out/voices/)",
-    "tutor": "gpt-6-luna с инструментами против gpt-4o-mini",
-    "transcribe": "gpt-transcribe: как передать languages; время против whisper-1",
+    "tutor": "gpt-6-luna с инструментами",
+    "transcribe": "gpt-transcribe: как передать languages; время ответа",
     "vadservice": "semantic_vad в разговорной сессии без ответов и в сессии транскрипции",
     "all": "всё по очереди (сначала покажет оценку стоимости)",
 }
