@@ -340,17 +340,18 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `punctuation-only group is not played, its pause is kept`() = runTest {
+    fun `list number is its own group, 400 ms before the heading, colon joins the heading`() = runTest {
         val rig = Rig(this, "Hi")
         rig.tutor.replyText = "1. **Make a plan**: write it down."
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("1. Make a plan", "write it down."), rig.synth.texts)
-        assertEquals(listOf("1. Make a plan", "write it down."), rig.output.played)
+        assertEquals(listOf("1.", "Make a plan:", "write it down."), rig.synth.texts)
+        assertEquals(listOf("1.", "Make a plan:", "write it down."), rig.output.played)
         assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
-        val t = rig.output.startTimes
-        assertTrue("gap ${t[1] - t[0]}", t[1] - t[0] > 0) // пауза группы «:» не пропала
+        val t = rig.output.startTimes // звук групп в подставном выходе — 0 мс
+        assertEquals(400L, t[1] - t[0])
+        assertEquals(1600L, t[2] - t[1]) // пауза заголовка-абзаца
     }
 
     @Test

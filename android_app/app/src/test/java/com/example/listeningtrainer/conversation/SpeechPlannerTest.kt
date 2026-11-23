@@ -73,11 +73,12 @@ class SpeechPlannerTest {
     }
 
     @Test
-    fun `numbered bold list item is one chunk`() {
+    fun `number of a bold list item is its own group with 400 ms, then the heading`() {
         assertEquals(
             listOf(
                 "Here are two simple rules:" to 1600L,
-                "1. **Make**" to 1600L,
+                "1." to 400L,
+                "**Make**" to 1600L,
                 "We use \"make\"" to 250L,
                 "when we create something," to 600L,
                 "like a cake" to 250L,
@@ -126,7 +127,7 @@ class SpeechPlannerTest {
             listOf("I could not find it.", "Try again?"),
             texts("${SpeechPlanner.LABEL_SEARCH_FALLBACK} I could not find it. Try again?"),
         )
-        assertEquals(listOf("Rules:", "1. **Make**"), texts("${SpeechPlanner.LABEL_LIVE_WEB} Rules:\n1. **Make**"))
+        assertEquals(listOf("Rules:", "1.", "**Make**"), texts("${SpeechPlanner.LABEL_LIVE_WEB} Rules:\n1. **Make**"))
     }
 
     @Test
@@ -141,20 +142,51 @@ class SpeechPlannerTest {
     }
 
     @Test
-    fun `every numbered heading in a list stays whole`() {
-        val chunks = texts(
+    fun `every number in a list is its own group right before its heading`() {
+        val chunks = pairs(
             "Here are two simple rules:\n1. **Make** We use \"make\" when we create something.\n" +
                 "2. **Do** We use \"do\" for tasks.\n  3. **Have** Easy."
         )
-        assertTrue(chunks.toString(), "1. **Make**" in chunks)
-        assertTrue(chunks.toString(), "2. **Do**" in chunks)
-        assertTrue(chunks.toString(), "3. **Have**" in chunks)
-        assertTrue(chunks.toString(), chunks.none { it == "1." || it == "2." || it == "3." })
+        for ((number, heading) in listOf("1." to "**Make**", "2." to "**Do**", "3." to "**Have**")) {
+            val i = chunks.indexOf(number to 400L)
+            assertTrue(chunks.toString(), i >= 0)
+            assertEquals(chunks.toString(), heading, chunks[i + 1].first)
+        }
     }
 
     @Test
     fun `numbered heading at the very end gets heading pause`() {
-        assertEquals(listOf("Rules:" to 1600L, "1. **Make**" to 1100L), pairs("Rules:\n1. **Make**"))
+        assertEquals(listOf("Rules:" to 1600L, "1." to 400L, "**Make**" to 1100L), pairs("Rules:\n1. **Make**"))
+    }
+
+    @Test
+    fun `plain numbered list item - number separate too`() {
+        assertEquals(
+            listOf("1." to 400L, "Listen every day." to 1600L, "2." to 400L, "Repeat out loud." to 1000L),
+            pairs("1. Listen every day.\n2. Repeat out loud."),
+        )
+    }
+
+    @Test
+    fun `number inside a sentence is not a list number`() {
+        for (text in listOf("We won 2. Then we lost.", "In 2026, prices went up.", "Today is November 16.")) {
+            val chunks = planner.plan(text)
+            assertTrue("$text -> $chunks", chunks.none { it.pauseMs == SpeechPlanner.PAUSE_LIST_NUMBER_MS })
+        }
+    }
+
+    @Test
+    fun `punctuation is never a group of its own - it joins the previous group`() {
+        // Раньше после заголовка оставалась группа ":" — Realtime читал её как «dot».
+        assertEquals(
+            listOf("1." to 400L, "**Make a plan**:" to 1600L, "write it down." to 1000L),
+            pairs("1. **Make a plan**: write it down."),
+        )
+        for (sign in listOf(".", "!", "-", "—")) {
+            val chunks = planner.plan("**Tip**$sign Speak slowly.")
+            assertTrue("$sign -> $chunks", chunks.all { c -> c.text.any { it.isLetterOrDigit() } })
+        }
+        assertTrue(planner.plan("- Speak slowly.").all { c -> c.text.any { it.isLetterOrDigit() } })
     }
 
     @Test
