@@ -60,10 +60,12 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         AppLog.event(SOURCE, "onStart")
+        TrainerService.screenVisible.value = true
     }
 
     override fun onStop() {
         AppLog.event(SOURCE, "onStop (screen off or app in background)")
+        TrainerService.screenVisible.value = false
         super.onStop()
     }
 

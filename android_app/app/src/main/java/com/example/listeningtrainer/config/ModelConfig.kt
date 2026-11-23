@@ -74,6 +74,10 @@ object ModelConfig {
     const val SPEECH_PEAK_CEILING_DBFS = -1.0
     const val SPEECH_MAX_GAIN_DB = 24.0
 
+    // --- Сервис (D18) ---
+    /** Сервис без идущего круга и без видимого экрана закрывается сам через столько. */
+    const val SERVICE_IDLE_TIMEOUT_MS = 10 * 60_000L
+
     // --- Инструменты учителя ---
     /** Погода: `{location}` заменяется на город. */
     const val WEATHER_URL = "https://wttr.in/{location}?format=%l:+%C+%t"

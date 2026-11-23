@@ -52,6 +52,7 @@ enum class EndReason(val description: String, val isError: Boolean = false) {
     // Команды извне — передаются в stop():
     STOP_BUTTON("Stop button"),
     BACK("Back button"),
+    SWIPED("app swiped from recents"),
     SERVICE_DESTROYED("service destroyed"),
 }
 
@@ -131,8 +132,8 @@ class ConversationController(
 
     /**
      * Остановить всё: «Stop», «Back», остановка сервиса. Авто-режим выключается (D14).
-     * Если шёл круг — его конец пишется в журнал с [reason] и звучит «конец». На «Back» «конец»
-     * звучит всегда: разговор закрыт, ждать нечего.
+     * Если шёл круг — его конец пишется в журнал с [reason] и звучит «конец». На «Back» и
+     * смахивание из недавних «конец» звучит всегда: разговор закрыт, ждать нечего.
      */
     fun stop(reason: EndReason) {
         val wasActive = job?.isActive == true
@@ -150,8 +151,8 @@ class ConversationController(
                 output.playCue(Cue.END)
             }
             wasActive -> endCircle(reason)
-            reason == EndReason.BACK -> {
-                log.event(SOURCE, "Back while no circle was running: end cue")
+            reason == EndReason.BACK || reason == EndReason.SWIPED -> {
+                log.event(SOURCE, "${reason.description} while no circle was running: end cue")
                 output.playCue(Cue.END)
             }
             else -> log.event(SOURCE, "stop (${reason.description}): no circle was running")

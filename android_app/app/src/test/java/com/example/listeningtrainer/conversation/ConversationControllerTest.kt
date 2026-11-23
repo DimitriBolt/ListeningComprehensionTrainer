@@ -828,6 +828,24 @@ class ConversationControllerTest {
     }
 
     @Test
+    fun `swiped from recents is Back - circle stops with end cue, also with no circle`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.replyDelayMs = 5_000
+        rig.controller.startTurn()
+        advanceTimeBy(1000)
+        rig.controller.stop(EndReason.SWIPED)
+        advanceUntilIdle()
+        assertEquals(listOf(Cue.LISTEN, Cue.PROCESSING, Cue.END), rig.output.cues)
+        assertEquals(listOf("SWIPED"), rig.circleEnds)
+        assertTrue(rig.output.played.isEmpty())
+
+        rig.output.cues.clear()
+        rig.controller.stop(EndReason.SWIPED)
+        advanceUntilIdle()
+        assertEquals(listOf(Cue.END), rig.output.cues)
+    }
+
+    @Test
     fun `service destroyed during a circle - end cue, reason logged`() = runTest {
         val rig = Rig(this, "Hello")
         rig.tutor.replyDelayMs = 5_000

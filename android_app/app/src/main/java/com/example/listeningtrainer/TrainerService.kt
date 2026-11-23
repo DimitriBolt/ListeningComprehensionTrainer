@@ -24,6 +24,7 @@ import com.example.listeningtrainer.conversation.AudioInput
 import com.example.listeningtrainer.conversation.ConversationController
 import com.example.listeningtrainer.conversation.ConversationUi
 import com.example.listeningtrainer.conversation.EndReason
+import com.example.listeningtrainer.conversation.IdleShutdown
 import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import com.example.listeningtrainer.conversation.SpeechPlanner
@@ -39,6 +40,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -48,7 +50,9 @@ import kotlinx.coroutines.launch
  * Сервис запускается первой командой («Talk» или авто-режим) — уже после разрешения на
  * микрофон: foreground-сервис с типом microphone без него на Android 14 падает.
  * Пока он жив, приложение держит аудиофокус ([AudioSession]).
- * Останавливается кнопкой «Back» ([stop]): круг заканчивается с причиной «Back», звучит «конец».
+ * Останавливается кнопкой «Back» ([stop]) или смахиванием из недавних: круг заканчивается, звучит
+ * «конец». Без идущего круга и без видимого экрана закрывается сам через 10 мин (D18).
+ * Системный жест «назад» сервис не трогает: разговор продолжается в фоне, как после «Домой».
  */
 class TrainerService : Service() {
 
@@ -92,6 +96,16 @@ class TrainerService : Service() {
         // Сессия Realtime и запасной движок — заранее, чтобы подключение не попало во время ответа.
         controller.prepare()
         scope.launch { controller.ui.collect { _ui.value = it } }
+        // D18: без идущего круга и без видимого экрана — закрыться через 10 мин.
+        IdleShutdown.watch(
+            scope,
+            controller.ui.map { IdleShutdown.isCircleRunning(it.state) },
+            screenVisible,
+            ModelConfig.SERVICE_IDLE_TIMEOUT_MS,
+        ) {
+            AppLog.event(SOURCE, "idle ${ModelConfig.SERVICE_IDLE_TIMEOUT_MS / 60_000} min: no conversation and no screen, closing")
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -126,9 +140,11 @@ class TrainerService : Service() {
         super.onDestroy()
     }
 
-    /** Приложение смахнули из списка недавних; сервис при этом может продолжать работать. */
+    /** Приложение смахнули из списка недавних — это «← Back» (D18): круг останавливается, «конец», сервис закрывается. */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        AppLog.event(SOURCE, "onTaskRemoved (app swiped from recents)")
+        AppLog.event(SOURCE, "onTaskRemoved (app swiped from recents): same as Back")
+        controller.stop(EndReason.SWIPED)
+        stopSelf()
         super.onTaskRemoved(rootIntent)
     }
 
@@ -186,6 +202,9 @@ class TrainerService : Service() {
         private const val ACTION_EXIT = "com.example.listeningtrainer.EXIT"
         private const val ACTION_NEW_CONVERSATION = "com.example.listeningtrainer.NEW_CONVERSATION"
         private const val EXTRA_ENABLED = "enabled"
+
+        /** Виден ли экран приложения (MainActivity onStart/onStop) — для закрытия по простою. */
+        val screenVisible = MutableStateFlow(false)
 
         private val _ui = MutableStateFlow(ConversationUi())
         /** Состояние разговора для экрана. Живёт дольше сервиса: после остановки — последнее значение. */
