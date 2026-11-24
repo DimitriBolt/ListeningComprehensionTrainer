@@ -63,7 +63,6 @@ Thumbs.db
 # Остатки Python-версии
 __pycache__/
 *.pyc
-responses/
 
 # Пробы S00b: звук и сырые результаты остаются на компьютере пользователя
 tools/probe/out/
