@@ -25,17 +25,21 @@ fun interface ResponsesTransport {
     suspend fun stream(auth: String, body: String, onLine: suspend (String) -> Unit)
 }
 
-/** [ResponsesTransport] на OkHttp: общий предел на весь поток — `OpenAiClient.tutorHttp`. */
+/**
+ * [ResponsesTransport] на OkHttp: общий предел на весь поток — `OpenAiClient.tutorHttp`.
+ * Ответ без потока (поправщик, S02f) — тот же вызов с [accept] `application/json`: строки — это JSON целиком.
+ */
 class OkHttpResponsesTransport(
     private val http: OkHttpClient = OpenAiClient.tutorHttp,
     private val url: String = ModelConfig.TUTOR_URL,
+    private val accept: String = "text/event-stream",
 ) : ResponsesTransport {
 
     override suspend fun stream(auth: String, body: String, onLine: suspend (String) -> Unit) = coroutineScope {
         val request = Request.Builder()
             .url(url)
             .header("Authorization", auth)
-            .header("Accept", "text/event-stream")
+            .header("Accept", accept)
             .post(body.toRequestBody(JSON))
             .build()
         val call = http.newCall(request)

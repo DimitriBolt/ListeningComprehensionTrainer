@@ -2,6 +2,7 @@ package com.example.listeningtrainer.openai
 
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.FailureKind
+import com.example.listeningtrainer.conversation.NotUnderstood
 import com.example.listeningtrainer.conversation.ReplyText
 import com.example.listeningtrainer.conversation.ServiceException
 import com.example.listeningtrainer.conversation.SpeechText
@@ -68,11 +69,22 @@ class ResponsesTutor(
     private val history = mutableListOf<Turn>()
     private var requests = 0
 
-    override suspend fun reply(studentText: String, onEvent: suspend (TutorEvent) -> Unit) = ask(studentText, onEvent)
+    override suspend fun reply(studentText: String, onEvent: suspend (TutorEvent) -> Unit) {
+        // Счёт «не понял» подряд (S02f, D43) — по истории; служебная строка идёт только в этот запрос,
+        // в историю реплика ученика пишется как есть.
+        val count = NotUnderstood.streak(history.filter { it.role == ROLE_USER }.map { it.text } + studentText)
+        if (count > 0) log.event(SOURCE, "student did not understand $count in a row: note added to the request")
+        ask(studentText, onEvent, NotUnderstood.note(count))
+    }
 
     override suspend fun farewell(onEvent: suspend (TutorEvent) -> Unit) = ask(INACTIVITY_PROMPT, onEvent)
 
     override fun newConversation() = history.clear()
+
+    override fun replaceLastReply(text: String) {
+        val i = history.lastIndex
+        if (i >= 0 && history[i].role == ROLE_ASSISTANT) history[i] = Turn(ROLE_ASSISTANT, text)
+    }
 
     override val lastTeacherText: String?
         get() = history.lastOrNull { it.role == ROLE_ASSISTANT && it.text.isNotBlank() }?.text
@@ -83,8 +95,9 @@ class ResponsesTutor(
     /** Сколько сообщений в истории (для журнала; тексты туда не пишутся). */
     val historySize: Int get() = history.size
 
-    private suspend fun ask(userText: String, onEvent: suspend (TutorEvent) -> Unit) {
-        val input = trimHistory(history + Turn(ROLE_USER, userText), historyLimit)
+    private suspend fun ask(userText: String, onEvent: suspend (TutorEvent) -> Unit, note: String? = null) {
+        val request = if (note == null) userText else "$userText\n$note"
+        val input = trimHistory(history + Turn(ROLE_USER, request), historyLimit)
         requests++
         log.event(SOURCE, "tutor request $requests: history ${input.size} messages")
         val stream = Stream(userText, onEvent)
@@ -350,9 +363,15 @@ class ResponsesTutor(
                 output * ModelConfig.TUTOR_PRICE_OUTPUT_PER_M) / 1_000_000 +
                 searches * ModelConfig.TUTOR_PRICE_PER_SEARCH
 
-        /** Строка журнала об ответе — без текстов и адресов. */
+        /**
+         * Строка журнала об ответе — без текстов и адресов. Поток оборван на первом вопросе (D48): итог с
+         * токенами сервер не прислал — токены и цена неизвестны (S02f; раньше писалось `0 … $0.0000`).
+         */
         fun statsLine(s: TutorStats): String {
             val sources = if (s.sourceTypes.isEmpty()) "-" else s.sourceTypes.entries.joinToString(", ") { "${it.key}×${it.value}" }
+            if (s.endedAtQuestion) {
+                return "tutor reply: tokens unknown (stream cut); searches ${s.searches}; sources $sources; cost unknown (stream cut)"
+            }
             return "tutor reply: tokens in ${s.inputTokens} (cached ${s.cachedTokens}), out ${s.outputTokens}; " +
                 "searches ${s.searches}; sources $sources; cost \$${"%.4f".format(Locale.US, s.costUsd)}"
         }

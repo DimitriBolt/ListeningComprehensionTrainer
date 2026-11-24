@@ -4,8 +4,11 @@ import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.eventlog.EventLog
 import com.example.listeningtrainer.eventlog.NoEventLog
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -15,6 +18,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Состояние разговора. */
 sealed interface ConversationState {
@@ -112,6 +117,10 @@ class ConversationController(
     private val tutorRetryPauseMs: Long = ModelConfig.RETRY_PAUSE_MS,
     /** Фраза на время поиска (D39); `null` — без неё. */
     private val searchFiller: String? = SEARCH_FILLER,
+    /** Поправщик (S02f): запрос одновременно с учителем, поправка звучит первой; `null` — без него. */
+    private val corrector: Corrector? = null,
+    /** Сколько ждать поправку после того, как учитель начал отвечать (первый текст, поиск или конец). */
+    private val correctionWaitMs: Long = ModelConfig.CORRECTOR_WAIT_MS,
 ) {
     private val speech = SpeechPipeline(synthesizer, fallbackSynthesizer, log, clock, speechLookahead)
 
@@ -345,7 +354,14 @@ class ConversationController(
         }
         silenceCount = 0
 
-        answer(recordedAt, transcribedAt) { onEvent -> tutor.reply(studentText, onEvent) }?.let { return it }
+        // Поправщик — сразу, одновременно с учителем (S02f).
+        val correction = corrector?.let { CorrectionTask(it, studentText, CoroutineScope(currentCoroutineContext())) }
+        try {
+            answer(recordedAt, transcribedAt, correction = correction) { onEvent -> tutor.reply(studentText, onEvent) }
+                ?.let { return it }
+        } finally {
+            correction?.finish()
+        }
         return if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
     }
 
@@ -377,6 +393,8 @@ class ConversationController(
         var firstToken: Long? = null
         var firstGroup: Long? = null
         var firstSound: Long? = null
+        /** Когда зазвучала первая группа самого учителя (не поправки, S02f): после неё повтора нет. */
+        var teacherSound: Long? = null
         var searchStart: Long? = null
         var searchEnd: Long? = null
         var repliedAt: Long? = null
@@ -402,6 +420,7 @@ class ConversationController(
         recordedAt: Long,
         transcribedAt: Long,
         logTiming: Boolean = true,
+        correction: CorrectionTask? = null,
         ask: suspend (onEvent: suspend (TutorEvent) -> Unit) -> Unit,
     ): EndReason? {
         setState(ConversationState.Thinking, "asking the teacher") {
@@ -413,7 +432,7 @@ class ConversationController(
         var attempt = 1
         while (true) {
             val error = try {
-                speakReply(t, shieldMs, ask)
+                speakReply(t, shieldMs, correction, ask)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -421,7 +440,7 @@ class ConversationController(
             } ?: break
             val kind = (error as? ServiceException)?.kind
             val detail = error.message ?: error.javaClass.simpleName
-            if (t.firstSound == null && attempt == 1 && kind?.retry == true) {
+            if (t.teacherSound == null && attempt == 1 && kind?.retry == true) {
                 log.event(SOURCE, "tutor failed ($detail), nothing spoken yet: retry in $tutorRetryPauseMs ms")
                 attempt++
                 t.resetForRetry()
@@ -430,7 +449,7 @@ class ConversationController(
                 continue
             }
             when {
-                t.firstSound != null -> log.event(SOURCE, "tutor stream broke ($detail) while the teacher was speaking: ready groups spoken")
+                t.teacherSound != null -> log.event(SOURCE, "tutor stream broke ($detail) while the teacher was speaking: ready groups spoken")
                 attempt > 1 -> log.event(SOURCE, "tutor retry failed ($detail)")
                 else -> log.event(SOURCE, "tutor failed ($detail), no retry")
             }
@@ -447,17 +466,41 @@ class ConversationController(
      * Один запрос к учителю и озвучка по мере ответа. `null` — ответ прозвучал целиком; иначе —
      * сбой потока учителя (если что-то уже прозвучало — после того, как дочитаны готовые группы).
      * Сбой синтеза — исключение.
+     *
+     * С поправщиком (S02f) текст учителя копится, пока не решено, будет ли поправка: она готова, или
+     * прошло [correctionWaitMs] после того, как учитель начал отвечать. Поправка звучит первой, затем
+     * («Let me check.», если учитель ищет и) ответ. Своя поправка учителя в начале ответа тогда не звучит.
      */
     private suspend fun speakReply(
         t: ReplyTiming,
         shieldMs: Long,
+        correction: CorrectionTask?,
         ask: suspend (onEvent: suspend (TutorEvent) -> Unit) -> Unit,
     ): Exception? {
         val stream = StreamingSpeechPlanner(planner::plan)
         /** Группы, отданные в синтез, по порядку: i-й звук из конвейера — это sent[i]. */
         val sent = mutableListOf<SpeechChunk>()
+        /** Группы поправки поправщика: они первые в [sent]. */
+        var prefix: List<SpeechChunk> = emptyList()
+        var prefixText = ""
+        /** Сколько групп самого учителя отдано в синтез. */
+        var teacherSent = 0
         var tutorError: Exception? = null
         var truncated = false
+        /** Учитель начал отвечать: первый текст, поиск, конец или сбой — отсюда отсчёт ожидания поправки. */
+        val teacherStarted = CompletableDeferred<Unit>()
+        /** Решено, будет ли поправка; до этого текст учителя копится в [pending]. */
+        val gateOpen = CompletableDeferred<Unit>()
+        val pending = StringBuilder()
+        /** Поправщик поправил: своя поправка учителя в начале ответа не звучит. Пока не ясно, есть ли она, — [held]. */
+        var dropTeacherCorrection = false
+        var teacherStartDecided = true
+        var teacherCorrectionDropped = false
+        val held = StringBuilder()
+        /** Группы поправки прозвучали (или их нет): после них — фраза на время поиска. */
+        val prefixPlayed = CompletableDeferred<Unit>()
+        /** Поток учителя оборвался до его первого звука: доиграть поправку и бросить ответ. */
+        var aborting = false
         try {
             coroutineScope {
                 val chunks = Channel<SpeechChunk>(Channel.UNLIMITED)
@@ -469,20 +512,69 @@ class ConversationController(
                         chunks.trySend(c)
                     }
                 }
+                fun screen() = listOf(prefixText, stream.screenText()).filter { it.isNotEmpty() }.joinToString(" ")
+                fun sendTeacher(new: List<SpeechChunk>) {
+                    teacherSent += new.size
+                    send(new)
+                }
+                /** Текст учителя → нарезка (после решения о поправке). */
+                fun feedTeacher(delta: String) {
+                    if (!teacherStartDecided) {
+                        held.append(delta)
+                        val end = ReplyText.correctionEnd(held.toString()) ?: return
+                        teacherStartDecided = true
+                        var rest = held.toString()
+                        held.setLength(0)
+                        if (end > 0 && dropTeacherCorrection) {
+                            rest = rest.substring(end).trimStart()
+                            teacherCorrectionDropped = true
+                            log.event(SOURCE, "teacher's own correction not spoken: the corrector already corrected")
+                        }
+                        if (rest.isNotEmpty()) sendTeacher(stream.feed(rest))
+                    } else {
+                        sendTeacher(stream.feed(delta))
+                    }
+                    _ui.update { it.copy(teacherText = screen()) }
+                }
+                if (correction == null) {
+                    gateOpen.complete(Unit)
+                    prefixPlayed.complete(Unit)
+                } else {
+                    launch {
+                        val fix = correction.decide(teacherStarted)
+                        if (fix != null) {
+                            prefixText = Correction.phrase(fix)
+                            if (!correction.spoken) {
+                                prefix = planner.plan(prefixText)
+                                send(prefix)
+                            }
+                            dropTeacherCorrection = true
+                            teacherStartDecided = false
+                            _ui.update { it.copy(teacherText = screen()) }
+                        }
+                        if (prefix.isEmpty()) prefixPlayed.complete(Unit)
+                        gateOpen.complete(Unit)
+                        val p = pending.toString()
+                        pending.setLength(0)
+                        if (p.isNotEmpty()) feedTeacher(p)
+                    }
+                }
                 launch {
                     try {
                         ask { event ->
                             when (event) {
                                 is TutorEvent.Text -> {
                                     if (t.firstToken == null) t.firstToken = clock()
-                                    send(stream.feed(event.delta))
-                                    _ui.update { it.copy(teacherText = stream.screenText()) }
+                                    teacherStarted.complete(Unit)
+                                    if (gateOpen.isCompleted) feedTeacher(event.delta) else pending.append(event.delta)
                                 }
                                 TutorEvent.SearchStarted -> {
                                     if (t.searchStart == null) t.searchStart = clock()
+                                    teacherStarted.complete(Unit)
                                     _ui.update { it.copy(status = "Searching the web... 🌐") }
-                                    if (filler == null && sent.isEmpty() && t.firstSound == null && !t.filler) {
-                                        filler = startFiller(this@coroutineScope, shieldMs, t)
+                                    // Прозвучавшая поправка фразу не отменяет: важно, что сам учитель ещё молчит.
+                                    if (filler == null && teacherSent == 0 && pending.isEmpty() && held.isEmpty() && !t.filler) {
+                                        filler = startFiller(this@coroutineScope, shieldMs, t, after = prefixPlayed)
                                     }
                                 }
                                 TutorEvent.SearchFinished -> t.searchEnd = clock()
@@ -490,21 +582,45 @@ class ConversationController(
                                 is TutorEvent.Done -> truncated = event.stats.truncated
                             }
                         }
-                        send(stream.finish(dropUnfinished = truncated))
+                        teacherStarted.complete(Unit)
+                        gateOpen.await()
+                        if (held.isNotEmpty()) {
+                            sendTeacher(stream.feed(held.toString()))
+                            held.setLength(0)
+                        }
+                        sendTeacher(stream.finish(dropUnfinished = truncated))
                         t.repliedAt = clock()
-                        val text = stream.screenText()
+                        val teacherText = stream.screenText()
+                        val text = screen()
                         t.chars = text.length
                         _ui.update { it.copy(teacherText = text) }
                         if (truncated) log.event(SOURCE, "reply cut by the length limit: unfinished sentence not spoken")
-                        // Мера реплики по «Методике» (S02e): слова, предложения, вопрос в конце, русское слово.
-                        log.event(SOURCE, "reply: ${t.chars} chars, ${sent.size} groups; ${ReplyText.metrics(text)}")
+                        // История — как прозвучало (S02f): с поправкой поправщика, без своей поправки учителя.
+                        if (prefixText.isNotEmpty() || teacherCorrectionDropped) tutor.replaceLastReply(text)
+                        val source = when {
+                            prefixText.isNotEmpty() -> "yes (corrector)"
+                            (ReplyText.correctionEnd("$teacherText ") ?: 0) > 0 -> "yes (teacher)"
+                            else -> "no"
+                        }
+                        // Мера реплики по «Методике» (S02e): слова, предложения, вопрос в конце, русское слово, поправка.
+                        log.event(SOURCE, "reply: ${t.chars} chars, ${sent.size} groups; ${ReplyText.metrics(text)}, correction $source")
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        teacherStarted.complete(Unit)
                         tutorError = e
-                        t.chars = stream.screenText().length // сколько успело прийти
+                        t.chars = screen().length // сколько успело прийти
                         log.event(SOURCE, "reply broken off: ${sent.size} groups sent to synthesis")
-                        if (t.firstSound == null) throw AbortReply(e)
+                        if (t.teacherSound == null) {
+                            // Сам учитель ещё не звучал: ответ бросается целиком (повтор решит answer).
+                            // Поправка, которая уже звучит, сначала дочитывается — и при повторе не звучит снова.
+                            if (gateOpen.isCompleted && prefix.isNotEmpty()) {
+                                aborting = true
+                                chunks.close()
+                                prefixPlayed.await()
+                            }
+                            throw AbortReply(e)
+                        }
                     } finally {
                         chunks.close()
                         if (stream.divergences.isNotEmpty()) {
@@ -515,36 +631,52 @@ class ConversationController(
                 val groups = speech.start(this, chunks)
                 var i = 0
                 var lastEnd = 0L
-                while (true) {
-                    if (i > 0) startWaitTicks() // долгий синтез посреди ответа — тоже ожидание
-                    val next = groups.receiveCatching()
-                    if (i > 0) stopWaitTicks()
-                    if (next.isClosed) {
-                        next.exceptionOrNull()?.let { throw it }
-                        break
-                    }
-                    val audio = next.getOrThrow()
-                    if (i > 0) {
-                        // Пауза после прошлой группы — по самой свежей нарезке (D38). Опережающий
-                        // запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
-                        val wait = maxOf(10L, stream.pauseAfter(i - 1) - shieldMs) - (clock() - lastEnd)
-                        if (wait > 0) delay(wait)
-                    }
-                    filler?.join() // фраза на время поиска не обрывается, ответ — после неё
-                    if (audio.pcm.isNotEmpty()) {
-                        // Произносить нечего (группа из одного знака или пустой звук) — только пауза.
-                        setState(ConversationState.Speaking, "first group ready") {
-                            it.copy(currentChunk = sent[i].text, status = "Speaking ${i + 1} 🔊")
+                try {
+                    while (true) {
+                        if (i > 0) startWaitTicks() // долгий синтез посреди ответа — тоже ожидание
+                        val next = groups.receiveCatching()
+                        if (i > 0) stopWaitTicks()
+                        if (next.isClosed) {
+                            next.exceptionOrNull()?.let { throw it }
+                            break
                         }
-                        output.play(audio, shieldMs) {
-                            if (t.firstSound == null) {
-                                t.firstSound = clock()
-                                stopWaitTicks()
+                        val audio = next.getOrThrow()
+                        if (i > 0) {
+                            // Пауза после прошлой группы — по самой свежей нарезке (D38). Опережающий
+                            // запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
+                            val before = i - 1
+                            val pause = if (before < prefix.size) prefix[before].pauseMs else stream.pauseAfter(before - prefix.size)
+                            val wait = maxOf(10L, pause - shieldMs) - (clock() - lastEnd)
+                            if (wait > 0) delay(wait)
+                        }
+                        if (i >= prefix.size) {
+                            prefixPlayed.complete(Unit)
+                            if (aborting) break // учитель оборвался до своего первого звука: дальше не играть
+                            filler?.join() // фраза на время поиска не обрывается, ответ — после неё
+                        }
+                        if (audio.pcm.isNotEmpty()) {
+                            // Произносить нечего (группа из одного знака или пустой звук) — только пауза.
+                            setState(ConversationState.Speaking, "first group ready") {
+                                it.copy(currentChunk = sent[i].text, status = "Speaking ${i + 1} 🔊")
+                            }
+                            val teacherGroup = i >= prefix.size
+                            output.play(audio, shieldMs) {
+                                if (t.firstSound == null) {
+                                    t.firstSound = clock()
+                                    stopWaitTicks()
+                                }
+                                if (teacherGroup && t.teacherSound == null) t.teacherSound = clock()
                             }
                         }
+                        lastEnd = clock()
+                        i++
+                        if (i == prefix.size) {
+                            prefixPlayed.complete(Unit)
+                            correction?.spoken = true // повтор запроса учителя не повторяет поправку
+                        }
                     }
-                    lastEnd = clock()
-                    i++
+                } finally {
+                    prefixPlayed.complete(Unit)
                 }
             }
         } catch (e: AbortReply) {
@@ -570,8 +702,11 @@ class ConversationController(
         }
     }
 
-    /** Учитель начал искать и ещё ничего не сказал: фраза голосом учителя. Не готова — пропустить. */
-    private fun startFiller(scope: CoroutineScope, shieldMs: Long, t: ReplyTiming): Job? {
+    /**
+     * Учитель начал искать и сам ещё ничего не сказал: фраза голосом учителя — после [after] (поправка
+     * прозвучала или её нет). Не готова — пропустить.
+     */
+    private fun startFiller(scope: CoroutineScope, shieldMs: Long, t: ReplyTiming, after: Deferred<Unit>): Job? {
         if (searchFiller == null) return null
         val audio = fillerAudio
         if (audio == null) {
@@ -580,7 +715,91 @@ class ConversationController(
         }
         t.filler = true
         log.event(SOURCE, "search started, nothing said yet: filler phrase")
-        return scope.launch { output.play(audio, shieldMs) { if (t.fillerSound == null) t.fillerSound = clock() } }
+        return scope.launch {
+            after.await()
+            output.play(audio, shieldMs) { if (t.fillerSound == null) t.fillerSound = clock() }
+        }
+    }
+
+    // ---- поправщик (S02f) ----------------------------------------------------------------
+
+    /** Итог запроса поправщика. */
+    private sealed interface CorrectorOutcome {
+        val ms: Long
+        class Answer(val answer: CorrectorAnswer, override val ms: Long) : CorrectorOutcome
+        class Failed(val detail: String, override val ms: Long) : CorrectorOutcome
+    }
+
+    /**
+     * Поправщик на один ход: запрос уходит сразу, одновременно с учителем. [decide] решает один раз (повтор
+     * учителя берёт то же решение). Строка журнала `[Network] corrector: …` — без текстов.
+     */
+    private inner class CorrectionTask(corrector: Corrector, private val student: String, private val scope: CoroutineScope) {
+        private val startedAt = clock()
+        private val result: Deferred<CorrectorOutcome> = scope.async {
+            try {
+                CorrectorOutcome.Answer(corrector.correct(student), clock() - startedAt)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                CorrectorOutcome.Failed(e.message ?: e.javaClass.simpleName, clock() - startedAt)
+            }
+        }
+        private var decided = false
+        private var fix: String? = null
+        /** Поправка уже прозвучала (до сбоя учителя): при повторе запроса она не звучит снова. */
+        var spoken = false
+        private var lateLogger: Job? = null
+
+        /** Поправка (правильная фраза ученика) или `null`. Ждёт не дольше [correctionWaitMs] после [teacherStarted]. */
+        suspend fun decide(teacherStarted: Deferred<Unit>): String? {
+            if (decided) return fix
+            val outcome = if (result.isCompleted) {
+                result.await()
+            } else {
+                select<CorrectorOutcome?> {
+                    result.onAwait { it }
+                    teacherStarted.onAwait { null }
+                } ?: withTimeoutOrNull(correctionWaitMs) { result.await() }
+            }
+            decided = true
+            if (outcome == null) {
+                lateLogger = scope.launch {
+                    try {
+                        log.event(NETWORK, "corrector: late ${describe(result.await()).first}")
+                    } catch (e: CancellationException) {
+                        log.event(NETWORK, "corrector: late, no answer in ${clock() - startedAt} ms (turn over)")
+                        throw e
+                    }
+                }
+                return null
+            }
+            val (line, accepted) = describe(outcome)
+            log.event(NETWORK, "corrector: $line")
+            fix = accepted
+            return accepted
+        }
+
+        /** Строка журнала (без «corrector: ») и принятая поправка. */
+        private fun describe(o: CorrectorOutcome): Pair<String, String?> = when (o) {
+            is CorrectorOutcome.Failed -> "failed (${o.detail}) in ${o.ms} ms; cost unknown" to null
+            is CorrectorOutcome.Answer -> {
+                val cost = "cost \$${"%.4f".format(java.util.Locale.US, o.answer.costUsd)}"
+                when (val v = Correction.check(student, o.answer.text)) {
+                    is Correction.Verdict.Fix -> "correction in ${o.ms} ms; $cost" to v.text
+                    Correction.Verdict.None -> "ok in ${o.ms} ms; $cost" to null
+                    is Correction.Verdict.Rejected ->
+                        "rejected (similarity ${"%.2f".format(java.util.Locale.US, v.similarity)}) in ${o.ms} ms; $cost" to null
+                }
+            }
+        }
+
+        /** Ход окончен: запрос, который ещё идёт, не нужен. */
+        fun finish() {
+            if (!decided && !result.isCompleted) log.event(NETWORK, "corrector: not used (no teacher reply)")
+            result.cancel()
+            lateLogger?.cancel()
+        }
     }
 
     // ---- «пульс» слушания (D28) ------------------------------------------------------------
@@ -674,6 +893,7 @@ class ConversationController(
 
     companion object {
         private const val SOURCE = "Controller"
+        private const val NETWORK = "Network"
         /** Источник строки замера скорости (в Logcat — тег LCT-Timing, как в S01). */
         const val TIMING_SOURCE = "Timing"
         /** Фраза учителя, пока идёт поиск и он ещё ничего не сказал (D39). */

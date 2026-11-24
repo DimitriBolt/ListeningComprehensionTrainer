@@ -32,6 +32,7 @@ object OpenAiClient {
 
     val transcribeHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TRANSCRIBE_CALL_TIMEOUT_MS) }
     val tutorHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TUTOR_CALL_TIMEOUT_MS) }
+    val correctorHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.CORRECTOR_CALL_TIMEOUT_MS) }
 
     /** Проверка ключа. */
     val api: OpenAiService by lazy { retrofit(http) }

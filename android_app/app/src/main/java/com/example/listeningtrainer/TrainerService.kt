@@ -35,6 +35,7 @@ import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.openai.RealtimeSynthesizer
 import com.example.listeningtrainer.openai.FileTranscriber
+import com.example.listeningtrainer.openai.ResponsesCorrector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -98,6 +99,7 @@ class TrainerService : Service() {
             output = AudioTrackOutput(this, AppLog, pulseGate),
             log = AppLog,
             speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
+            corrector = ResponsesCorrector(apiKey),
         )
         // Средняя кнопка гарнитуры (D29): медиа-сеанс активен всё время жизни сервиса, как и аудиофокус.
         headsetButtons = HeadsetButtons(this, AppLog) { keyCode, pressMs -> controller.headsetButton(keyCode, pressMs) }

@@ -127,6 +127,20 @@ class ConversationControllerTest {
         override var lastTeacherText: String? = null
         var newConversations = 0
         override fun newConversation() { newConversations++ }
+        val replaced = mutableListOf<String>()
+        override fun replaceLastReply(text: String) { replaced += text }
+    }
+
+    /** Подставной поправщик: ответ [answer] через [delayMs]; [error] — сбой. */
+    private class FakeCorrector(var answer: String = "OK", var delayMs: Long = 500L) : Corrector {
+        val calls = mutableListOf<String>()
+        var error: Exception? = null
+        override suspend fun correct(studentText: String): CorrectorAnswer {
+            calls += studentText
+            delay(delayMs)
+            error?.let { throw it }
+            return CorrectorAnswer(answer, 0.0001)
+        }
     }
 
     /**
@@ -206,7 +220,7 @@ class ConversationControllerTest {
         }
     }
 
-    private class Rig(scope: TestScope, vararg transcripts: Any, filler: String? = null) {
+    private class Rig(scope: TestScope, vararg transcripts: Any, filler: String? = null, val corrector: FakeCorrector? = null) {
         lateinit var controller: ConversationController
         private val ui = { controller.ui.value }
         private val clock = { scope.testScheduler.currentTime }
@@ -236,6 +250,7 @@ class ConversationControllerTest {
                 clock = clock,
                 log = log,
                 searchFiller = filler,
+                corrector = corrector,
             )
         }
 
@@ -319,7 +334,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         assertTrue(rig.log.lines.contains("[Controller] transcript: 15 chars, counted as silence: no"))
-        assertTrue(rig.log.lines.contains("[Controller] reply: 22 chars, 1 groups; words 3, sentences 1, question no, russian no"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 22 chars, 1 groups; words 3, sentences 1, question no, russian no, correction no"))
         assertFalse(rig.log.lines.any { "secret" in it || "Hidden" in it || "teacher answer" in it })
     }
 
@@ -474,7 +489,7 @@ class ConversationControllerTest {
         assertEquals(listOf("It is warm today.", "Do you like the sun?"), rig.output.played)
         assertEquals("It is warm today. Do you like the sun?", rig.controller.ui.value.teacherText)
         assertTrue(rig.log.lines.contains("[Controller] reply cut by the length limit: unfinished sentence not spoken"))
-        assertTrue(rig.log.lines.contains("[Controller] reply: 38 chars, 2 groups; words 9, sentences 2, question yes, russian no"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 38 chars, 2 groups; words 9, sentences 2, question yes, russian no, correction no"))
         assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
     }
 
@@ -486,7 +501,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         val line = rig.log.lines.single { it.startsWith("[Controller] reply: ") }
-        assertTrue(line, line.endsWith("; words 14, sentences 3, question yes, russian yes"))
+        assertTrue(line, line.endsWith("; words 14, sentences 3, question yes, russian yes, correction yes (teacher)"))
         assertFalse(line, "Noon" in line || "полдень" in line)
     }
 
@@ -509,7 +524,7 @@ class ConversationControllerTest {
         )
         assertTrue(rig.output.startTimes.first() < 4300)
         assertEquals("One, two, three, four, five, six.", rig.controller.ui.value.teacherText)
-        assertTrue(rig.log.lines.contains("[Controller] reply: 33 chars, 6 groups; words 6, sentences 1, question no, russian no"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 33 chars, 6 groups; words 6, sentences 1, question no, russian no, correction no"))
     }
 
     @Test
@@ -1331,5 +1346,136 @@ class ConversationControllerTest {
         val secondListen = rig.output.cues.lastIndexOf(Cue.LISTEN)
         assertTrue(Cue.PULSE in rig.output.cues.drop(secondListen))
         rig.controller.stop(EndReason.STOP_BUTTON)
+    }
+
+    // ---- поправщик (S02f) ----------------------------------------------------------------
+
+    private val fixPhrase = Correction.phrase("I have a dog.")
+    private val fixGroups = SpeechPlanner().plan(fixPhrase).map { it.text }
+
+    @Test
+    fun `corrector - correction is spoken first, then the reply, history as spoken`() = runTest {
+        val rig = Rig(this, "I have dog.", corrector = FakeCorrector("I have a dog."))
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("I think you meant \"I have a dog\", right?", fixPhrase)
+        assertEquals(fixGroups + listOf("Hello there.", "How are you?"), rig.output.played)
+        assertEquals(listOf("I have dog."), rig.corrector!!.calls)
+        assertEquals(listOf("$fixPhrase Hello there. How are you?"), rig.tutor.replaced)
+        assertEquals("$fixPhrase Hello there. How are you?", rig.controller.ui.value.teacherText)
+        assertTrue(rig.log.lines.contains("[Network] corrector: correction in 500 ms; cost \$0.0001"))
+        val reply = rig.log.lines.single { it.startsWith("[Controller] reply: ") }
+        assertTrue(reply, reply.endsWith(", correction yes (corrector)"))
+        assertFalse(rig.log.lines.any { "dog" in it })
+    }
+
+    @Test
+    fun `corrector - OK or the same sentence - no correction`() = runTest {
+        for (answer in listOf("OK", "i have dog")) {
+            val rig = Rig(this, "I have dog.", corrector = FakeCorrector(answer))
+            rig.controller.startTurn()
+            advanceUntilIdle()
+            assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+            assertTrue(rig.log.lines.contains("[Network] corrector: ok in 500 ms; cost \$0.0001"))
+            assertTrue(rig.tutor.replaced.isEmpty())
+            assertTrue(rig.log.lines.single { it.startsWith("[Controller] reply: ") }.endsWith(", correction no"))
+        }
+    }
+
+    @Test
+    fun `corrector - an answer unlike the student's words is rejected`() = runTest {
+        val rig = Rig(this, "Where you live?", corrector = FakeCorrector("I live in Tucson."))
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertTrue(rig.log.lines.contains("[Network] corrector: rejected (similarity 0.33) in 500 ms; cost \$0.0001"))
+    }
+
+    @Test
+    fun `corrector - late answer is skipped, the reply waits no longer than the limit`() = runTest {
+        // Учитель начал писать в 1300; поправка ждётся до 1300 + 800 = 2100, она придёт в 300 + 2000 = 2300.
+        val rig = Rig(this, "I have dog.", corrector = FakeCorrector("I have a dog.", delayMs = 2000))
+        rig.output.playMs = 500
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertEquals(2100L + 200, rig.output.startTimes.first()) // решение в 2100, синтез 200 мс
+        assertTrue(rig.log.lines.contains("[Network] corrector: late correction in 2000 ms; cost \$0.0001"))
+        assertTrue(rig.tutor.replaced.isEmpty())
+    }
+
+    @Test
+    fun `corrector - no answer before the turn ends - logged as late`() = runTest {
+        val rig = Rig(this, "I have dog.", corrector = FakeCorrector("I have a dog.", delayMs = 60_000))
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertTrue(rig.log.lines.any { it.startsWith("[Network] corrector: late, no answer in ") && it.endsWith(" ms (turn over)") })
+    }
+
+    @Test
+    fun `corrector - failure never breaks the reply`() = runTest {
+        val rig = Rig(this, "I have dog.", corrector = FakeCorrector().apply { error = ServiceException(FailureKind.TIMEOUT, "boom") })
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertTrue(rig.log.lines.contains("[Network] corrector: failed (boom) in 500 ms; cost unknown"))
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `corrector corrected - the teacher's own correction is not spoken`() = runTest {
+        val rig = Rig(this, "I have dog.", corrector = FakeCorrector("I have a dog."))
+        rig.tutor.replyText = "I think you meant \"I have a dog\", right? What is its name?"
+        rig.tutor.pieceSize = 5
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(fixGroups + listOf("What is its name?"), rig.output.played)
+        assertTrue(rig.log.lines.contains("[Controller] teacher's own correction not spoken: the corrector already corrected"))
+        assertEquals(listOf("$fixPhrase What is its name?"), rig.tutor.replaced)
+    }
+
+    @Test
+    fun `corrector says OK - the teacher's own correction is spoken and logged as the teacher's`() = runTest {
+        val rig = Rig(this, "I have dog.", corrector = FakeCorrector("OK"))
+        rig.tutor.replyText = "I think you meant \"I have a dog\", right? What is its name?"
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(fixGroups + listOf("What is its name?"), rig.output.played)
+        assertTrue(rig.log.lines.single { it.startsWith("[Controller] reply: ") }.endsWith(", correction yes (teacher)"))
+        assertTrue(rig.tutor.replaced.isEmpty())
+    }
+
+    @Test
+    fun `corrector and search - correction, then the filler phrase, then the answer`() = runTest {
+        val rig = Rig(this, "Gas price?", filler = "Let me check.", corrector = FakeCorrector("What is the gas price?"))
+        rig.tutor.searchMs = 2000
+        rig.output.playMs = 300
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        val fix = SpeechPlanner().plan(Correction.phrase("What is the gas price?")).map { it.text }
+        assertEquals(fix + listOf("Let me check.", "Hello there.", "How are you?"), rig.output.played)
+        // Ни один звук не накладывается на другой.
+        val starts = rig.output.startTimes
+        assertTrue(starts.zipWithNext().all { (a, b) -> b >= a + 300 })
+        assertTrue(rig.timing.single(), rig.timing.single().contains("filler=yes"))
+    }
+
+    @Test
+    fun `corrector - not asked on silence, asked once even when the teacher is retried`() = runTest {
+        val rig = Rig(this, "I have dog.", corrector = FakeCorrector("I have a dog."))
+        rig.tutor.errors += ServiceException(FailureKind.TIMEOUT, "timeout")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("I have dog."), rig.corrector!!.calls)
+        assertEquals(fixGroups + listOf("Hello there.", "How are you?"), rig.output.played)
+        assertEquals(1, rig.log.lines.count { it.startsWith("[Network] corrector:") })
+
+        val silent = Rig(this, corrector = FakeCorrector())
+        silent.input.speech += false
+        silent.controller.startTurn()
+        advanceUntilIdle()
+        assertTrue(silent.corrector!!.calls.isEmpty())
     }
 }

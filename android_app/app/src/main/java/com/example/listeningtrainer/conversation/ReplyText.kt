@@ -59,7 +59,12 @@ object ReplyText {
     private val CLOSING_QUOTE = Regex("""["”]""")
     private val RIGHT_TAG = Regex("""^\s*,?\s*right\s*\?""", RegexOption.IGNORE_CASE)
 
-    /** Где кончается поправка в начале [text]: 0 — поправки нет; `null` — она ещё не пришла целиком. */
+    /**
+     * Где кончается поправка «I think you meant "…", right?» в начале [text]: 0 — поправки нет; `null` — решать
+     * рано (начало текста — ещё начало поправки, или она не пришла целиком).
+     */
+    fun correctionEnd(text: String): Int? = afterCorrection(text)
+
     private fun afterCorrection(text: String): Int? {
         val lead = text.trimStart().lowercase()
         if (!lead.startsWith(CORRECTION_START)) return if (CORRECTION_START.startsWith(lead)) null else 0

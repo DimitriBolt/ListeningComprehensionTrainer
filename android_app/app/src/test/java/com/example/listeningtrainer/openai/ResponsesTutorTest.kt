@@ -3,6 +3,7 @@ package com.example.listeningtrainer.openai
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.FailureKind
 import com.example.listeningtrainer.conversation.ServiceException
+import com.example.listeningtrainer.conversation.NotUnderstood
 import com.example.listeningtrainer.conversation.TutorEvent
 import com.example.listeningtrainer.conversation.TutorSource
 import com.example.listeningtrainer.eventlog.EventLog
@@ -102,7 +103,7 @@ class ResponsesTutorTest {
     }
 
     @Test
-    fun `system prompt - one resource file by the method (D41-D43, D46, D47), date filled in`() {
+    fun `system prompt - one resource file by the method (D41-D43, D46, D47, S02f), date filled in`() {
         val prompt = ResponsesTutor.systemPrompt(java.util.GregorianCalendar(2026, 10, 23).time)
         // Тот же файл читает tools/probe/probe.py: ни одной копии в коде.
         val file = java.io.File("src/main/resources/tutor_prompt.txt").readText().trim()
@@ -110,12 +111,15 @@ class ResponsesTutorTest {
         assertFalse(prompt.contains(ResponsesTutor.DATE_MARK))
         for (rule in listOf(
             "Each sentence has 6 to 8 words at most", "30 words at most", "End almost every reply with exactly one simple question", "Never ask the same thing twice",
-            "A missing or wrong small word",
             "first ask a short question with two choices", "Give one main detail only",
-            "The third time: say one key word in Russian", "Start at level A1",
+            "Start at level A1",
             "Never search in a reply where you ask a clarifying question", "Your question is the last thing in your reply",
-            "I think you meant \"...\", right?", "The words inside the quotes do not count",
             "Use web_search ONLY for fresh facts", "Do NOT guess",
+            // S02f: поправляет поправщик, русское слово — по счёту приложения, большая тема — сначала выбор.
+            "Never correct the student's grammar", "The app does it before your reply",
+            "The note says 3 or more: say one key word in Russian", "Use Russian only when the note says 3 or more",
+            NotUnderstood.note(2)!!.substringBefore(" 2 times"),
+            "Your first reply is only one short question with two choices", "No facts, no dates, no names, no search",
         )) assertTrue(rule, prompt.contains(rule))
         // Прежние уровни A2/B1/B2 отменены.
         for (old in listOf("A2", "B1", "B2", "2023")) assertFalse(old, prompt.contains(old))
@@ -256,6 +260,8 @@ class ResponsesTutorTest {
         assertTrue((events.last() as TutorEvent.Done).stats.endedAtQuestion)
         assertEquals(said, t.lastTeacherText)
         assertTrue(log.lines.contains("[Network] tutor reply ended at the first question: the rest is not read"))
+        // Итога с токенами сервер не прислал: цена неизвестна, а не $0.0000 (S02f).
+        assertTrue(log.lines.contains("[Network] tutor reply: tokens unknown (stream cut); searches 0; sources -; cost unknown (stream cut)"))
     }
 
     @Test
@@ -338,5 +344,40 @@ class ResponsesTutorTest {
         null
     } catch (e: ServiceException) {
         e.kind
+    }
+
+    // ---- S02f ---------------------------------------------------------------------------
+
+    @Test
+    fun `not understood in a row - the count goes to this request only, history keeps the student's words`() = runTest {
+        val transport = FakeTransport().apply {
+            repeat(4) { streams += sse(delta("What do you cook?"), completed) }
+        }
+        val log = Log()
+        val t = tutor(transport, log)
+        for (said in listOf("I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand.")) t.reply(said) {}
+
+        fun lastUser(i: Int) = transport.bodies[i]["input"]!!.jsonArray.last().jsonObject["content"]!!.jsonPrimitive.content
+        assertEquals("I like to cook.", lastUser(0))
+        assertEquals("What?\n${NotUnderstood.note(1)}", lastUser(1))
+        assertEquals("I don't understand.\n${NotUnderstood.note(2)}", lastUser(2))
+        assertEquals("Sorry, I don't understand.\n(App note: the student did not understand you 3 times in a row.)", lastUser(3))
+        // В истории — реплики как есть, без служебной строки.
+        assertEquals(listOf("I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand."),
+            t.turns.filter { it.role == "user" }.map { it.text })
+        assertTrue(log.lines.contains("[Network] student did not understand 3 in a row: note added to the request"))
+        assertFalse(log.lines.any { "cook" in it })
+    }
+
+    @Test
+    fun `replace last reply - the history keeps what was spoken`() = runTest {
+        val transport = FakeTransport().apply { streams += sse(delta("Hello there."), completed) }
+        val t = tutor(transport)
+        t.replaceLastReply("nothing yet") // истории ещё нет — ничего
+        assertTrue(t.turns.isEmpty())
+        t.reply("I have dog.") {}
+        t.replaceLastReply("I think you meant \"I have a dog\", right? Hello there.")
+        assertEquals("I think you meant \"I have a dog\", right? Hello there.", t.lastTeacherText)
+        assertEquals(2, t.turns.size)
     }
 }

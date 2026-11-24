@@ -56,6 +56,24 @@ object ModelConfig {
     const val TUTOR_PRICE_OUTPUT_PER_M = 0.50
     const val TUTOR_PRICE_PER_SEARCH = 0.01
 
+    /**
+     * Поправщик (S02f, проба `corrector`, `docs/research/02f-corrector.md`): отдельный запрос одновременно с
+     * учителем — та же модель, `reasoning: none`, без инструментов, `store: false`, промпт —
+     * `app/src/main/resources/corrector_prompt.txt`. В пробе: 81 из 81 ошибки, 0 ложных из 45, ответ 0,83 с.
+     */
+    const val CORRECTOR_MODEL = TUTOR_MODEL
+    const val CORRECTOR_REASONING_EFFORT = "none"
+    /** Поправка — одна фраза (в пробе до 11 слов ≈ 15 токенов); меньше 16 API не принимает. */
+    const val CORRECTOR_MAX_OUTPUT_TOKENS = 60
+    /** Общий предел на запрос поправщика: дольше он всё равно опоздал. */
+    const val CORRECTOR_CALL_TIMEOUT_MS = 5_000L
+    /**
+     * Сколько ждать поправку после первого куска текста учителя (или начала поиска, или конца ответа).
+     * В пробе поправщик позже первого куска на 0,18 с (медиана), 0,49 с (p90); при 800 мс опоздали бы
+     * 4 из 126 (3 %). Первая группа учителя готова ≈ на 0,2 с позже первого куска.
+     */
+    const val CORRECTOR_WAIT_MS = 800L
+
     // --- Синтез речи учителя (S02, решения D8, D9) ---
     /** Realtime API по WebSocket: к адресу добавляется модель. */
     const val SPEECH_REALTIME_URL = "wss://api.openai.com/v1/realtime?model="
