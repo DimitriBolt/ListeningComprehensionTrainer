@@ -496,6 +496,7 @@ class ConversationController(
                         throw e
                     } catch (e: Exception) {
                         tutorError = e
+                        t.chars = stream.screenText().length // сколько успело прийти
                         log.event(SOURCE, "reply broken off: ${sent.size} groups sent to synthesis")
                         if (t.firstSound == null) throw AbortReply(e)
                     } finally {
@@ -640,7 +641,7 @@ class ConversationController(
      * и `search_ms` — от начала первого поиска до конца последнего. `first_token` — первый кусок
      * текста учителя, `first_group` — первая группа ушла в синтез, `tutor` — конец ответа.
      * `search` — искал ли учитель, `filler` — звучала ли фраза на время поиска, `reply_chars` —
-     * длина ответа без сносок. `first_audio` — запуск звука первой группы ответа (не фразы);
+     * длина ответа без сносок (при обрыве — сколько успело прийти). `first_audio` — запуск звука первой группы ответа (не фразы);
      * `audible` — голос слышен (после щита, если он есть). `-` — не было.
      */
     private fun logTimings(recordedAt: Long, transcribedAt: Long, t: ReplyTiming, shieldMs: Long) {

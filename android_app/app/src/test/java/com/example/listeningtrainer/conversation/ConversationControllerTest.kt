@@ -587,6 +587,7 @@ class ConversationControllerTest {
         val ev = rig.timeline.events
         assertTrue(ev.lastIndexOf("cue:ERROR") > ev.indexOf("play") )
         assertEquals(1, rig.timing.size)
+        assertTrue(rig.timing.single(), rig.timing.single().contains("tutor=- search=no search_ms=- filler=no reply_chars=20 "))
     }
 
     // ---- фраза на время поиска (D39) -------------------------------------------------------
