@@ -65,7 +65,7 @@
 - 95dc35d [S02c] Python-копия SpeechPlanner и потоковая нарезка для пробы
 - 34465a8 [S02c] Подкоманда responses: web_search при reasoning none, поток, погода, цена
 - 16927fc [S02c] README: проба responses
-- (этот отчёт) [S02c] Отчёт этапа
+- 2b0bab4 [S02c] Отчёт этапа
 
 ## Отклонения от брифа
 - **Нарезка и чистка сносок — в отдельном модуле `tools/probe/speech_planner.py`.** Он чистый, без
