@@ -39,13 +39,24 @@ def test_paragraph_and_six_words():
 
 
 def test_list_number_and_heading():
+    # D45: жирное слово в начале пункта — обычный текст; номер пункта — по-прежнему своя группа.
     assert pairs("Here are two simple rules:\n1. **Make** We use \"make\" when we create something, "
                  "like a cake or a plan.\nCan you make a sentence with each word?") == [
-        ("Here are two simple rules:", 1600), ("1.", 400), ("**Make**", 1600), ("We use \"make\"", 250),
+        ("Here are two simple rules:", 1600), ("1.", 400), ("**Make** We use \"make\"", 250),
         ("when we create something,", 600), ("like a cake", 250), ("or a plan.", 1600),
         ("Can you make a", 250), ("sentence with each word?", 1000)]
-    assert pairs("Speak slowly. **Tip**") == [("Speak slowly.", 1600), ("**Tip**", 1100)]
+    assert pairs("Speak slowly. **Tip**") == [("Speak slowly.", 1000), ("**Tip**", 250)]
     assert pairs("Rules:\n1. **Make**") == [("Rules:", 1600), ("1.", 400), ("**Make**", 1100)]
+    assert pairs("**Tips for you:**\nSpeak slowly.") == [("**Tips for you:**", 1600), ("Speak slowly.", 1000)]
+    assert pairs("2. **Do**:\nWe do tasks.") == [("2.", 400), ("**Do**:", 1600), ("We do tasks.", 1000)]
+
+
+def test_bold_inside_a_phrase_is_plain_text():
+    # D45 (S02d, шаг 5): абзацная пауза перед каждым жирным словом терялась среди лишних длинных пауз.
+    assert pairs("We **make** a cake, but we **do** homework. Can you try?") == [
+        ("We **make** a cake,", 600), ("but we **do** homework.", 1000), ("Can you try?", 1000)]
+    assert pairs("**Make** or **do**\nUse them.") == [("**Make**", 250), ("or **do**", 1600), ("Use them.", 1000)]
+    assert all(c.pause_ms != sp.PAUSE_PARAGRAPH_MS for c in plan("I **make** tea and **do** sports every day."))
     assert pairs("1. Listen every day.\n2. Repeat out loud.") == [
         ("1.", 400), ("Listen every day.", 1600), ("2.", 400), ("Repeat out loud.", 1000)]
 
@@ -67,8 +78,8 @@ def test_labels_and_numbers():
 
 def test_wordless_join():
     assert pairs("1. **Make a plan**: write it down.") == [
-        ("1.", 400), ("**Make a plan**:", 1600), ("write it down.", 1000)]
-    assert pairs("Today is 2026. **Note** this.") == [("Today is 2026.", 1600), ("**Note**", 1600), ("this.", 1000)]
+        ("1.", 400), ("**Make a plan**:", 600), ("write it down.", 1000)]
+    assert pairs("Today is 2026. **Note** this.") == [("Today is 2026.", 1000), ("**Note** this.", 1000)]
     for sign in [".", "!", "-", "—"]:
         assert all(sp._has_word(c.text) for c in plan(f"**Tip**{sign} Speak slowly."))
 
@@ -185,10 +196,15 @@ def test_safe_cut_not_inside_bold_pair():
 
 
 def test_heading_piece_by_piece_keeps_paragraph_pause():
-    # Расхождение пробы S02c (в5 B4 #1): 600 мс вместо 1600 мс.
+    # Расхождение пробы S02c (в5 B4 #1). С D45 жирное внутри фразы — обычный текст: пауза запятой.
     text = "Sunset in Tucson today, **Monday, November 23, 2026**, is at about **5:20 PM**.\n\nWill you watch it?"
     got, s = stream_with_late_pauses(text, list(text))
-    assert got[0] == Chunk("Sunset in Tucson today,", 1600)
+    assert got[0] == Chunk("Sunset in Tucson today,", 600)
+    assert got == plan(text) and s.divergences == []
+    # Строка-заголовок, пришедшая по одному знаку, — пауза абзаца перед ней.
+    text = "Here is one tip.\n**Speak slowly, please**\nTry it now."
+    got, s = stream_with_late_pauses(text, list(text))
+    assert got[0] == Chunk("Here is one tip.", 1600) and got[2].pause_ms == 1600
     assert got == plan(text) and s.divergences == []
 
 

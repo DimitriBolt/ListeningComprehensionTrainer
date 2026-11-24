@@ -1,6 +1,6 @@
 """Нарезка речи учителя для пробы S02c: Python-копия SpeechPlanner и потоковая нарезка.
 
-`plan()` — перенос `android_app/.../conversation/SpeechPlanner.kt` (состояние после S02b: D22, D23)
+`plan()` — перенос `android_app/.../conversation/SpeechPlanner.kt` (состояние после S02e: D22, D23, D45)
 с Kotlin на Python, строка в строку, вместе с особенностями. Нужен, чтобы на настоящих потоках
 ответа учителя проверить: потоковая нарезка даёт **те же** группы, что нарезка готового текста
 (инвариант 1). Эталонные случаи — из `SpeechPlannerTest.kt` (перенесены в tests/test_speech_planner.py).
@@ -43,8 +43,8 @@ PAUSE_INSIDE_MS = 250
 PAUSE_LIST_NUMBER_MS = 400
 
 # Регулярные выражения — как в SpeechPlanner.kt.
-_HEADING_RE = re.compile(r"(?m)\s*((?:^[ \t]*\d{1,2}\.[ \t]+)?\*\*.*?\*\*)")
-_HEADING_CHUNK_RE = re.compile(r"(?:\d{1,2}\.\s+)?\*\*.*\*\*")
+# Заголовок — только строка, целиком жирная (D45, S02e).
+_HEADING_LINE_RE = re.compile(r"[ \t]*(?:\d{1,2}\.[ \t]+)?\*\*(?:(?!\*\*)[^\n])+\*\*[ \t]*[:.!?]?[ \t]*")
 _LIST_NUMBER_RE = re.compile(r"^\s*(\d{1,2}\.)\s+(\S.*)$", re.S)
 _SPLIT_RE = re.compile(
     r"(?<=[,!?;:])\s+|(?<=[.])(?<!\b\d\.)\s+"
@@ -90,10 +90,10 @@ def _join_wordless(chunks: list[Chunk]) -> list[Chunk]:
 def plan(text: str) -> list[Chunk]:
     """Копия SpeechPlanner.plan()."""
     spoken = _strip_service_label(text)
-    prepared = _HEADING_RE.sub(lambda m: "\n" + m.group(1) + "\n", spoken)
-    paragraphs = [p for p in _PARAGRAPH_RE.split(prepared) if p.strip()]
+    paragraphs = [p for p in _PARAGRAPH_RE.split(spoken) if p.strip()]
     all_chunks: list[Chunk] = []
     for p_index, paragraph in enumerate(paragraphs):
+        heading = _HEADING_LINE_RE.fullmatch(paragraph) is not None
         p_text = paragraph
         m = _LIST_NUMBER_RE.fullmatch(paragraph)
         if m:
@@ -113,7 +113,7 @@ def plan(text: str) -> list[Chunk]:
             s = t.strip()
             if c_index == len(ped) - 1 and p_index < len(paragraphs) - 1:
                 pause = PAUSE_PARAGRAPH_MS
-            elif _HEADING_CHUNK_RE.fullmatch(s):
+            elif heading and c_index == len(ped) - 1:
                 pause = PAUSE_HEADING_MS
             elif s.endswith((".", "!", "?")):
                 pause = PAUSE_SENTENCE_MS

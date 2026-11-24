@@ -68,18 +68,34 @@ class SpeechPlannerTest {
     }
 
     @Test
-    fun `bold heading at end of text gets heading pause`() {
-        assertEquals(listOf("Speak slowly." to 1600L, "**Tip**" to 1100L), pairs("Speak slowly. **Tip**"))
+    fun `bold heading line at end of text gets heading pause`() {
+        assertEquals(listOf("Speak slowly." to 1600L, "**Tip**" to 1100L), pairs("Speak slowly.\n**Tip**"))
     }
 
     @Test
-    fun `number of a bold list item is its own group with 400 ms, then the heading`() {
+    fun `whole bold line is a heading - with a number or a sign after it`() {
+        assertEquals(listOf("**Tips for you:**" to 1600L, "Speak slowly." to 1000L), pairs("**Tips for you:**\nSpeak slowly."))
+        assertEquals(listOf("2." to 400L, "**Do**:" to 1600L, "We do tasks." to 1000L), pairs("2. **Do**:\nWe do tasks."))
+    }
+
+    @Test
+    fun `bold inside a phrase is plain text without a paragraph pause (D45)`() {
+        assertEquals(
+            listOf("We **make** a cake," to 600L, "but we **do** homework." to 1000L, "Can you try?" to 1000L),
+            pairs("We **make** a cake, but we **do** homework. Can you try?"),
+        )
+        assertEquals(listOf("Speak slowly." to 1000L, "**Tip**" to 250L), pairs("Speak slowly. **Tip**"))
+        assertEquals(listOf("**Make**" to 250L, "or **do**" to 1600L, "Use them." to 1000L), pairs("**Make** or **do**\nUse them."))
+        assertTrue(planner.plan("I **make** tea and **do** sports every day.").none { it.pauseMs == SpeechPlanner.PAUSE_PARAGRAPH_MS })
+    }
+
+    @Test
+    fun `number of a list item with a bold word is its own group with 400 ms, the bold word is plain text`() {
         assertEquals(
             listOf(
                 "Here are two simple rules:" to 1600L,
                 "1." to 400L,
-                "**Make**" to 1600L,
-                "We use \"make\"" to 250L,
+                "**Make** We use \"make\"" to 250L,
                 "when we create something," to 600L,
                 "like a cake" to 250L,
                 "or a plan." to 1600L,
@@ -120,8 +136,8 @@ class SpeechPlannerTest {
     @Test
     fun `every number in a list is its own group right before its heading`() {
         val chunks = pairs(
-            "Here are two simple rules:\n1. **Make** We use \"make\" when we create something.\n" +
-                "2. **Do** We use \"do\" for tasks.\n  3. **Have** Easy."
+            "Here are two simple rules:\n1. **Make**\nWe use \"make\" when we create something.\n" +
+                "2. **Do**\nWe use \"do\" for tasks.\n  3. **Have**\nEasy."
         )
         for ((number, heading) in listOf("1." to "**Make**", "2." to "**Do**", "3." to "**Have**")) {
             val i = chunks.indexOf(number to 400L)
@@ -155,7 +171,7 @@ class SpeechPlannerTest {
     fun `punctuation is never a group of its own - it joins the previous group`() {
         // Раньше после заголовка оставалась группа ":" — Realtime читал её как «dot».
         assertEquals(
-            listOf("1." to 400L, "**Make a plan**:" to 1600L, "write it down." to 1000L),
+            listOf("1." to 400L, "**Make a plan**:" to 600L, "write it down." to 1000L),
             pairs("1. **Make a plan**: write it down."),
         )
         for (sign in listOf(".", "!", "-", "—")) {
@@ -168,7 +184,7 @@ class SpeechPlannerTest {
     @Test
     fun `number ending a sentence is not glued to the next heading`() {
         assertEquals(
-            listOf("Today is 2026." to 1600L, "**Note**" to 1600L, "this." to 1000L),
+            listOf("Today is 2026." to 1000L, "**Note** this." to 1000L),
             pairs("Today is 2026. **Note** this."),
         )
     }

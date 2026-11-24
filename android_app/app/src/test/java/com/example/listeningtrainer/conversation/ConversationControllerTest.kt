@@ -380,7 +380,7 @@ class ConversationControllerTest {
     @Test
     fun `list number is its own group, 400 ms before the heading, colon joins the heading`() = runTest {
         val rig = Rig(this, "Hi")
-        rig.tutor.replyText = "1. **Make a plan**: write it down."
+        rig.tutor.replyText = "1. **Make a plan**:\nwrite it down."
         rig.controller.startTurn()
         advanceUntilIdle()
 
@@ -500,14 +500,14 @@ class ConversationControllerTest {
     @Test
     fun `pause after a group is decided when it has sounded - paragraph pause before a late heading`() = runTest {
         val rig = Rig(this, "Sunset?")
-        rig.tutor.replyText = "Sunset today, **Monday, November 23**, is at 5:20 PM."
+        rig.tutor.replyText = "Sunset today, at 5:20 PM\n**Monday, November 23**\nIs that late?"
         rig.tutor.pieceSize = 1
         rig.tutor.pieceDelayMs = 20
         rig.controller.startTurn()
         advanceUntilIdle()
         assertEquals(SpeechPlanner().plan(rig.tutor.replyText).map { it.text.replace("**", "") }, rig.output.played)
         val t = rig.output.startTimes
-        assertTrue("${t[1] - t[0]}", t[1] - t[0] >= 1600) // абзац перед жирным заголовком, а не 600 мс запятой
+        assertTrue("${t[2] - t[1]}", t[2] - t[1] >= 1600) // абзац перед жирным заголовком, а не 250 мс внутри фразы
     }
 
     @Test

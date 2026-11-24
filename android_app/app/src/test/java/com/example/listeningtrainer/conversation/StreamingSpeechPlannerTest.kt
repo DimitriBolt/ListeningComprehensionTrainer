@@ -64,11 +64,20 @@ class StreamingSpeechPlannerTest {
     }
 
     @Test
-    fun `group before a bold heading gets the paragraph pause even when the heading arrives piece by piece`() {
-        // Расхождение пробы: в5 B4 #1 — 600 мс вместо 1600 мс.
+    fun `group before a bold heading line gets the paragraph pause even when the heading arrives piece by piece`() {
+        val text = "Here is one tip.\n**Speak slowly, please**\nTry it now."
+        val (got, _) = stream(bySize(text, 1))
+        assertEquals(SpeechChunk("Here is one tip.", 1600), got.first())
+        assertEquals(1600L, got[2].pauseMs)
+        assertEquals(planner.plan(text), got)
+    }
+
+    @Test
+    fun `bold inside a phrase arriving piece by piece keeps the plain pause (D45)`() {
+        // Случай пробы S02c (в5 B4 #1): до D45 здесь была абзацная пауза перед жирной датой.
         val text = "Sunset in Tucson today, **Monday, November 23, 2026**, is at about **5:20 PM**.\n\nWill you watch it?"
         val (got, _) = stream(bySize(text, 1))
-        assertEquals(SpeechChunk("Sunset in Tucson today,", 1600), got.first())
+        assertEquals(SpeechChunk("Sunset in Tucson today,", 600), got.first())
         assertEquals(planner.plan(text), got)
     }
 

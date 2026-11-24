@@ -10,16 +10,16 @@ data class SpeechChunk(val text: String, val pauseMs: Long)
 class SpeechPlanner {
 
     fun plan(text: String): List<SpeechChunk> {
-        // Жирный заголовок — отдельный абзац (номер пункта `1. ` в начале строки идёт с ним,
-        // а ниже отделяется в свою группу).
-        val preparedText = text.replace(HEADING_REGEX, "\n$1\n")
-        val paragraphs = preparedText.split(Regex("\\n+")).filter { it.trim().isNotEmpty() }
+        // Заголовок — только строка, целиком жирная (с номером пункта или без, D45); жирное
+        // слово внутри фразы — обычный текст, без абзацной паузы.
+        val paragraphs = text.split(Regex("\\n+")).filter { it.trim().isNotEmpty() }
         val allChunks = mutableListOf<SpeechChunk>()
 
         // [1] Базовый split: знаки препинания и союзы (только целое слово: `sorry` не режется)
         val splitRegex = Regex("(?<=[,!?;:])\\s+|(?<=[.])(?<!\\b\\d\\.)\\s+|\\s+(?=(?i:and|but|because|if|when|then|after|before|that|which|who|so|or|although|while|since|as)\\b)")
 
         paragraphs.forEachIndexed { pIndex, paragraph ->
+            val heading = HEADING_LINE_REGEX.matches(paragraph)
             // Номер пункта списка — отдельная группа с короткой паузой (D22): иначе цифра
             // сливается на слух с первым словом заголовка.
             var pText = paragraph
@@ -46,7 +46,7 @@ class SpeechPlanner {
                 val trimmed = t.trim()
                 val p = when {
                     cIndex == pedagogicalChunks.size - 1 && pIndex < paragraphs.size - 1 -> PAUSE_PARAGRAPH_MS
-                    HEADING_CHUNK_REGEX.matches(trimmed) -> PAUSE_HEADING_MS
+                    heading && cIndex == pedagogicalChunks.size - 1 -> PAUSE_HEADING_MS
                     trimmed.endsWith(".") || trimmed.endsWith("!") || trimmed.endsWith("?") -> PAUSE_SENTENCE_MS
                     trimmed.endsWith(",") || trimmed.endsWith(":") || trimmed.endsWith(";") -> PAUSE_COMMA_MS
                     else -> PAUSE_INSIDE_MS
@@ -86,8 +86,11 @@ class SpeechPlanner {
     }
 
     companion object {
-        private val HEADING_REGEX = Regex("(?m)\\s*((?:^[ \\t]*\\d{1,2}\\.[ \\t]+)?\\*\\*.*?\\*\\*)")
-        private val HEADING_CHUNK_REGEX = Regex("(?:\\d{1,2}\\.\\s+)?\\*\\*.*\\*\\*")
+        /**
+         * Строка-заголовок (D45): целиком жирная, с номером пункта или без; после `**` может стоять
+         * один знак `: . ! ?`. Внутри пары других `**` нет: «**Make** or **do**» — обычный текст.
+         */
+        private val HEADING_LINE_REGEX = Regex("^[ \\t]*(?:\\d{1,2}\\.[ \\t]+)?\\*\\*(?:(?!\\*\\*)[^\\n])+\\*\\*[ \\t]*[:.!?]?[ \\t]*$")
         /** Абзац, который начинается с номера пункта списка: `1. …`. */
         private val LIST_NUMBER_REGEX = Regex("^\\s*(\\d{1,2}\\.)\\s+(\\S.*)$", RegexOption.DOT_MATCHES_ALL)
 
