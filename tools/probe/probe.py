@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Пробы S00b: проверка моделей OpenAI с ключом пользователя.
+"""Пробы S00b и S02c: проверка моделей OpenAI с ключом пользователя.
 
-Скрипт отвечает на вопросы «не подтверждено» из docs/research/00-models.md.
-Код приложения не меняет. Запуск и цена — в tools/probe/README.md.
+S00b: вопросы «не подтверждено» из docs/research/00-models.md (подкоманды verbatim … vadservice, all).
+S02c: учитель на Responses API — встроенный web_search, поток, погода (подкоманда responses;
+документация — в начале её раздела). Код приложения не меняет. Запуск и цена — в tools/probe/README.md.
 
 Официальная документация, по которой написан код (прочитана 2026-11-16):
   [R-conv]   https://developers.openai.com/api/docs/guides/realtime-conversations
@@ -790,7 +791,7 @@ class Ctx:
     def __init__(self, args):
         self.args = args
         self.out = Path(args.out)
-        self.results = Results(self.out, Path(args.docs))
+        self.results = Results(self.out, Path(args.docs or DOCS_RESULTS))
         self.timeout = args.timeout
         self._key = None
         self._api = None
@@ -1412,6 +1413,894 @@ def probe_vadservice(ctx: Ctx) -> None:
                                    "conversation": conv, "transcription": trans}, "\n".join(L))
 
 
+# ---- 7. responses (S02c) --------------------------------------------------
+#
+# Проба Responses API для учителя: встроенный web_search у gpt-6-luna при reasoning.effort none,
+# потоковый ответ, погода. Код приложения не меняется. Документация (прочитана 2026-11-23):
+#   [RESP]     https://developers.openai.com/api/reference/resources/responses/methods/create
+#              (model, instructions, input, reasoning.effort none|minimal|low|medium|high|xhigh|max,
+#              tools, include "web_search_call.action.sources", previous_response_id, usage)
+#   [RESP-SSE] https://developers.openai.com/api/reference/resources/responses/streaming-events
+#              (response.created, response.output_item.added/done, response.output_text.delta {delta},
+#              response.output_text.annotation.added {annotation}, response.web_search_call.in_progress/
+#              searching/completed {item_id}, response.function_call_arguments.done, response.completed
+#              {response.usage}, response.failed, response.incomplete, error {code, message})
+#   [WSEARCH]  https://developers.openai.com/api/docs/guides/tools-web-search
+#              ({"type": "web_search"}, search_context_size low|medium|high; web_search_call с action
+#              search {queries, sources}; сноски url_citation {start_index, end_index, url, title})
+#   [FC]       https://developers.openai.com/api/docs/guides/function-calling
+#              (плоская схема функции; вывод function_call {call_id, name, arguments};
+#              ответ — {"type": "function_call_output", "call_id", "output"})
+#   [LUNA]     модель поддерживает web search в Responses; function calling в Chat Completions — только при none
+#   [PRICE]    web search: $10 за 1000 вызовов, токены найденного — по цене модели
+
+DOCS_RESULTS_02C = REPO_ROOT / "docs" / "research" / "02c-results.md"
+RESP_JSON_NAME = "02c-results.json"
+
+# [LUNA]: $0.10 / $0.01 (кэш) / $0.50 за 1M. В общем прайсе [PRICE] у gpt-6-luna стоят $0.05 / $0.25 —
+# берём большие, чтобы оценка была сверху.
+PRICE_LUNA = {"in": 0.10 / 1e6, "cached": 0.01 / 1e6, "out": 0.50 / 1e6}
+PRICE_WEB_SEARCH = 10.0 / 1000       # [PRICE]: $10 за 1000 вызовов поиска (действие search)
+EFFORT_LADDER = ["none", "low", "medium"]
+LESSON_TURNS, LESSON_SEARCHES = 15, 3  # «10-минутное занятие»: 15 реплик ученика, из них 3 с поиском
+TOOL_TIMEOUT = 8.0                     # как ModelConfig.TOOLS_CALL_TIMEOUT_MS
+# Остаток пути до первого звука (замер «После S02b», docs/ARCHITECTURE.md): распознавание 0,7–2,1 с,
+# синтез первой группы ≈ 0,8 с. Цель с поиском — первый звук ≤ 6 с.
+AUDIBLE_GOAL_SEARCH = 6.0
+REST_OF_PATH = 1.4 + 0.8               # медиана распознавания ≈ 1,4 с + синтез первой группы
+
+# Скопировано из ToolResults.SEARCH_EMPTY и ModelConfig.WEATHER_URL (android_app, S02b).
+STUB_SEARCH_NO_DATA = "NO_DATA: the web search returned no results. There is no fresh information."
+WEATHER_NO_DATA = "NO_DATA: the weather service did not answer. There is no weather information."
+WEATHER_URL = "https://wttr.in/{location}?format=%l:+%C+%t"
+
+# Скопировано из ChatTutor.NO_DATA_RULE (android_app, S02b).
+APP_NO_DATA_RULE = ("If a tool result starts with NO_DATA:, the tool found nothing. Tell the student honestly, "
+                    "in simple words, that you could not find fresh information about it. Do NOT guess. "
+                    "Do NOT give any numbers, prices, dates, names, or events about it from memory.")
+# Тот же смысл для встроенного поиска: ответа инструмента с NO_DATA там нет.
+WEB_NO_DATA_RULE = ("If web_search finds nothing useful, tell the student honestly, in simple words, that you could "
+                    "not find fresh information about it. Do NOT guess. Do NOT give any numbers, prices, dates, "
+                    "names, or events about it from memory.")
+NO_LINKS_RULE = ("7. Your answer is read aloud to the student. Never write links, URLs, website names "
+                 "in brackets, or citations.")
+
+
+def app_tutor_prompt(date: str, search_tool: str = "search_live_web", no_data_rule: str = APP_NO_DATA_RULE,
+                     extra: str = "") -> str:
+    """Скопировано из ChatTutor.systemPrompt() (android_app, состояние S02b). Для Responses меняется
+    только имя инструмента поиска и правило пустого поиска; extra — дополнительный пункт."""
+    p = f"""You are a patient English teacher. Today is {date}.
+Your memory is limited to 2023.
+
+CRITICAL INSTRUCTIONS:
+1. For ANY info about prices, leaders, or news in {date}, YOU MUST CALL '{search_tool}'.
+2. Read the search results carefully. If they contain data (like Donald Trump or a price), USE IT.
+3. If {search_tool} returns data, NEVER say "I only know up to 2023".
+4. {no_data_rule}
+5. Use short sentences, check understanding, and end with a question.
+6. If the student makes a clear grammatical error or if the transcription suggests a phonetic mistake, briefly and kindly correct it first (e.g., "I think you meant '...', right?"). Then continue the conversation."""
+    return p + ("\n" + extra if extra else "")
+
+
+def resp_function_tool(chat_tool: dict) -> dict:
+    """Схема Chat Completions {"type": "function", "function": {...}} → плоская схема Responses [FC].
+    strict: false — как в приложении, без строгой схемы."""
+    f = chat_tool["function"]
+    return {"type": "function", "name": f["name"], "description": f["description"],
+            "parameters": f["parameters"], "strict": False}
+
+
+# (id, группа, реплика ученика). Короткие, как в жизни.
+RESP_SCENARIOS = [
+    ("A1", "A", "I went to the park yesterday. It was very nice."),
+    ("A2", "A", "Yesterday I go to the shop and buy some apples."),
+    ("A3", "A", "What does 'outage' mean?"),
+    ("B1", "B", "How much is gas in Tucson today?"),
+    ("B2", "B", "What is the latest news about SpaceX?"),
+    ("B3", "B", "Who won the Phoenix Suns game yesterday?"),
+    ("B4", "B", "What time is sunset in Tucson today?"),
+    ("C1", "C", "What's the weather in Tucson now?"),
+    ("C2", "C", "Will it rain tomorrow in Tucson?"),
+]
+GROUP_TITLES = {"A": "без поиска", "B": "свежий факт", "C": "погода"}
+
+# Варианты: где идут (группы) и как устроены.
+RESP_VARIANTS = {
+    "1": {"title": "Chat Completions, нынешний путь (поиск — заглушка NO_DATA)", "groups": "ABC"},
+    "2": {"title": "Responses + web_search, поток", "groups": "ABC"},
+    "3": {"title": "Responses + web_search (search_context_size: low), поток", "groups": "BC"},
+    "4": {"title": "Responses + web_search + get_weather (wttr.in) как функция, поток", "groups": "C"},
+    "5": {"title": "Responses + web_search, в промпте запрет ссылок, поток (сверх брифа: что делать со сносками)",
+          "groups": "B"},
+}
+
+
+def resp_cost(usage: dict | None, n_search: int = 0) -> float:
+    u = usage or {}
+    inp = u.get("input_tokens", 0) or 0
+    cached = (u.get("input_tokens_details") or {}).get("cached_tokens", 0) or 0
+    out = u.get("output_tokens", 0) or 0
+    return ((inp - cached) * PRICE_LUNA["in"] + cached * PRICE_LUNA["cached"] + out * PRICE_LUNA["out"]
+            + n_search * PRICE_WEB_SEARCH)
+
+
+def chat_cost(usage: dict | None) -> float:
+    u = usage or {}
+    inp = u.get("prompt_tokens", 0) or 0
+    cached = (u.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0
+    out = u.get("completion_tokens", 0) or 0
+    return (inp - cached) * PRICE_LUNA["in"] + cached * PRICE_LUNA["cached"] + out * PRICE_LUNA["out"]
+
+
+def parse_sse(lines) -> list[tuple[str | None, str]]:
+    """Строки потока SSE → [(event, data)]. Пустая строка завершает событие."""
+    out, ev, data = [], None, []
+    for line in lines:
+        if line == "":
+            if data:
+                out.append((ev, "\n".join(data)))
+            ev, data = None, []
+        elif line.startswith(":"):
+            continue
+        elif line.startswith("event:"):
+            ev = line[6:].strip()
+        elif line.startswith("data:"):
+            data.append(line[5:].lstrip())
+    if data:
+        out.append((ev, "\n".join(data)))
+    return out
+
+
+def responses_stream(api: "Api", body: dict) -> dict:
+    """POST /v1/responses со stream: true. Каждое событие — с временем от отправки запроса.
+    Отказ сервера (кроме 401) возвращается как результат: для пробы он тоже ответ."""
+    t0 = time.perf_counter()
+    events: list[tuple[float, dict]] = []
+    with api.client.stream("POST", "/responses", json={**body, "stream": True}) as r:
+        if r.status_code >= 400:
+            r.read()
+            if r.status_code == 401:
+                raise ProbeError(auth_error_text(401))
+            try:
+                err = r.json().get("error", {})
+                msg = err.get("message", "") if isinstance(err, dict) else str(err)
+                code = err.get("code") if isinstance(err, dict) else None
+                param = err.get("param") if isinstance(err, dict) else None
+            except Exception:
+                msg, code, param = r.text[:500], None, None
+            return {"status": r.status_code, "events": [], "t_total": time.perf_counter() - t0,
+                    "error": redact(f"HTTP {r.status_code}: {msg}" + (f" (code={code}, param={param})"
+                                                                     if code or param else ""))}
+
+        ev, data = None, []
+
+        def dispatch():
+            raw = "\n".join(data)
+            if raw and raw != "[DONE]":
+                try:
+                    d = json.loads(raw)
+                except json.JSONDecodeError:
+                    d = {"type": "unparsed", "raw": raw[:300]}
+                d.setdefault("type", ev)
+                events.append((time.perf_counter() - t0, d))
+
+        for line in r.iter_lines():
+            if line == "":
+                if data:
+                    dispatch()
+                ev, data = None, []
+            elif line.startswith("event:"):
+                ev = line[6:].strip()
+            elif line.startswith("data:"):
+                data.append(line[5:].lstrip())
+        if data:
+            dispatch()
+    return {"status": 200, "events": events, "t_total": time.perf_counter() - t0, "error": None}
+
+
+_SENTENCE_END_RE = re.compile(r"[.!?](?=\s)")
+
+
+def analyze_stream(events: list[tuple[float, dict]]) -> dict:
+    """События (время, событие) → замеры одного ответа. Чистая функция: тесты гоняют её
+    на записанных примерах событий."""
+    from speech_planner import StreamPlanner, clean_for_speech, plan, speech_leftovers
+    sp = StreamPlanner()
+    text, t_first_token, t_first_sentence, t_first_group, t_end = "", None, None, None, None
+    group_times: list[float] = []
+    searches: dict[str, dict] = {}
+    functions, annotations, usages, errors = [], [], [], []
+    status, response_ids, message_annotations = None, [], []
+    for t, e in events:
+        typ = e.get("type")
+        if typ == "response.created":
+            rid = (e.get("response") or {}).get("id")
+            if rid:
+                response_ids.append(rid)
+        elif typ == "response.output_item.added":
+            item = e.get("item") or {}
+            if item.get("type") == "web_search_call":
+                searches.setdefault(item.get("id") or f"ws{len(searches)}", {})["t_start"] = t
+        elif typ and typ.startswith("response.web_search_call."):
+            s = searches.setdefault(e.get("item_id") or f"ws{len(searches)}", {})
+            s.setdefault("t_start", t)
+            if typ.endswith(".completed"):
+                s["t_end"] = t
+        elif typ == "response.output_item.done":
+            item = e.get("item") or {}
+            if item.get("type") == "web_search_call":
+                s = searches.setdefault(item.get("id") or f"ws{len(searches)}", {})
+                s.setdefault("t_start", t)
+                s.setdefault("t_end", t)
+                s["status"] = item.get("status")
+                a = item.get("action") or {}
+                s["action"] = a.get("type")
+                s["queries"] = a.get("queries") or ([a["query"]] if a.get("query") else [])
+                srcs = a.get("sources") or []
+                s["n_sources"] = len(srcs)
+                s["sources"] = [x.get("url") or x.get("type") for x in srcs[:4]]
+                s["source_types"] = sorted({str(x.get("type")) for x in srcs})
+            elif item.get("type") == "function_call":
+                functions.append({"t": t, "name": item.get("name"), "arguments": item.get("arguments"),
+                                  "call_id": item.get("call_id")})
+            elif item.get("type") == "message":
+                for part in item.get("content") or []:
+                    for a in part.get("annotations") or []:
+                        message_annotations.append(a)
+        elif typ == "response.output_text.delta":
+            d = e.get("delta") or ""
+            if d and t_first_token is None:
+                t_first_token = t
+            text += d
+            if t_first_sentence is None and _SENTENCE_END_RE.search(text):
+                t_first_sentence = t
+            new = sp.feed(d)
+            if new:
+                group_times += [t] * len(new)
+                if t_first_group is None:
+                    t_first_group = t
+        elif typ == "response.output_text.annotation.added":
+            annotations.append({"t": t, "chars_before": len(text), "annotation": e.get("annotation")})
+        elif typ in ("response.completed", "response.incomplete", "response.failed"):
+            resp = e.get("response") or {}
+            status = resp.get("status") or typ.split(".")[1]
+            usages.append(resp.get("usage"))
+            t_end = t
+            if typ != "response.completed":
+                err = resp.get("error") or resp.get("incomplete_details")
+                errors.append(redact(f"{typ}: {err}"))
+        elif typ == "error":
+            errors.append(redact(f"error: {e.get('code')} {e.get('message')}"))
+    if t_end is None and events:
+        t_end = events[-1][0]
+    rest = sp.finish()
+    if rest:
+        group_times += [t_end] * len(rest)
+        if t_first_group is None:
+            t_first_group = t_end
+    if t_first_sentence is None and text:
+        t_first_sentence = t_end
+    whole = plan(clean_for_speech(text))
+    sl = list(searches.values())
+    n_search_actions = sum(1 for s in sl if s.get("action") in (None, "search"))
+    first_search = min((s["t_start"] for s in sl if "t_start" in s), default=None)
+    return {
+        "text": text, "t_first_token": t_first_token, "t_first_sentence": t_first_sentence,
+        "t_first_group": t_first_group, "t_end": t_end, "status": status, "errors": errors,
+        "searches": sl, "n_search_calls": len(sl), "n_search_actions": n_search_actions,
+        "search_seconds": [round(s["t_end"] - s["t_start"], 3) for s in sl if "t_end" in s and "t_start" in s],
+        "text_before_search": bool(t_first_token is not None and first_search is not None
+                                   and t_first_token < first_search),
+        "functions": functions, "usages": usages, "response_ids": response_ids,
+        "annotation_events": annotations, "message_annotations": message_annotations,
+        "leftovers_raw": speech_leftovers(text), "leftovers_clean": speech_leftovers(clean_for_speech(text)),
+        "groups": [[c.text, c.pause_ms] for c in sp.emitted], "group_times": group_times,
+        "stream_equals_whole": sp.emitted == whole and not sp.divergences, "divergences": sp.divergences,
+        "n_events": len(events),
+    }
+
+
+def fetch_weather(location: str) -> tuple[str, float]:
+    """Нынешний get_weather приложения: wttr.in. Отдельный клиент — ключ OpenAI туда не уходит."""
+    import httpx
+    t0 = time.perf_counter()
+    try:
+        r = httpx.get(WEATHER_URL.format(location=location), timeout=TOOL_TIMEOUT)
+        body = r.text.strip() if r.status_code == 200 else ""
+    except Exception:
+        body = ""
+    return (body or WEATHER_NO_DATA), time.perf_counter() - t0
+
+
+def _tool_args(arguments: str | None) -> dict:
+    try:
+        return json.loads(arguments or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+
+class RespRunner:
+    """Прогон вариантов: каждый запрос — отдельный разговор (системный промпт + одна реплика),
+    чтобы варианты были сравнимы. Следит за бюджетом."""
+
+    def __init__(self, ctx: "Ctx", date: str):
+        self.ctx = ctx
+        self.date = date
+        self.spent = 0.0
+        self.budget = ctx.args.budget
+        self.stub_delay = ctx.args.stub_search_delay
+
+    def over_budget(self) -> bool:
+        return self.spent >= self.budget
+
+    # -- вариант 1: Chat Completions, как в приложении (без потока) --
+    def run_chat(self, scenario: tuple) -> dict:
+        sid, group, student = scenario
+        row = {"variant": "1", "scenario": sid, "group": group, "effort": "none", "error": None, "tools_used": []}
+        messages = [{"role": "system", "content": app_tutor_prompt(self.date)}, {"role": "user", "content": student}]
+        t0 = time.perf_counter()
+        usages = []
+        try:
+            resp, _ = self.ctx.api.chat({"model": M_TUTOR_NEW, "messages": messages, "tools": tutor_tools(),
+                                         "reasoning_effort": "none"})
+            usages.append(resp.get("usage"))
+            row["t_llm1"] = time.perf_counter() - t0
+            msg = resp["choices"][0]["message"]
+            if msg.get("tool_calls"):
+                messages.append({"role": "assistant", "content": msg.get("content"), "tool_calls": msg["tool_calls"]})
+                for tc in msg["tool_calls"]:
+                    name = (tc.get("function") or {}).get("name", "")
+                    args = _tool_args((tc.get("function") or {}).get("arguments"))
+                    if name == "get_weather":
+                        out, dt = fetch_weather(args.get("location") or "Tucson")
+                    elif name == "search_live_web":
+                        time.sleep(self.stub_delay)  # поиск DuckDuckGo сломан (D32): заглушка, время — как у живого
+                        out, dt = STUB_SEARCH_NO_DATA, self.stub_delay
+                    else:
+                        out, dt = "NO_DATA: unknown tool.", 0.0
+                    row["tools_used"].append({"name": name, "arguments": args, "seconds": round(dt, 3),
+                                              "has_data": not out.startswith("NO_DATA")})
+                    messages.append({"role": "tool", "tool_call_id": tc.get("id"), "content": out, "name": name})
+                resp, _ = self.ctx.api.chat({"model": M_TUTOR_NEW, "messages": messages, "reasoning_effort": "none"})
+                usages.append(resp.get("usage"))
+                msg = resp["choices"][0]["message"]
+            text = msg.get("content") or ""
+        except ProbeError as e:
+            if "401" in str(e):
+                raise
+            row["error"], text = str(e), ""
+        except Exception as e:
+            row["error"], text = redact(f"{type(e).__name__}: {e}"), ""
+        t_end = time.perf_counter() - t0
+        from speech_planner import clean_for_speech, plan, speech_leftovers
+        row.update({
+            "text": text, "t_first_token": t_end, "t_first_sentence": t_end, "t_first_group": t_end, "t_end": t_end,
+            "n_search_calls": sum(1 for u in row["tools_used"] if u["name"] == "search_live_web"),
+            "n_search_actions": 0, "searches": [], "usages": usages,
+            "cost": sum(chat_cost(u) for u in usages), "leftovers_raw": speech_leftovers(text),
+            "leftovers_clean": speech_leftovers(clean_for_speech(text)),
+            "n_groups": len(plan(clean_for_speech(text))), "stream_equals_whole": None,
+            "message_annotations": [], "annotation_events": [],
+        })
+        return row
+
+    # -- варианты 2–5: Responses, поток --
+    def resp_body(self, variant: str, student: str, effort: str) -> dict:
+        ws = {"type": "web_search"}
+        if variant == "3":
+            ws["search_context_size"] = "low"
+        tools = [ws]
+        if variant == "4":
+            tools.append(resp_function_tool(tutor_tools()[0]))  # get_weather
+        prompt = app_tutor_prompt(self.date, "web_search", WEB_NO_DATA_RULE,
+                                  NO_LINKS_RULE if variant == "5" else "")
+        return {"model": M_TUTOR_NEW, "instructions": prompt,
+                "input": [{"role": "user", "content": student}],
+                "reasoning": {"effort": effort}, "tools": tools,
+                "include": ["web_search_call.action.sources"]}
+
+    def run_responses(self, variant: str, scenario: tuple, effort: str) -> dict:
+        sid, group, student = scenario
+        row = {"variant": variant, "scenario": sid, "group": group, "effort": effort, "error": None,
+               "http_status": None, "tools_used": []}
+        body = self.resp_body(variant, student, effort)
+        events: list[tuple[float, dict]] = []
+        try:
+            t0 = time.perf_counter()
+            r = responses_stream(self.ctx.api, body)
+            row["http_status"] = r["status"]
+            if r["error"]:
+                row["error"] = r["error"]
+            events += r["events"]
+            a = analyze_stream(events)
+            if not r["error"] and a["functions"] and a["response_ids"]:
+                # Как в приложении: выполнить функцию и задать второй запрос [FC].
+                outputs = []
+                for f in a["functions"]:
+                    args = _tool_args(f["arguments"])
+                    if f["name"] == "get_weather":
+                        out, dt = fetch_weather(args.get("location") or "Tucson")
+                    else:
+                        out, dt = "NO_DATA: unknown tool.", 0.0
+                    row["tools_used"].append({"name": f["name"], "arguments": args, "seconds": round(dt, 3),
+                                              "has_data": not out.startswith("NO_DATA")})
+                    outputs.append({"type": "function_call_output", "call_id": f["call_id"], "output": out})
+                offset = time.perf_counter() - t0
+                body2 = {**body, "input": outputs, "previous_response_id": a["response_ids"][-1]}
+                r2 = responses_stream(self.ctx.api, body2)
+                if r2["error"]:
+                    row["error"] = r2["error"]
+                events += [(t + offset, e) for t, e in r2["events"]]
+                a = analyze_stream(events)
+        except ProbeError as e:
+            if "401" in str(e):
+                raise
+            row["error"] = str(e)
+            a = analyze_stream(events)
+        except Exception as e:
+            row["error"] = redact(f"{type(e).__name__}: {e}")
+            a = analyze_stream(events)
+        if a["errors"] and not row["error"]:
+            row["error"] = "; ".join(a["errors"])
+        row.update(a)
+        row["cost"] = sum(resp_cost(u) for u in a["usages"]) + a["n_search_actions"] * PRICE_WEB_SEARCH
+        row["n_groups"] = len(a["groups"])
+        return row
+
+    def run(self, variant: str, scenario: tuple, effort: str, rep: int) -> dict | None:
+        if self.over_budget():
+            return None
+        row = self.run_chat(scenario) if variant == "1" else self.run_responses(variant, scenario, effort)
+        row["rep"] = rep
+        self.spent += row.get("cost") or 0.0
+        srch = f", поиск ×{row['n_search_calls']}" if row.get("n_search_calls") else ""
+        log(f"  в{variant} {scenario[0]} #{rep}: первая группа {fmt_s(row.get('t_first_group'))} с, "
+            f"конец {fmt_s(row.get('t_end'))} с{srch}, ${row.get('cost', 0):.4f}"
+            + (f"  ОШИБКА: {row['error']}" if row.get("error") else ""))
+        return row
+
+
+def pick_effort(runner: RespRunner) -> tuple[str | None, list[dict]]:
+    """Главный вопрос: работает ли web_search при reasoning.effort none. Пробуем none, потом low,
+    medium; для каждого — до двух реплик группы B. Отказ сервера записывается дословно."""
+    checks = [s for s in RESP_SCENARIOS if s[0] in ("B1", "B2")]
+    attempts = []
+    for effort in EFFORT_LADDER:
+        for sc in checks:
+            row = runner.run("2", sc, effort, rep=0)
+            if row is None:
+                return None, attempts
+            row["check"] = True
+            attempts.append(row)
+            if row.get("http_status") and row["http_status"] >= 400:
+                break  # запрос отвергнут — следующее усилие
+            if row.get("n_search_calls"):
+                return effort, attempts
+    return None, attempts
+
+
+def estimate_responses_cost(variants: list[str], repeats: int) -> dict:
+    """Оценка сверху, $: найденное поиском ≈ 8000 токенов входа, до 1,5 поиска на ответ."""
+    per_plain = 1000 * PRICE_LUNA["in"] + 200 * PRICE_LUNA["out"]
+    per_search = 1.5 * (8000 * PRICE_LUNA["in"] + PRICE_WEB_SEARCH) + per_plain
+    est = {}
+    for v in variants:
+        groups = RESP_VARIANTS[v]["groups"]
+        n = sum(1 for s in RESP_SCENARIOS if s[1] in groups) * repeats
+        n_search = sum(1 for s in RESP_SCENARIOS if s[1] in groups and s[1] != "A") * repeats
+        if v == "1":
+            est[v] = 2 * n * per_plain
+        else:
+            est[v] = (n - n_search) * per_plain + n_search * per_search
+    if any(v != "1" for v in variants):
+        est["проверка усилия"] = 6 * per_search
+    est["total"] = sum(est.values())
+    n_req = sum(sum(1 for s in RESP_SCENARIOS if s[1] in RESP_VARIANTS[v]["groups"]) for v in variants) * repeats
+    est["requests"] = n_req + (6 if "проверка усилия" in est else 0)
+    return est
+
+
+def probe_responses(ctx: "Ctx", ask=input) -> bool:
+    variants = [v.strip() for v in ctx.args.variants.split(",") if v.strip()]
+    bad = [v for v in variants if v not in RESP_VARIANTS]
+    if bad:
+        raise ProbeError(f"Нет вариантов {bad}; есть: {', '.join(RESP_VARIANTS)}")
+    repeats = max(1, ctx.args.repeats)
+    est = estimate_responses_cost(variants, repeats)
+    print(f"Проба responses: варианты {', '.join(variants)}, по {repeats} повтора, ≈ {est['requests']} запросов.")
+    print("Оценка стоимости (сверху, по ценам из документации OpenAI):")
+    for k, v in est.items():
+        if k not in ("total", "requests"):
+            print(f"  вариант {k:<16} ≈ ${v:.3f}" if k in RESP_VARIANTS else f"  {k:<24} ≈ ${v:.3f}")
+    print(f"  итого                    ≈ ${est['total']:.2f}; прогон остановится, если потрачено ${ctx.args.budget:.2f}")
+    print(f"Длительность: примерно {max(2, est['requests'] * 6 // 60)}–{max(4, est['requests'] * 10 // 60)} минут.")
+    if not ctx.args.yes:
+        ans = ask("Запустить? [y/N] ").strip().lower()
+        if ans not in ("y", "yes", "д", "да"):
+            print("Отменено.")
+            return False
+    ctx.key  # проверить ключ до начала
+    date = datetime.now().strftime("%A, %B %d, %Y")
+    runner = RespRunner(ctx, date)
+    started = datetime.now().isoformat(timespec="seconds")
+
+    effort, attempts = ("none", [])
+    if any(v != "1" for v in variants):
+        log("Главный вопрос: web_search при reasoning.effort none")
+        effort, attempts = pick_effort(runner)
+        if effort is None:
+            log("  поиск не заработал ни при одном усилии — варианты Responses идут с none (замер без поиска)")
+    rows = []
+    for rep in range(1, repeats + 1):
+        for sc in RESP_SCENARIOS:
+            for v in variants:
+                if sc[1] not in RESP_VARIANTS[v]["groups"]:
+                    continue
+                row = runner.run(v, sc, "none" if v == "1" else (effort or "none"), rep)
+                if row is None:
+                    log(f"!!! бюджет ${runner.budget:.2f} исчерпан — остальные запросы пропущены")
+                    break
+                rows.append(row)
+            if runner.over_budget():
+                break
+        if runner.over_budget():
+            break
+    data = {"started": started, "finished": datetime.now().isoformat(timespec="seconds"), "date_in_prompt": date,
+            "model": M_TUTOR_NEW, "variants": variants, "repeats": repeats, "effort": effort,
+            "effort_attempts": attempts, "rows": rows, "spent": runner.spent, "budget": runner.budget,
+            "stub_search_delay": runner.stub_delay, "budget_exhausted": runner.over_budget(),
+            "prompts": {"chat": app_tutor_prompt(date),
+                        "responses": app_tutor_prompt(date, "web_search", WEB_NO_DATA_RULE),
+                        "responses_no_links": app_tutor_prompt(date, "web_search", WEB_NO_DATA_RULE, NO_LINKS_RULE)}}
+    save_responses_results(ctx, data)
+    log(f"\nПотрачено ≈ ${runner.spent:.3f}. Итог: {Path(ctx.args.docs or DOCS_RESULTS_02C)}")
+    return True
+
+
+def save_responses_results(ctx: "Ctx", data: dict) -> None:
+    out = Path(ctx.args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / RESP_JSON_NAME).write_text(redact(json.dumps(data, ensure_ascii=False, indent=2)), encoding="utf-8")
+    docs = Path(ctx.args.docs or DOCS_RESULTS_02C)
+    docs.parent.mkdir(parents=True, exist_ok=True)
+    docs.write_text(redact(render_responses(data)), encoding="utf-8")
+
+
+# ---- отчёт 02c ----
+
+def _ok(rows):
+    return [r for r in rows if not r.get("error")]
+
+
+def _med_max_s(xs) -> str:
+    m, x = med_max([v for v in xs if v is not None])
+    return f"{fmt_s(m)} / {fmt_s(x)}"
+
+
+def _median(xs):
+    xs = [x for x in xs if x is not None]
+    return statistics.median(xs) if xs else None
+
+
+_NO_DATA_PHRASES = re.compile(r"could(?: not|n't) find|no (?:fresh|current|recent) (?:data|information)|"
+                              r"don't have (?:fresh|current|real-time)|not able to find|unable to find", re.I)
+
+
+def has_concrete_data(text: str) -> bool:
+    """Грубый признак «есть конкретные данные»: есть цифры и нет признания «не нашёл»."""
+    return bool(re.search(r"\d", text or "")) and not _NO_DATA_PHRASES.search(text or "")
+
+
+def lesson_cost(rows_a: list[dict], rows_b: list[dict]) -> float | None:
+    ca, cb = _median([r.get("cost") for r in rows_a]), _median([r.get("cost") for r in rows_b])
+    if ca is None or cb is None:
+        return None
+    return (LESSON_TURNS - LESSON_SEARCHES) * ca + LESSON_SEARCHES * cb
+
+
+def _quote(text: str) -> str:
+    return "\n".join("> " + (line if line.strip() else "") for line in (text or "(пусто)").splitlines()) or "> (пусто)"
+
+
+def render_responses(data: dict) -> str:
+    rows = data["rows"]
+    variants = data["variants"]
+    effort = data["effort"]
+    L = ["# Результаты пробы S02c — учитель на Responses API", "",
+         "Сгенерировано `python tools/probe/probe.py responses`. Сырые данные — `tools/probe/out/02c-results.json` "
+         "(в репозиторий не попадают).", "",
+         f"- прогон: {data['started']} … {data['finished']}; дата в промпте учителя: {data['date_in_prompt']}",
+         f"- модель `{data['model']}`; варианты: {', '.join(variants)}; повторов на реплику: {data['repeats']}; "
+         f"запросов: {len(rows)} (+{len(data['effort_attempts'])} проверки усилия)",
+         f"- потрачено ≈ **${data['spent']:.3f}** (оценка по `usage` и прайсу; бюджет ${data['budget']:.2f}"
+         + ("; **бюджет исчерпан, прогон неполный**" if data.get("budget_exhausted") else "") + ")",
+         f"- цены: `gpt-6-luna` $0.10 / $0.01 кэш / $0.50 за 1M (страница модели; в общем прайсе — $0.05 / $0.25), "
+         f"поиск $10 за 1000 вызовов",
+         f"- вариант 1: поиск — заглушка `NO_DATA` с задержкой {data['stub_search_delay']:.1f} с (как живой "
+         "DuckDuckGo в S02b ≈ 1 с); погода — настоящий wttr.in. Без потока: первая группа = конец ответа.",
+         "- время — от отправки запроса учителю на компьютере пользователя; «первая группа» — когда потоковая "
+         "нарезка (`tools/probe/speech_planner.py`) отдала бы первую группу в синтез", ""]
+
+    # -- главный вопрос --
+    L += ["## Главный вопрос: `web_search` при `reasoning.effort: none`", ""]
+    att = data["effort_attempts"]
+    if not att:
+        L += ["Варианты Responses не запускались.", ""]
+    else:
+        L.append(md_table(["Усилие", "Реплика", "HTTP", "Поиск", "Первая группа, с", "Конец, с", "Ответ сервера / ошибка"],
+                          [[a["effort"], a["scenario"], a.get("http_status") or "—",
+                            f"да ×{a['n_search_calls']}" if a.get("n_search_calls") else "нет",
+                            fmt_s(a.get("t_first_group")), fmt_s(a.get("t_end")), a.get("error") or "—"]
+                           for a in att]))
+        if effort == "none":
+            verdict = "**Да: при `none` запрос принят и модель вызывает `web_search`.**"
+        elif effort:
+            verdict = (f"**При `none` поиск не работает** (см. таблицу); наименьшее усилие, при котором работает, — "
+                       f"**`{effort}`**. Все варианты Responses ниже идут с ним.")
+        else:
+            verdict = "**Поиск не заработал ни при `none`, ни при `low`, ни при `medium`.** Варианты ниже — без поиска."
+        L += ["", verdict, ""]
+
+    # -- сводная таблица --
+    L += ["## Сводка по вариантам", "",
+          "Медиана / худшее, секунды от отправки запроса учителю. «Поиск» — доля ответов, где модель искала, и "
+          "среднее число вызовов. Цена — медиана за ответ.", ""]
+    srows = []
+    for v in variants:
+        for g in RESP_VARIANTS[v]["groups"]:
+            rs = [r for r in rows if r["variant"] == v and r["group"] == g]
+            ok = _ok(rs)
+            if not rs:
+                continue
+            searched = [r for r in ok if r.get("n_search_calls")]
+            srows.append([f"{v}", f"{g} ({GROUP_TITLES[g]})", f"{len(ok)}/{len(rs)}",
+                          _med_max_s([r.get("t_first_token") for r in ok]),
+                          _med_max_s([r.get("t_first_sentence") for r in ok]),
+                          _med_max_s([r.get("t_first_group") for r in ok]),
+                          _med_max_s([r.get("t_end") for r in ok]),
+                          (f"{len(searched)}/{len(ok)}, ×{statistics.mean([r['n_search_calls'] for r in ok]):.1f}"
+                           if ok else "—"),
+                          _med_max_s([s for r in ok for s in r.get("search_seconds") or []]),
+                          f"${_median([r.get('cost') for r in ok]) or 0:.4f}"])
+    L.append(md_table(["Вариант", "Группа", "Без ошибок", "Первый текст", "Первое предложение", "Первая группа",
+                       "Конец ответа", "Поиск", "Поиск длился", "Цена"], srows))
+    L += ["", "Варианты:", ""] + [f"- **{v}** — {RESP_VARIANTS[v]['title']}" for v in variants]
+    errs = [r for r in rows if r.get("error")]
+    if errs:
+        L += ["", "Ошибки:", ""] + [f"- в{r['variant']} {r['scenario']} #{r['rep']}: {r['error']}" for r in errs]
+    L.append("")
+
+    # -- цена занятия --
+    L += ["## Цена 10-минутного занятия", "",
+          f"Допущение: {LESSON_TURNS} реплик ученика, из них {LESSON_SEARCHES} с поиском (медиана цены ответа "
+          "группы A × 12 + группы B × 3). История разговора не растёт — каждый запрос отдельный; у живого занятия "
+          "вход больше на историю (≈ 3–5 тыс. токенов к концу, ≈ $0.0005 за ответ).", ""]
+    lrows = []
+    a_of = {v: [r for r in _ok(rows) if r["variant"] == v and r["group"] == "A"] for v in variants}
+    for v in variants:
+        b = [r for r in _ok(rows) if r["variant"] == v and r["group"] == "B"]
+        a = a_of.get(v) or a_of.get("2") or []
+        c = lesson_cost(a, b)
+        if c is not None:
+            note = "" if a_of.get(v) else " (группа A — из варианта 2)"
+            lrows.append([v, f"${c:.3f}{note}"])
+    L.append(md_table(["Вариант", "Цена занятия"], lrows) if lrows else "Нет данных.")
+    L.append("")
+
+    # -- группа A --
+    L += ["## Группа A: искал ли учитель без нужды", ""]
+    arows = []
+    for v in variants:
+        ok = [r for r in _ok(rows) if r["variant"] == v and r["group"] == "A"]
+        if ok:
+            extra = [r for r in ok if r.get("n_search_calls")]
+            arows.append([v, f"{len(extra)} из {len(ok)}",
+                          ", ".join(sorted({r["scenario"] for r in extra})) or "—"])
+    L.append(md_table(["Вариант", "Ответов с поиском", "Реплики"], arows) if arows else "Нет данных.")
+    L.append("")
+
+    # -- качество B --
+    L += ["## Группа B: есть ли в ответе конкретные данные", "",
+          "Признак грубый (есть цифры и нет «could not find…»); тексты — в приложении, судить по ним.", ""]
+    brows = []
+    for sc in [s for s in RESP_SCENARIOS if s[1] == "B"]:
+        cells = [f"{sc[0]}: {sc[2]}"]
+        for v in variants:
+            if "B" not in RESP_VARIANTS[v]["groups"]:
+                continue
+            ok = [r for r in _ok(rows) if r["variant"] == v and r["scenario"] == sc[0]]
+            cells.append(f"{sum(has_concrete_data(r['text']) for r in ok)}/{len(ok)}" if ok else "—")
+        brows.append(cells)
+    L.append(md_table(["Реплика"] + [f"в{v}" for v in variants if "B" in RESP_VARIANTS[v]["groups"]], brows))
+    L.append("")
+
+    # -- погода --
+    L += ["## Погода: встроенный поиск против `get_weather` (wttr.in)", ""]
+    wrows = []
+    for v in variants:
+        for r in [r for r in rows if r["variant"] == v and r["group"] == "C"]:
+            tools = ", ".join(f"{t['name']}({fmt_s(t['seconds'])} с{'' if t['has_data'] else ', NO_DATA'})"
+                              for t in r.get("tools_used") or [])
+            if r.get("n_search_calls") and r["variant"] != "1":
+                tools = (tools + ", " if tools else "") + f"web_search ×{r['n_search_calls']}"
+            wrows.append([v, r["scenario"], r["rep"], fmt_s(r.get("t_first_group")), fmt_s(r.get("t_end")),
+                          tools or "нет", "да" if has_concrete_data(r.get("text")) else "нет",
+                          f"${r.get('cost') or 0:.4f}"])
+    L.append(md_table(["Вариант", "Реплика", "#", "Первая группа", "Конец", "Инструменты", "Данные", "Цена"], wrows)
+             if wrows else "Нет данных.")
+    L.append("")
+
+    # -- сноски --
+    L += ["## Сноски, ссылки и разметка: что мешало бы озвучке", "",
+          "«В тексте» — что найдено в самом тексте ответа (адреса, ссылки markdown, `utm_source`); «после чистки» — "
+          "после `clean_for_speech` (правило для S02d); «поле annotations» — сколько сносок `url_citation` пришло "
+          "отдельным полем (событие `response.output_text.annotation.added` / `annotations` в сообщении).", ""]
+    crow = []
+    for v in variants:
+        if v == "1":
+            continue
+        ok = [r for r in _ok(rows) if r["variant"] == v]
+        if not ok:
+            continue
+        with_ann = [r for r in ok if r.get("message_annotations") or r.get("annotation_events")]
+        raw_left = [r for r in ok if r.get("leftovers_raw")]
+        clean_left = [r for r in ok if r.get("leftovers_clean")]
+        kinds = sorted({k for r in raw_left for k in r["leftovers_raw"]})
+        crow.append([v, f"{len(with_ann)}/{len(ok)}", f"{len(raw_left)}/{len(ok)}", ", ".join(kinds) or "—",
+                     f"{len(clean_left)}/{len(ok)}"])
+    L.append(md_table(["Вариант", "Есть поле annotations", "Мешает в тексте", "Что именно", "Осталось после чистки"],
+                      crow) if crow else "Нет данных.")
+    examples = []
+    for r in _ok(rows):
+        if r.get("leftovers_raw") and len(examples) < 3:
+            ann = (r.get("message_annotations") or [{}])[0]
+            examples.append(f"- в{r['variant']} {r['scenario']}: сноска в тексте — `"
+                            + _citation_snippet(r["text"]).replace("`", "'") + "`; поле: `"
+                            + json.dumps(ann, ensure_ascii=False)[:240].replace("`", "'") + "`")
+    if examples:
+        L += ["", "Примеры (как пришло):", ""] + examples
+    L.append("")
+
+    # -- потоковая нарезка --
+    L += ["## Потоковая нарезка (инвариант 1)", "",
+          "Каждый записанный поток прогнан через `StreamPlanner` (`tools/probe/speech_planner.py`): группы "
+          "отдаются, как только их уже не изменит продолжение текста. Сравнение — с нарезкой готового текста "
+          "(Python-копия нынешнего `SpeechPlanner` после чистки сносок).", ""]
+    srs = [r for r in _ok(rows) if r["variant"] != "1" and r.get("text")]
+    if srs:
+        eq = [r for r in srs if r.get("stream_equals_whole")]
+        gain = [r["t_end"] - r["t_first_group"] for r in srs if r.get("t_end") and r.get("t_first_group") is not None]
+        L += [f"- группы совпали с нарезкой готового текста: **{len(eq)} из {len(srs)}**",
+              f"- первая группа готова раньше конца ответа на: медиана {fmt_s(_median(gain))} с, "
+              f"наибольшее {fmt_s(max(gain) if gain else None)} с"]
+        div = [r for r in srs if not r.get("stream_equals_whole")]
+        for r in div[:5]:
+            L.append(f"- расхождение: в{r['variant']} {r['scenario']} #{r['rep']}: "
+                     + ("; ".join(r.get("divergences") or []) or "итог потока ≠ нарезка готового текста")[:400])
+        before = [r for r in srs if r.get("text_before_search")]
+        L.append(f"- текст до поиска (модель начала говорить, потом искала): {len(before)} из {len(srs)}")
+    else:
+        L.append("Нет потоков.")
+    L.append("")
+
+    L += render_recommendation(data)
+
+    # -- приложение --
+    L += ["## Приложение: все ответы", ""]
+    for r in sorted(rows, key=lambda r: (r["scenario"], r["variant"], r["rep"])):
+        sc = next(s for s in RESP_SCENARIOS if s[0] == r["scenario"])
+        q = "; ".join(f"{q}" for s in r.get("searches") or [] for q in (s.get("queries") or []))
+        tools = ", ".join(t["name"] for t in r.get("tools_used") or [])
+        L += [f"### в{r['variant']} · {r['scenario']} · #{r['rep']} — «{sc[2]}»", "",
+              f"первый текст {fmt_s(r.get('t_first_token'))} с · первое предложение {fmt_s(r.get('t_first_sentence'))} с"
+              f" · первая группа {fmt_s(r.get('t_first_group'))} с · конец {fmt_s(r.get('t_end'))} с · "
+              f"поиск ×{r.get('n_search_calls', 0)}{' (' + q + ')' if q else ''}"
+              f"{' · функции: ' + tools if tools else ''} · ${r.get('cost') or 0:.4f}"
+              + (f" · **ошибка:** {r['error']}" if r.get("error") else ""), "",
+              _quote(r.get("text") or ""), ""]
+    return "\n".join(L).rstrip() + "\n"
+
+
+def _citation_snippet(text: str) -> str:
+    m = re.search(r"\(?\[[^\]]*\]\([^)]*\)\)?|https?://\S+", text or "")
+    if not m:
+        return (text or "")[:80]
+    return text[max(0, m.start() - 30):m.end()][:200]
+
+
+def render_recommendation(data: dict) -> list[str]:
+    """Рекомендация по цифрам прогона: критерии названы явно, решение — за архитектором."""
+    rows = _ok(data["rows"])
+    variants = data["variants"]
+    L = ["## Рекомендация исполнителя", ""]
+
+    def b_stats(v):
+        b = [r for r in rows if r["variant"] == v and r["group"] == "B"]
+        if not b:
+            return None
+        return {"n": len(b), "search": sum(1 for r in b if r.get("n_search_calls")) / len(b),
+                "data": sum(has_concrete_data(r["text"]) for r in b) / len(b),
+                "first": _median([r.get("t_first_group") for r in b]),
+                "worst": max((r.get("t_first_group") or 0) for r in b),
+                "end": _median([r.get("t_end") for r in b])}
+
+    stats = {v: b_stats(v) for v in variants if v in ("2", "3", "5")}
+    stats = {v: s for v, s in stats.items() if s}
+    good = {v: s for v, s in stats.items() if s["search"] >= 0.75 and s["data"] >= 0.5}
+    base = b_stats("1") if "1" in variants else None
+    budget_tutor = AUDIBLE_GOAL_SEARCH - REST_OF_PATH
+    if data["effort"] is None:
+        L += ["- **Встроенный поиск не заработал** — переход S02d в задуманном виде невозможен; нужен другой "
+              "поиск (решение архитектора).", ""]
+    elif good:
+        best = min(good, key=lambda v: good[v]["first"] or 1e9)
+        s = good[best]
+        L.append(f"- **Учитель: вариант {best}** — {RESP_VARIANTS[best]['title']}, `reasoning.effort: "
+                 f"{data['effort']}`. Группа B: поиск в {s['search']:.0%} ответов, данные в {s['data']:.0%}, первая "
+                 f"группа — медиана {fmt_s(s['first'])} с, худшее {fmt_s(s['worst'])} с (конец ответа — "
+                 f"{fmt_s(s['end'])} с)." + (f" Нынешний путь (в1, заглушка): {fmt_s(base['first'])} с." if base else ""))
+        verdict = "укладывается" if (s["first"] or 99) <= budget_tutor else "**не укладывается**"
+        L.append(f"- Цель «первый звук с поиском ≤ {AUDIBLE_GOAL_SEARCH:.0f} с»: на учителя остаётся ≈ "
+                 f"{budget_tutor:.1f} с (распознавание ≈ 1,4 с и синтез первой группы ≈ 0,8 с — замер S02b); "
+                 f"медиана {verdict}.")
+        if "3" in stats and "2" in stats and best != "3":
+            L.append(f"- `search_context_size: low` (в3): первая группа {fmt_s(stats['3']['first'])} с против "
+                     f"{fmt_s(stats['2']['first'])} с, данные в {stats['3']['data']:.0%} против {stats['2']['data']:.0%}.")
+    else:
+        L.append("- Ни один вариант Responses не дал в группе B поиска в ≥ 75 % ответов и данных в ≥ 50 % — "
+                 "смотреть тексты в приложении; автоматического выбора нет.")
+    # погода
+    c2 = [r for r in rows if r["variant"] == "2" and r["group"] == "C"]
+    c4 = [r for r in rows if r["variant"] == "4" and r["group"] == "C"]
+    if c2 and c4:
+        f2, f4 = _median([r.get("t_first_group") for r in c2]), _median([r.get("t_first_group") for r in c4])
+        d2 = sum(has_concrete_data(r["text"]) for r in c2) / len(c2)
+        d4 = sum(has_concrete_data(r["text"]) for r in c4) / len(c4)
+        used_fn = sum(1 for r in c4 if any(t["name"] == "get_weather" for t in r.get("tools_used") or []))
+        keep = f4 is not None and f2 is not None and f4 < f2 and d4 >= d2
+        L.append(f"- **Погода:** web_search — первая группа {fmt_s(f2)} с, данные {d2:.0%}; get_weather — "
+                 f"{fmt_s(f4)} с, данные {d4:.0%} (модель выбрала функцию в {used_fn} из {len(c4)}). "
+                 + ("Оставить `get_weather` функцией рядом с `web_search`." if keep
+                    else "Достаточно встроенного поиска, `get_weather` можно убрать."))
+    # сноски
+    ok_resp = [r for r in rows if r["variant"] != "1"]
+    if ok_resp:
+        left_raw = sum(1 for r in ok_resp if r.get("leftovers_raw"))
+        left_clean = sum(1 for r in ok_resp if r.get("leftovers_clean"))
+        line = (f"- **Сноски:** в тексте ответа они были в {left_raw} из {len(ok_resp)} ответов; после чистки "
+                f"(`clean_for_speech`) остались в {left_clean}. Чистить текст **до** нарезки, в потоке — по правилу ниже.")
+        v5 = [r for r in rows if r["variant"] == "5"]
+        if v5:
+            line += (f" Запрет ссылок в промпте (в5): сноски в тексте в {sum(1 for r in v5 if r.get('leftovers_raw'))} "
+                     f"из {len(v5)}.")
+        L.append(line)
+    srs = [r for r in ok_resp if r.get("text")]
+    if srs:
+        eq = sum(1 for r in srs if r.get("stream_equals_whole"))
+        L.append(f"- **Потоковая нарезка:** на записанных потоках группы совпали с нарезкой готового текста в "
+                 f"{eq} из {len(srs)}.")
+    L += ["", "### Как в S02d подавать поток в `SpeechPlanner` (инвариант 1)", "",
+          "Правило проверено на записанных потоках (выше) и тестами `tools/probe/tests/test_speech_planner.py`:",
+          "",
+          "1. Копить текст из `response.output_text.delta`. После каждого куска искать последнюю **безопасную "
+          "точку** — после `, ; : . ! ?` и пробелов за ним или после перевода строки, **и только если после неё уже "
+          "пришёл непробельный знак**. Это места, где режет сам `SpeechPlanner` (кроме союзов); точка после одиночной "
+          "цифры (`2. `, номер пункта) безопасной не считается.",
+          "2. Незакрытые `[`, `(` или `**` останавливают безопасную точку перед собой: сноску и жирный заголовок "
+          "нельзя обработать, пока они не пришли целиком.",
+          "3. Префикс до безопасной точки: вычистить сноски, нарезать обычным `SpeechPlanner.plan()`, отдать в "
+          "синтез все группы, **кроме последней** — её ещё может изменить продолжение (знак без букв по D23, "
+          "абзацная пауза перед заголовком).",
+          "4. Конец потока (`response.completed`) — нарезать весь текст и отдать остаток.",
+          "5. Проверка: уже отданные группы должны оставаться префиксом новой нарезки; расхождение — в журнал "
+          "(в пробе их не было, если выше «совпали N из N»). `SpeechPlanner` при этом не меняется — меняется только, "
+          "**когда** его вызывают.",
+          "",
+          "Решение — за архитектором.", ""]
+    return L
+
+
 # --------------------------------------------------------------------------
 # all, оценка стоимости, CLI
 # --------------------------------------------------------------------------
@@ -1509,6 +2398,14 @@ def print_next_steps(ctx: Ctx) -> None:
         print(f"  {i}. {step}")
 
 
+def print_responses_next_steps(ctx: Ctx) -> None:
+    rel = Path(ctx.args.docs).resolve() if ctx.args.docs else DOCS_RESULTS_02C.relative_to(REPO_ROOT)
+    print("\nЧто сделать дальше:")
+    print("  1. Отправьте результаты в репозиторий (из корня репозитория):")
+    print(f'     git add {rel} && git commit -m "[S02c] Результаты пробы" && git push')
+    print(f"  2. Сообщите архитектору: «S02c: результаты в {rel}».")
+
+
 class RuHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def add_usage(self, usage, actions, groups, prefix=None):
         return super().add_usage(usage, actions, groups, "использование: " if prefix is None else prefix)
@@ -1532,14 +2429,25 @@ OPTIONS = [
     (("--wav",), dict(default=None, metavar="ПУТЬ", help="свой WAV (16 бит) вместо синтезированной фразы ученика"),
      ("transcribe",)),
     (("--repeats",), dict(type=int, default=3, metavar="N", help="повторов для замера времени (по умолчанию 3)"),
-     ("transcribe",)),
+     ("transcribe", "responses")),
+    (("--variants",), dict(default=",".join(RESP_VARIANTS), metavar="СПИСОК",
+                           help="варианты через запятую (по умолчанию все: " + ",".join(RESP_VARIANTS)
+                                + "; что это — в README)"),
+     ("responses",)),
+    (("--budget",), dict(type=float, default=1.5, metavar="$",
+                         help="остановить прогон, когда потрачено столько, $ (по умолчанию 1.5)"),
+     ("responses",)),
+    (("--stub-search-delay",), dict(type=float, default=1.0, metavar="С",
+                                    help="задержка заглушки поиска в варианте 1, с (по умолчанию 1.0 — "
+                                         "как живой DuckDuckGo в S02b)"),
+     ("responses",)),
     (("--vad-wav",), dict(default=None, metavar="ПУТЬ",
                           help="свой WAV (16 бит, с паузой посреди фразы и в конце) вместо синтезированного"),
      ("vadservice",)),
     (("--tail",), dict(type=float, default=8.0, metavar="С",
                        help="секунд тишины после звука (по умолчанию 8: semantic_vad low ждёт до 8 с)"),
      ("vadservice",)),
-    (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"), ("all",)),
+    (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"), ("all", "responses")),
 ]
 
 COMMANDS = {
@@ -1549,7 +2457,8 @@ COMMANDS = {
     "tutor": "gpt-6-luna с инструментами",
     "transcribe": "gpt-transcribe: как передать languages; время ответа",
     "vadservice": "semantic_vad в разговорной сессии без ответов и в сессии транскрипции",
-    "all": "всё по очереди (сначала покажет оценку стоимости)",
+    "all": "всё по очереди S00b (сначала покажет оценку стоимости)",
+    "responses": "S02c: учитель на Responses API — web_search при reasoning none, поток, погода, цена",
 }
 
 
@@ -1560,17 +2469,19 @@ def build_parser() -> argparse.ArgumentParser:
                    help="файл с ключом (строка APIkey=...); по умолчанию credentials.properties в корне репозитория")
     g.add_argument("--out", default=str(DEFAULT_OUT), metavar="КАТАЛОГ",
                    help="каталог результатов (по умолчанию tools/probe/out)")
-    g.add_argument("--docs", default=str(DOCS_RESULTS), help=argparse.SUPPRESS)
+    g.add_argument("--docs", default=None, help=argparse.SUPPRESS)
     g.add_argument("--timeout", type=float, default=45.0, metavar="С",
                    help="таймаут одного запроса, с (по умолчанию 45)")
     g.add_argument("-h", "--help", action="help", help="показать эту справку и выйти")
 
     p = argparse.ArgumentParser(
         prog="probe.py", add_help=False, formatter_class=RuHelpFormatter,
-        description="Пробы S00b: проверка моделей OpenAI с вашим ключом.\n"
-                    "Каждая подкоманда дописывает свой раздел в tools/probe/out/results.md\n"
-                    "и обновляет docs/research/00b-results.md.",
+        description="Пробы S00b и S02c: проверка моделей OpenAI с вашим ключом.\n"
+                    "Подкоманды S00b дописывают свой раздел в tools/probe/out/results.md\n"
+                    "и обновляют docs/research/00b-results.md; responses (S02c) пишет\n"
+                    "docs/research/02c-results.md.",
         epilog="Примеры:\n  python probe.py verbatim --limit 5\n  python probe.py all\n"
+               "  python probe.py responses\n"
                "Справка по подкоманде: python probe.py verbatim -h")
     p._optionals.title = "параметры"
     p.add_argument("-h", "--help", action="help", help="показать эту справку и выйти")
@@ -1603,6 +2514,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "all":
             if not probe_all(ctx):
                 return 0
+        elif args.cmd == "responses":
+            if probe_responses(ctx):
+                print_responses_next_steps(ctx)
+            return 0
         else:
             ctx.key  # проверить ключ до начала
             if not run_probe(ctx, args.cmd):
