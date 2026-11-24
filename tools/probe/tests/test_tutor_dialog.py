@@ -92,11 +92,19 @@ def test_checks():
             {"step": 2, "correction": None, "searched": True, "question": True, "russian": False, "russian_words": 0}]
     assert all(c["ok"] for c in td.check_scenario(sc, good))
     bad = [dict(good[0], correction=None, searched=True)]
-    assert [c["ok"] for c in td.check_scenario(sc, bad)] == [False, False, True]
+    assert [c["ok"] for c in td.check_scenario(sc, bad)] == [False, False, True, True]
+    wrong = [dict(good[0]), dict(good[1], correction="At noon.")]  # поправка правильной фразы — ложная
+    assert [c["ok"] for c in td.check_scenario(sc, wrong)] == [True, True, True, False]
     s3 = next(s for s in td.SCENARIOS if s["id"] == "S3")
     steps = [{"step": i, "correction": None, "searched": False, "question": True, "russian": i == 4,
               "russian_words": 2 if i == 4 else 0} for i in range(1, 5)]
-    assert [c["ok"] for c in td.check_scenario(s3, steps)] == [False, True, False]
+    assert [c["ok"] for c in td.check_scenario(s3, steps)] == [False, True, True, False]
+    s5 = next(s for s in td.SCENARIOS if s["id"] == "S5")
+    step = {"step": 1, "correction": None, "searched": False, "question": True, "russian": False, "russian_words": 0}
+    ok = [c["ok"] for c in td.check_scenario(s5, [dict(step, teacher="Old times or new times?")])]
+    assert ok == [True, True]
+    lecture = dict(step, teacher="Native people lived there first. Who lived there first?")
+    assert [c["ok"] for c in td.check_scenario(s5, [lecture])] == [True, False]
 
 
 # ---- прогон против подставного сервера ---------------------------------------------------
@@ -106,19 +114,26 @@ class FakeTutor:
 
     def __init__(self, cut=False):
         self.requests = []
+        self.corrector_requests = []
         self.cut = cut
 
     def __call__(self, request):
         body = json.loads(request.content)
-        self.requests.append(body)
         student = body["input"][-1]["content"]
+        if not body.get("stream"):  # поправщик (S02f): ответ без потока
+            self.corrector_requests.append(body)
+            fix = "What is the temperature in Tucson?" if "temperature in" in student else "OK"
+            return httpx.Response(200, json={"status": "completed", "output": [
+                {"type": "message", "content": [{"type": "output_text", "text": fix}]}],
+                "usage": {"input_tokens": 300, "output_tokens": 5}})
+        self.requests.append(body)
         if "temperature in" in student:
             text = 'I think you meant "What is the temperature in Tucson?", right? At night or at noon?'
             ev = wrap("r1", text_events(text))
         elif "noon" in student.lower():
             text = "It is 68 degrees" + " ([w.com](https://w.com/a?utm_source=openai))" + ". Is that warm or cold?"
             ev = wrap("r2", search_events(["weather Tucson"]) + text_events(text))
-        elif self.cut and student == "What?":
+        elif self.cut and student.split("\n")[0] == "What?":  # с S02f к реплике добавлен счёт «не понял»
             ev = [{"type": "response.created", "response": {"id": "r3"}}] + text_events("Say it again. And the") + [
                 {"type": "response.incomplete", "response": {"status": "incomplete", "usage": {"output_tokens": 200},
                                                              "incomplete_details": {"reason": "max_output_tokens"}}}]
@@ -157,9 +172,15 @@ def no_realtime(monkeypatch):
 def test_scenario_history_like_the_app(tmp_path):
     fake = FakeTutor()
     ctx = make_ctx(tmp_path, fake)
-    res = td.run_scenario(ctx.api, "PROMPT", td.SCENARIOS[0], td.Budget(1.0))
+    res = td.run_scenario(ctx.api, "PROMPT", td.SCENARIOS[0], td.Budget(1.0), corr_prompt="CORR")
     st = res["steps"]
     assert [s["correction"] for s in st][:1] == ["What is the temperature in Tucson?"]
+    # Поправку дал поправщик, своя поправка учителя не прозвучит; в историю — что прозвучало.
+    assert st[0]["correction_source"] == "corrector" and st[0]["corrector"]["outcome"] == "correction"
+    assert st[0]["teacher"] == 'I think you meant "What is the temperature in Tucson?", right? At night or at noon?'
+    assert st[0]["teacher_own_correction_dropped"]
+    assert [b["input"][0]["content"] for b in fake.corrector_requests] == td.SCENARIOS[0]["turns"]
+    assert all("tools" not in b and b["store"] is False for b in fake.corrector_requests)
     assert not st[0]["searched"] and st[1]["searched"] and st[1]["search_queries"] == ["weather Tucson"]
     # В историю идёт вычищенный ответ — без сноски, как в ResponsesTutor.
     assert st[1]["teacher"] == "It is 68 degrees. Is that warm or cold?"
@@ -176,6 +197,8 @@ def test_cut_reply_drops_unfinished_sentence(tmp_path):
     st = td.run_scenario(ctx.api, "P", s3, td.Budget(1.0))["steps"]
     assert st[1]["incomplete"] == "max_output_tokens" and st[1]["teacher"] == "Say it again." and not st[1]["error"]
     assert st[3]["russian"] and st[3]["russian_words"] == 1
+    # Счёт «не понял» — как в приложении: служебная строка только в запросе.
+    assert [s["not_understood"] for s in st] == [0, 1, 2, 3]
 
 
 def test_full_run_writes_docs_and_keeps_old_runs(tmp_path):
@@ -216,3 +239,35 @@ def test_cancel_asks_first(tmp_path):
 def test_estimate_within_budget():
     est = td.estimate(2)
     assert est["requests"] == 2 * sum(len(s["turns"]) for s in td.SCENARIOS) and est["total"] < 1.0
+
+
+# ---- S02f: счёт «не понял» (копия NotUnderstood.kt, те же примеры, что NotUnderstoodTest.kt) -----
+
+def test_not_understood_like_kotlin():
+    for t in ["What?", "what", "Pardon?", "Pardon me?", "Sorry?", "Sorry, what?", "Huh?", "Excuse me?",
+              "I don't understand.", "I don’t understand", "Sorry, I don't understand.", "I do not understand you.",
+              "I didn't understand.", "I don't understand the word noon.", "I don't get it.",
+              "I don't know what you mean.", "I don't know what is noon.", "What do you mean?", "What did you say?",
+              "Can you repeat, please?", "Could you say it again?", "Repeat, please.", "Please repeat.", "Again, please.",
+              "Say it again.", "One more time.", "Slowly, please.", "What does noon mean?", "...", "", "  "]:
+        assert td.is_marker(t), t
+    for t in ["I like to cook.", "At noon.", "I don't know.", "Yes.", "No.", "What is the temperature in Tucson?",
+              "What time is it?", "Sorry, I was late.", "I understand.", "Pasta.", "I know what you mean."]:
+        assert not td.is_marker(t), t
+    assert td.streak(["I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand."]) == 3
+    assert td.streak(["What?", "What?", "Pasta.", "Sorry?"]) == 1
+    assert td.note(0) is None
+    assert td.note(1) == "(App note: the student did not understand you 1 time in a row.)"
+    assert td.note(3) == "(App note: the student did not understand you 3 times in a row.)"
+    # Строка в промпте учителя — того же вида.
+    assert td.note(2) in probe.TUTOR_PROMPT_FILE.read_text(encoding="utf-8")
+
+
+def test_request_note_goes_only_to_the_request(tmp_path):
+    fake = FakeTutor()
+    ctx = make_ctx(tmp_path, fake)
+    s3 = next(s for s in td.SCENARIOS if s["id"] == "S3")
+    td.run_scenario(ctx.api, "P", s3, td.Budget(1.0))
+    last = fake.requests[-1]["input"]
+    assert last[-1]["content"] == "Sorry, I don't understand.\n" + td.note(3)
+    assert [m["content"] for m in last if m["role"] == "user"][:-1] == s3["turns"][:3]

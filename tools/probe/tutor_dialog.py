@@ -22,6 +22,9 @@ import hashlib
 import json
 import re
 import statistics
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -29,8 +32,10 @@ import probe
 from probe import ProbeError, log, redact
 from speech_planner import clean_for_speech, plan
 
-DOCS_MD = probe.REPO_ROOT / "docs" / "research" / "02e-dialogs.md"
-DOCS_JSON = probe.REPO_ROOT / "docs" / "research" / "02e-dialogs.json"
+# С S02f прогоны пишутся в 02f-dialogs (поправщик и счёт «не понял» — как в приложении); прогоны 1–6 S02e
+# остаются в 02e-dialogs.
+DOCS_MD = probe.REPO_ROOT / "docs" / "research" / "02f-dialogs.md"
+DOCS_JSON = probe.REPO_ROOT / "docs" / "research" / "02f-dialogs.json"
 MODEL_CONFIG_KT = (probe.REPO_ROOT / "android_app" / "app" / "src" / "main" / "java" / "com" / "example"
                    / "listeningtrainer" / "config" / "ModelConfig.kt")
 
@@ -56,7 +61,7 @@ GOAL_QUESTION_SHARE = 0.80
 SCENARIOS = [
     {
         "id": "S1", "title": "Вопрос с ошибкой",
-        "expect": "сначала поправка — весь вопрос правильно, — затем уточняющий вопрос; поиск только после уточнения",
+        "expect": "сначала поправка — весь вопрос правильно, — затем уточняющий вопрос; поиск только после уточнения (D50: «сначала поиск» — известное ограничение)",
         # Как это запишет распознавание: ошибки написания «Tuscon» в живой речи нет, ошибка — пропущенное «the»
         # (ручная проверка S02e: с «Tuscon» проба поправку видела, на телефоне — нет).
         "turns": ["What is temperature in Tucson?", "At noon.", "Yes, it is hot."],
@@ -73,7 +78,7 @@ SCENARIOS = [
     },
     {
         "id": "S3", "title": "Ученик дважды не понимает",
-        "expect": "проще, проще, затем одно слово по-русски",
+        "expect": "проще, проще, затем одно слово по-русски — ровно на шаге 4 (третье «не понимаю», D43)",
         "turns": ["I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand."],
         "russian_at": 4, "no_russian_before": 4,
     },
@@ -86,8 +91,9 @@ SCENARIOS = [
     },
     {
         "id": "S5", "title": "Просьба о лекции",
-        "expect": "не лекция: одна деталь и вопрос",
+        "expect": "не лекция: на шаге 1 только вопрос с выбором, без фактов и поиска (S02f); дальше по одному факту",
         "turns": ["Tell me about the history of Arizona.", "The old times, please.", "Yes."],
+        "topic_choice_first": True,
     },
     {
         "id": "S6", "title": "Молчание",
@@ -249,6 +255,53 @@ def _norm(s: str) -> str:
 
 
 # --------------------------------------------------------------------------------------------------
+# Счёт «не понял» подряд (копия NotUnderstood.kt, S02f)
+# --------------------------------------------------------------------------------------------------
+
+_NU_LEAD = re.compile(r"^(?:(?:sorry|excuse me|oh|um|uh|hmm|teacher|please|but|i m sorry)\s+)+")
+_NU_TRAIL = re.compile(r"(?:\s+(?:please|sorry|teacher|again))+$")
+_NU_WHOLE = {"", "what", "pardon", "pardon me", "sorry", "huh", "excuse me", "again", "repeat", "what what",
+             "say", "say it", "say that", "say it again", "one more time", "slower", "slowly", "more slowly",
+             "i m lost"}
+_NU_START = re.compile(
+    "^(?:"
+    r"i (?:don t|do not|didn t|did not|can t|cannot|could not|couldn t) (?:understand|get it|follow|catch)"
+    r"|i (?:don t|do not|didn t|did not) know what"
+    r"|i (?:don t|do not) know this word"
+    r"|what (?:do|did) you (?:mean|say)"
+    r"|what is (?:that|this) word"
+    r"|what does .+ mean"
+    r"|(?:can|could) you (?:repeat|say (?:it|that)|speak (?:more )?slowly|say it slower)"
+    r"|(?:please )?repeat"
+    r")(?:\s|$)")
+
+
+def _nu_norm(s: str) -> str:
+    s = s.replace("’", "'").lower()
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]|_", " ", s)).strip()
+
+
+def is_marker(text: str) -> bool:
+    n = _NU_TRAIL.sub("", _NU_LEAD.sub("", _nu_norm(text))).strip()
+    return n in _NU_WHOLE or bool(_NU_START.search(n))
+
+
+def streak(student_texts: list[str]) -> int:
+    n = 0
+    for t in reversed(student_texts):
+        if not is_marker(t):
+            break
+        n += 1
+    return n
+
+
+def note(count: int) -> str | None:
+    if count <= 0:
+        return None
+    return f"(App note: the student did not understand you {count} {'time' if count == 1 else 'times'} in a row.)"
+
+
+# --------------------------------------------------------------------------------------------------
 # Запрос — как в приложении
 # --------------------------------------------------------------------------------------------------
 
@@ -273,15 +326,49 @@ class Budget:
         return self.spent >= self.limit
 
 
-def run_scenario(api, prompt: str, sc: dict, budget: Budget) -> dict:
+def _teacher_start(an: dict) -> float | None:
+    """Когда учитель начал отвечать (первый текст, поиск или конец) — от отправки запроса, с; отсюда
+    приложение отсчитывает ожидание поправки (ConversationController, S02f)."""
+    starts = [x for x in [an["t_first_token"]] + [s.get("t_start") for s in an["searches"]] if x is not None]
+    return min(starts) if starts else an["t_end"]
+
+
+def run_scenario(api, prompt: str, sc: dict, budget: Budget, corr_prompt: str | None = None) -> dict:
+    """Сценарий как в приложении (S02f): счёт «не понял» — служебной строкой в запросе; с [corr_prompt]
+    поправщик идёт одновременно с учителем, поправка звучит первой, если готова не позже 0,8 с после начала
+    ответа учителя; своя поправка учителя тогда не звучит; в историю — что прозвучало."""
+    import corrector as cr
     history: list[dict] = []
+    students: list[str] = []
     steps = []
     for i, student in enumerate(sc["turns"], 1):
         if budget.over:
             break
-        history.append({"role": "user", "content": student})
-        r = probe.responses_stream(api, request_body(prompt, history))
-        model_text = clean_for_speech(probe.analyze_stream(r["events"])["text"]).strip()
+        students.append(student)
+        count = streak(students)
+        nt = note(count)
+        body = request_body(prompt, history + [{"role": "user", "content": student + (f"\n{nt}" if nt else "")}])
+        rb = None
+        if corr_prompt is not None:
+            gate = threading.Barrier(2)
+
+            def ta():
+                gate.wait()
+                t0 = time.perf_counter()
+                return {**probe.responses_stream(api, body), "t_start": t0}
+
+            def tb():
+                gate.wait()
+                return cr.corrector_call(api, cr.corrector_body(corr_prompt, student))
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                fa, fb = pool.submit(ta), pool.submit(tb)
+                r, rb = fa.result(), fb.result()
+        else:
+            t0 = time.perf_counter()
+            r = {**probe.responses_stream(api, body), "t_start": t0}
+        full = probe.analyze_stream(r["events"])
+        model_text = clean_for_speech(full["text"]).strip()
         events, stopped = app_stop(r["events"])  # как приложение: реплика кончается первым вопросом
         a = probe.analyze_stream(events)
         error = r["error"] or ("; ".join(a["errors"]) if a["errors"] and a["status"] != "incomplete" else None)
@@ -296,28 +383,71 @@ def run_scenario(api, prompt: str, sc: dict, budget: Budget) -> dict:
             incomplete = None
         if incomplete == "max_output_tokens":
             text = drop_unfinished(text)
-        cost = sum(probe.resp_cost(u) for u in a["usages"]) + a["n_search_actions"] * probe.PRICE_WEB_SEARCH
+        cost = sum(probe.resp_cost(u) for u in full["usages"]) + full["n_search_actions"] * probe.PRICE_WEB_SEARCH
+        # --- поправщик, как в приложении
+        corr = None
+        fix = None
+        t_first_group = a["t_first_group"]
+        if rb is not None:
+            cost += probe.resp_cost(rb["usage"])
+            ts = _teacher_start(full)
+            done = rb["t_start"] + rb["seconds"] - r["t_start"]  # от отправки запроса учителю, с
+            late = None if ts is None else done - ts
+            if rb["error"]:
+                outcome = "failed"
+            elif ts is not None and late > cr.WAIT_MS / 1000:
+                outcome = "late"
+            else:
+                kind, val = cr.check(student, rb["text"] or "")
+                outcome = {"fix": "correction", "none": "ok", "rejected": "rejected"}[kind]
+                if kind == "fix":
+                    fix = val
+            decided = done if outcome != "late" else ts + cr.WAIT_MS / 1000
+            corr = {"outcome": outcome, "raw": rb["text"], "error": rb["error"], "seconds": rb["seconds"],
+                    "late_vs_teacher_start": late}
+            if fix is not None:
+                t_first_group = decided
+            elif t_first_group is not None:
+                t_first_group = max(t_first_group, decided)
+        teacher_own = None
+        if fix is not None:
+            end = _after_correction(text + " ") or 0
+            if end > 0:
+                teacher_own = text[:end].strip()
+                text = text[end:].strip()
+            spoken = (cr.phrase(fix) + " " + text).strip()
+        else:
+            spoken = text
         budget.spent += cost
-        usage = (a["usages"] or [None])[-1] or {}
+        usage = (full["usages"] or [None])[-1] or {}
+        m = reply_metrics(spoken)
         step = {
-            "step": i, "student": student, "teacher": text, "raw_chars": len(a["text"]),
+            "step": i, "student": student, "teacher": spoken, "raw_chars": len(a["text"]),
+            "not_understood": count,
             "ended_at_question": stopped, "model_text": model_text if stopped else None,
             "error": error, "incomplete": incomplete,
-            "searched": a["n_search_calls"] > 0, "n_search": a["n_search_calls"],
-            "search_queries": [q for s in a["searches"] for q in (s.get("queries") or [])],
-            "t_first_group": a["t_first_group"], "t_end": a["t_end"],
+            "searched": a["n_search_calls"] > 0,
+            "n_search": a["n_search_calls"],
+            "search_queries": [q for s_ in a["searches"] for q in (s_.get("queries") or [])],
+            "t_first_group": t_first_group, "t_end": a["t_end"],
             "output_tokens": usage.get("output_tokens"), "cost": cost,
-            "groups": len(plan(text)) if text else 0,
-            **reply_metrics(text),
+            "groups": len(plan(spoken)) if spoken else 0,
+            "corrector": corr, "correction_source": "corrector" if fix else ("teacher" if m["correction"] else None),
+            "teacher_own_correction_dropped": teacher_own,
+            **m,
         }
         steps.append(step)
         log(f"  {sc['id']}.{i}: {step['words']} сл., вопрос {'да' if step['question'] else 'нет'}"
             f"{', поиск' if step['searched'] else ''}{', RU' if step['russian'] else ''}"
+            f"{', не понял ×' + str(count) if count else ''}"
+            f"{', поправка: ' + step['correction_source'] if step['correction_source'] else ''}"
+            f"{', поправщик: ' + corr['outcome'] if corr else ''}"
             f"{', ОБРЕЗАН' if incomplete else ''}{', до первого вопроса' if stopped else ''}"
             f"{'  ОШИБКА: ' + error if error else ''}")
         if error:
             break
-        history.append({"role": "assistant", "content": text})
+        history.append({"role": "user", "content": student})
+        history.append({"role": "assistant", "content": spoken})
     return {"id": sc["id"], "steps": steps, "checks": check_scenario(sc, steps)}
 
 
@@ -351,9 +481,18 @@ def check_scenario(sc: dict, steps: list[dict]) -> list[dict]:
     if "no_russian_before" in sc:
         early = [s["step"] for s in steps if s["step"] < sc["no_russian_before"] and s["russian"]]
         add(f"без русского до шага {sc['no_russian_before']}", not early, f"на шагах {early}" if early else "")
-    if sc.get("no_corrections"):
-        fixes = [s["step"] for s in steps if s["correction"]]
-        add("нет поправок (ученик говорит правильно)", not fixes, f"поправки на шагах {fixes}" if fixes else "")
+    # Ложная поправка — любая поправка на шаге, где ошибки нет (S02f: цель — 0).
+    wrong = [s["step"] for s in steps if s["correction"] and s["step"] not in sc.get("corrections", {})]
+    add("нет ложных поправок", not wrong, f"поправки на шагах {wrong}" if wrong else "")
+    if sc.get("topic_choice_first"):
+        s1 = by.get(1)
+        if s1:
+            rest = s1["teacher"]
+            m = _CORRECTION.match(rest)
+            rest = rest[m.end():] if m else rest
+            only_q = all(x.strip().endswith("?") for x in sentences(rest)) and bool(sentences(rest))
+            add("шаг 1: только вопрос с выбором — без фактов и поиска", only_q and not s1["searched"],
+                ("искал; " if s1["searched"] else "") + ("" if only_q else "есть утверждение"))
     for s in steps:
         if s["russian_words"] > 1:
             add(f"шаг {s['step']}: не больше одного русского слова", False, f"{s['russian_words']}")
@@ -416,6 +555,13 @@ def summarize(scenarios: list[dict]) -> dict:
         "corrections_ok": sum(c["ok"] for c in corr), "corrections_total": len(corr),
         "checks_ok": sum(c["ok"] for c in checks), "checks_total": len(checks),
         "truncated": sum(1 for s in steps if s["incomplete"]),
+        "false_correction_steps": sum(len(re.findall(r"\d+", c["note"])) for sc in scenarios for c in sc["checks"]
+                                      if c["check"] == "нет ложных поправок" and not c["ok"]),
+        "s3_russian_ok": [all(c["ok"] for c in sc["checks"] if "русск" in c["check"]) for sc in scenarios if sc["id"] == "S3"],
+        "s5_topic_ok": [all(c["ok"] for c in sc["checks"] if c["check"].startswith("шаг 1: только вопрос"))
+                        for sc in scenarios if sc["id"] == "S5"],
+        "corrector_outcomes": _count([s["corrector"]["outcome"] for s in steps if s.get("corrector")]),
+        "correction_sources": _count([s["correction_source"] for s in steps if s.get("correction_source")]),
         "ended_at_question": sum(1 for s in steps if s.get("ended_at_question")),
         "searches": sum(1 for s in steps if s["searched"]),
         "errors": sum(1 for sc in scenarios for s in sc["steps"] if s["error"]),
@@ -428,9 +574,19 @@ def summarize(scenarios: list[dict]) -> dict:
         "max_words": summary["max_words"] is not None and summary["max_words"] <= GOAL_MAX_WORDS,
         "question_share": summary["question_share"] is not None and summary["question_share"] >= GOAL_QUESTION_SHARE,
         "corrections": summary["corrections_total"] > 0 and summary["corrections_ok"] == summary["corrections_total"],
+        "false_corrections": summary["false_correction_steps"] == 0,
+        "s3_russian_step4": bool(summary["s3_russian_ok"]) and all(summary["s3_russian_ok"]),
+        "s5_no_facts": bool(summary["s5_topic_ok"]) and all(summary["s5_topic_ok"]),
     }
     summary["goals_met"] = all(summary["goals"].values())
     return summary
+
+
+def _count(xs: list) -> dict:
+    out: dict = {}
+    for x in xs:
+        out[x] = out.get(x, 0) + 1
+    return out
 
 
 def estimate(repeats: int) -> dict:
@@ -473,6 +629,8 @@ def probe_tutor_dialog(ctx, ask=input) -> bool:
     date = datetime.now().strftime("%A, %B %d, %Y")
     template = probe.TUTOR_PROMPT_FILE.read_text(encoding="utf-8").strip()
     prompt = probe.tutor_prompt(date)
+    import corrector as cr
+    corr_prompt = cr.corrector_prompt()
     budget = Budget(ctx.args.budget)
     started = datetime.now().isoformat(timespec="seconds")
     log("Русское слово в синтезе (Realtime, голос приложения)")
@@ -484,13 +642,14 @@ def probe_tutor_dialog(ctx, ask=input) -> bool:
                 log(f"!!! бюджет ${budget.limit:.2f} исчерпан — остальные сценарии пропущены")
                 break
             log(f"{sc['id']} #{rep}: {sc['title']}")
-            res = run_scenario(ctx.api, prompt, sc, budget)
+            res = run_scenario(ctx.api, prompt, sc, budget, corr_prompt)
             res["rep"] = rep
             scenarios.append(res)
     run = {
         "started": started, "finished": datetime.now().isoformat(timespec="seconds"),
         "label": ctx.args.label or "", "model": MODEL, "max_output_tokens": MAX_OUTPUT_TOKENS,
         "date_in_prompt": date, "prompt_hash": prompt_hash(template), "prompt": template,
+        "corrector_prompt_hash": prompt_hash(corr_prompt),
         "repeats": repeats, "spent": budget.spent, "budget": budget.limit, "budget_exhausted": budget.over,
         "russian_synthesis": russian, "scenarios": scenarios, "summary": summarize(scenarios),
     }
@@ -510,6 +669,10 @@ def probe_tutor_dialog(ctx, ask=input) -> bool:
     return True
 
 
+def _okn(xs) -> str:
+    return "—" if not xs else f"{sum(1 for x in xs if x)}/{len(xs)}"
+
+
 def _pct(x) -> str:
     return "—" if x is None else f"{round(100 * x)} %"
 
@@ -527,8 +690,13 @@ def _cell(text: str) -> str:
 
 
 def render(runs: list[dict]) -> str:
-    L = ["# S02e — учитель-собеседник: диалоги по сценариям", "",
-         "Проба `python tools/probe/probe.py tutor-dialog` (бриф `docs/stages/02e-brief.md`, п. 4). Промпт — файл "
+    L = ["# S02f — учитель-собеседник с поправщиком: диалоги по сценариям", "",
+         "Прогоны S02e (1–6, без поправщика) — в `docs/research/02e-dialogs.md`. С S02f (бриф `docs/stages/02f-brief.md`, "
+         "п. 6) проба повторяет приложение: **поправщик** (`corrector_prompt.txt`) идёт одновременно с учителем, его "
+         "поправка звучит первой, если готова не позже 0,8 с после начала ответа учителя, своя поправка учителя тогда "
+         "не звучит, в историю — что прозвучало; **счёт «не понял» подряд** — служебной строкой в запросе "
+         "(`NotUnderstood`). Время первой группы учитывает ожидание поправки.", "",
+         "Проба `python tools/probe/probe.py tutor-dialog`. Промпт — файл "
          "приложения `android_app/app/src/main/resources/tutor_prompt.txt` (D46), запрос — как в "
          f"`ResponsesTutor`: `{MODEL}`, `reasoning.effort: {EFFORT}`, поток, `web_search` ({SEARCH_CONTEXT}), "
          "`max_output_tokens`, `store: false`. Реплики ученика заданы заранее. Каждый сценарий — отдельный "
@@ -544,13 +712,14 @@ def render(runs: list[dict]) -> str:
          "репликам.", "",
          "## Сводка по прогонам", "",
          "| Прогон | Метка | Промпт | Реплик | Медиана слов | Макс. слов | Вопрос в конце | Макс. в фразе | "
-         "Поправки | Проверки | Обрезано | Цели |",
-         "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+         "Поправки | Ложные | RU S3 шаг 4 | S5 без фактов | Проверки | Обрезано | Цели |",
+         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in runs:
         s = r["summary"]
         L.append(f"| {r['n']} | {_cell(r.get('label'))} | `{r['prompt_hash']}` | {s['replies']} | {s['median_words']} | "
                  f"{s['max_words']} | {_pct(s['question_share'])} | {s['max_sentence_words']} | "
-                 f"{s['corrections_ok']}/{s['corrections_total']} | {s['checks_ok']}/{s['checks_total']} | "
+                 f"{s['corrections_ok']}/{s['corrections_total']} | {s.get('false_correction_steps', '—')} | "
+                 f"{_okn(s.get('s3_russian_ok'))} | {_okn(s.get('s5_topic_ok'))} | {s['checks_ok']}/{s['checks_total']} | "
                  f"{s['truncated']} | {'**да**' if s['goals_met'] else 'нет'} |")
     L.append("")
     for r in reversed(runs):
@@ -572,6 +741,14 @@ def render_run(r: dict) -> list[str]:
          f"{'✓' if s['goals']['question_share'] else '✗'} |",
          f"| поправки в сценариях 1–2 | {s['corrections_ok']} из {s['corrections_total']} | все "
          f"{'✓' if s['goals']['corrections'] else '✗'} |",
+         f"| ложных поправок (реплик) | {s.get('false_correction_steps', '—')} | 0 "
+         f"{'✓' if s['goals'].get('false_corrections') else '✗'} |",
+         f"| S3: русское слово ровно на шаге 4 | {_okn(s.get('s3_russian_ok'))} | все "
+         f"{'✓' if s['goals'].get('s3_russian_step4') else '✗'} |",
+         f"| S5: шаг 1 — только вопрос, без фактов и поиска | {_okn(s.get('s5_topic_ok'))} | все "
+         f"{'✓' if s['goals'].get('s5_no_facts') else '✗'} |",
+         f"| поправщик: итоги | {_cell(', '.join(f'{k} {v}' for k, v in (s.get('corrector_outcomes') or {}).items()))} | |",
+         f"| откуда прозвучавшие поправки | {_cell(', '.join(f'{k} {v}' for k, v in (s.get('correction_sources') or {}).items()))} | |",
          f"| самое длинное предложение без поправки, слов (медиана по репликам / максимум) | "
          f"{s['median_sentence_words_max']} / {s['max_sentence_words']} | 6–8 |",
          f"| проверки сценариев | {s['checks_ok']} из {s['checks_total']} | |",
@@ -589,17 +766,24 @@ def render_run(r: dict) -> list[str]:
     for sc in r["scenarios"]:
         meta = next(m for m in SCENARIOS if m["id"] == sc["id"])
         L += [f"### {sc['id']} #{sc['rep']} — {meta['title']}", "", f"Ожидание: {meta['expect']}.", "",
-              "| # | Ученик | Учитель | Слов | Предл. | Макс. в фразе | Вопрос | Поиск | RU | Первая группа, с |",
-              "|---|---|---|---|---|---|---|---|---|---|"]
+              "| # | Ученик | Учитель (что прозвучит) | Слов | Предл. | Макс. в фразе | Вопрос | Поиск | RU | Не понял | "
+              "Поправщик | Первая группа, с |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
         for st in sc["steps"]:
             teacher = _cell(st["teacher"]) if not st["error"] else f"**ошибка:** {_cell(st['error'])}"
             if st["incomplete"]:
                 teacher += f" *(обрезан: {st['incomplete']})*"
             if st.get("ended_at_question"):
                 teacher += f" *(оборван на первом вопросе; модель написала: «{_cell(st['model_text'])}»)*"
+            if st.get("teacher_own_correction_dropped"):
+                teacher += f" *(своя поправка учителя не прозвучит: «{_cell(st['teacher_own_correction_dropped'])}»)*"
+            c = st.get("corrector")
+            cinfo = "—" if not c else c["outcome"] + (f" ({_cell(c['raw'])})" if c["outcome"] in ("rejected", "late") and c.get("raw") else "")
+            if c and c.get("late_vs_teacher_start") is not None:
+                cinfo += f", {c['late_vs_teacher_start']:+.2f} с".replace(".", ",")
             L.append(f"| {st['step']} | {_cell(st['student'])} | {teacher} | {st['words']} | {st['sentences']} | "
                      f"{st['max_sentence_words']} | {_yes(st['question'])} | {'да' if st['searched'] else '—'} | "
-                     f"{'да' if st['russian'] else '—'} | {_s(st['t_first_group'])} |")
+                     f"{'да' if st['russian'] else '—'} | {st.get('not_understood') or '—'} | {cinfo} | {_s(st['t_first_group'])} |")
         if sc["checks"]:
             L += ["", "Проверки: " + "; ".join(
                 f"{'✓' if c['ok'] else '✗'} {c['check']}" + (f" ({_cell(c['note'])})" if c["note"] and not c["ok"] else "")

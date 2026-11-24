@@ -111,3 +111,27 @@ def test_render_smoke():
     run["decision"] = c.decide(run["B"])
     md = c.render([run])
     assert "Сводка по прогонам" in md and "Прогон 1" in md
+
+
+def test_copies_of_the_app():
+    import re
+    kt = c.td.MODEL_CONFIG_KT.read_text(encoding="utf-8")
+
+    def const(name):
+        m = re.search(rf"const val {name} = (.+)", kt)
+        v = m.group(1).strip().strip('"')
+        return v[:-1] if re.fullmatch(r"[\d_]+L", v) else v
+    assert c.MAX_OUTPUT_TOKENS == int(const("CORRECTOR_MAX_OUTPUT_TOKENS"))
+    assert c.EFFORT == const("CORRECTOR_REASONING_EFFORT")
+    assert const("CORRECTOR_MODEL") == "TUTOR_MODEL" and c.MODEL == const("TUTOR_MODEL")
+    assert c.WAIT_MS == int(const("CORRECTOR_WAIT_MS").replace("_", ""))
+    corr_kt = (c.td.MODEL_CONFIG_KT.parent.parent / "conversation" / "Correction.kt").read_text(encoding="utf-8")
+    assert f"MIN_SIMILARITY = {c.MIN_SIMILARITY}" in corr_kt
+    # Те же примеры, что CorrectionTest.kt.
+    assert c.check("Green.", "OK.") == ("none", None)
+    assert c.check("Yes, it is hot.", "yes it is hot") == ("none", None)
+    assert c.check("I have dog.", 'I think you meant "I have a dog", right?') == ("fix", "I have a dog")
+    assert c.check("Gas price?", "What is the gas price?") == ("fix", "What is the gas price?")
+    kind, sim = c.check("Where you live?", "I live in Tucson.")
+    assert kind == "rejected" and abs(sim - 1 / 3) < 1e-9
+    assert c.phrase("I have a dog.") == 'I think you meant "I have a dog", right?'

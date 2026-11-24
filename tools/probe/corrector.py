@@ -115,12 +115,37 @@ def new_words(correction: str, student: str, expected: str) -> list[str]:
 
 
 def containment(correction: str, student: str) -> float:
-    """Доля слов поправки, которые есть в реплике ученика (для порога «слишком непохожая», бриф п. 2)."""
-    cw = norm_words(correction)
-    if not cw:
+    """Копия Correction.similarity: доля слов реплики ученика, которые остались в поправке (порог «слишком
+    непохожая», бриф п. 2). До прогона 2 здесь считалась обратная доля — слов поправки в реплике ученика."""
+    sw = norm_words(student)
+    if not sw:
         return 1.0
-    sw = set(norm_words(student))
-    return sum(1 for w in cw if w in sw) / len(cw)
+    cw = set(norm_words(correction))
+    return sum(1 for w in sw if w in cw) / len(sw)
+
+
+# Копия Correction.kt (приложение): проверка ответа поправщика и фраза, которая звучит.
+MIN_SIMILARITY = 0.5
+WAIT_MS = 800  # ModelConfig.CORRECTOR_WAIT_MS
+
+
+def check(student: str, answer: str) -> tuple[str, object]:
+    """("fix", текст) | ("none", None) | ("rejected", сходство) — как Correction.check."""
+    a = answer.strip()
+    if re.match(r"^\s*I think you meant,?\s*", a, re.I):
+        a = re.sub(r"^\s*I think you meant,?\s*", "", a, flags=re.I)
+        a = re.sub(r",?\s*right\s*\?\s*$", "", a, flags=re.I)
+    a = a.strip().strip('"“”').strip()
+    n = norm(a)
+    if n in ("", "ok") or n == norm(student):
+        return "none", None
+    sim = containment(a, student)
+    return ("rejected", sim) if sim < MIN_SIMILARITY else ("fix", a)
+
+
+def phrase(fix: str) -> str:
+    """Копия Correction.phrase."""
+    return f'I think you meant "{fix.strip().rstrip(".").strip()}", right?'
 
 
 def grade(case: dict, correction: str | None) -> dict:
@@ -411,7 +436,7 @@ def render(runs: list[dict]) -> str:
          "(«hot» → «warm»);",
          "- **опоздание B** — конец ответа поправщика минус первый кусок текста учителя на той же фразе "
          "(`first_token`), с; меньше нуля — поправка готова раньше учителя;",
-         "- **сходство** — доля слов поправки, которые есть в реплике ученика (для порога «слишком непохожая»).", "",
+         "- **сходство** — доля слов реплики ученика, которые остались в поправке (порог «слишком непохожая», `Correction.MIN_SIMILARITY` = 0,5; пересчитано для прогона 1 после того, как мера сменилась).", "",
          f"Правило решения: поправщик строится, если одновременно найдено ≥ {round(RULE_FOUND * 100)} % ошибок, "
          f"ложных ≤ 1 из 15 (по всем повторам — доля ≤ {RULE_FALSE:.3f}) и в ≥ {round(RULE_LATE_SHARE * 100)} % "
          f"случаев опоздание ≤ {RULE_LATE_S} с.", "",

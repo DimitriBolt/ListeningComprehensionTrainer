@@ -38,7 +38,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "What is the temperature in Tucson?",
@@ -54,7 +54,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 1
     },
@@ -82,7 +82,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "B": {
       "raw": "I have a dog.",
@@ -98,7 +98,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "rep": 1
     },
@@ -126,7 +126,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "The sun is very hot today.",
@@ -142,7 +142,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 1
     },
@@ -170,7 +170,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.857
+      "containment": 1.0
      },
      "B": {
       "raw": "I want to buy a new car.",
@@ -186,7 +186,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.857
+      "containment": 1.0
      },
      "rep": 1
     },
@@ -615,7 +615,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "B": {
       "raw": "Where do you live?",
@@ -631,7 +631,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "rep": 1
     },
@@ -659,7 +659,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "What do you want to eat?",
@@ -675,7 +675,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 1
     },
@@ -747,7 +747,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.6
+      "containment": 0.75
      },
      "B": {
       "raw": "How much does it cost?",
@@ -763,7 +763,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.6
+      "containment": 0.75
      },
      "rep": 1
     },
@@ -880,7 +880,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.857
      },
      "B": {
       "raw": "We arrived at the airport at noon.",
@@ -896,7 +896,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.857
      },
      "rep": 1
     },
@@ -1144,7 +1144,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.8
      },
      "B": {
       "raw": "I agree with you.",
@@ -1160,7 +1160,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.8
      },
      "rep": 1
     },
@@ -1207,7 +1207,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 1
     },
@@ -1835,7 +1835,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "What is the temperature in Tucson?",
@@ -1851,7 +1851,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 2
     },
@@ -1879,7 +1879,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "B": {
       "raw": "I have a dog.",
@@ -1895,7 +1895,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "rep": 2
     },
@@ -1923,7 +1923,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "The sun is very hot today.",
@@ -1939,7 +1939,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 2
     },
@@ -1967,7 +1967,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.857
+      "containment": 1.0
      },
      "B": {
       "raw": "I want to buy a new car.",
@@ -1983,7 +1983,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.857
+      "containment": 1.0
      },
      "rep": 2
     },
@@ -2103,7 +2103,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 0.545
      },
      "B": {
       "raw": "I lived in Moscow until 2000, then I moved to Tucson.",
@@ -2412,7 +2412,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "B": {
       "raw": "Where do you live?",
@@ -2428,7 +2428,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "rep": 2
     },
@@ -2456,7 +2456,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "What do you want to eat?",
@@ -2472,7 +2472,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 2
     },
@@ -2544,7 +2544,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.6
+      "containment": 0.75
      },
      "B": {
       "raw": "How much does it cost?",
@@ -2560,7 +2560,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.6
+      "containment": 0.75
      },
      "rep": 2
     },
@@ -2677,7 +2677,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.857
      },
      "B": {
       "raw": "We arrived at the airport at noon.",
@@ -2693,7 +2693,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.857
      },
      "rep": 2
     },
@@ -2941,7 +2941,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.8
      },
      "B": {
       "raw": "I agree with you.",
@@ -2957,7 +2957,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.8
      },
      "rep": 2
     },
@@ -3634,7 +3634,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "What is the temperature in Tucson?",
@@ -3650,7 +3650,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 3
     },
@@ -3678,7 +3678,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "B": {
       "raw": "I have a dog.",
@@ -3694,7 +3694,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "rep": 3
     },
@@ -3722,7 +3722,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "The sun is very hot today.",
@@ -3738,7 +3738,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 3
     },
@@ -3766,7 +3766,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.857
+      "containment": 1.0
      },
      "B": {
       "raw": "I want to buy a new car.",
@@ -3782,7 +3782,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.857
+      "containment": 1.0
      },
      "rep": 3
     },
@@ -4211,7 +4211,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "B": {
       "raw": "Where do you live?",
@@ -4227,7 +4227,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.75
+      "containment": 1.0
      },
      "rep": 3
     },
@@ -4255,7 +4255,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "B": {
       "raw": "What do you want to eat?",
@@ -4271,7 +4271,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 3
     },
@@ -4343,7 +4343,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.6
+      "containment": 0.75
      },
      "B": {
       "raw": "How much does it cost?",
@@ -4359,7 +4359,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.6
+      "containment": 0.75
      },
      "rep": 3
     },
@@ -4476,7 +4476,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.857
      },
      "B": {
       "raw": "We arrived at the airport at noon.",
@@ -4492,7 +4492,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.857
      },
      "rep": 3
     },
@@ -4740,7 +4740,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.8
      },
      "B": {
       "raw": "I agree with you.",
@@ -4756,7 +4756,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 1.0
+      "containment": 0.8
      },
      "rep": 3
     },
@@ -4803,7 +4803,7 @@
       "false": false,
       "new_words": [],
       "meaning_changed": false,
-      "containment": 0.833
+      "containment": 1.0
      },
      "rep": 3
     },
@@ -5440,7 +5440,7 @@
     "median_late_s": 0.18280145899998956,
     "p90_late_s": 0.48846480400004566,
     "in_time_share": 0.9047619047619048,
-    "containment_good_min": 0.6,
+    "containment_good_min": 0.75,
     "containment_bad_max": 0.8
    },
    "decision": {
