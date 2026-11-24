@@ -4,6 +4,8 @@ import com.example.listeningtrainer.config.ModelConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,11 +26,14 @@ fun interface ResponsesTransport {
 }
 
 /** [ResponsesTransport] на OkHttp: общий предел на весь поток — `OpenAiClient.tutorHttp`. */
-class OkHttpResponsesTransport(private val http: OkHttpClient = OpenAiClient.tutorHttp) : ResponsesTransport {
+class OkHttpResponsesTransport(
+    private val http: OkHttpClient = OpenAiClient.tutorHttp,
+    private val url: String = ModelConfig.TUTOR_URL,
+) : ResponsesTransport {
 
     override suspend fun stream(auth: String, body: String, onLine: suspend (String) -> Unit) = coroutineScope {
         val request = Request.Builder()
-            .url(ModelConfig.TUTOR_URL)
+            .url(url)
             .header("Authorization", auth)
             .header("Accept", "text/event-stream")
             .post(body.toRequestBody(JSON))
@@ -50,6 +55,9 @@ class OkHttpResponsesTransport(private val http: OkHttpClient = OpenAiClient.tut
                     onLine(line)
                 }
             }
+        } catch (e: IOException) {
+            currentCoroutineContext().ensureActive() // оборвали мы сами («Stop»): это отмена, не сбой сети
+            throw e
         } finally {
             watcher.cancel()
         }
