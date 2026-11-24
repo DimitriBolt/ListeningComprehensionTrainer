@@ -16,10 +16,9 @@ object TranscriptionPrompt {
         return if (sentence.isEmpty()) CONTEXT else "$CONTEXT The teacher just said: \"$sentence\""
     }
 
-    /** Последнее предложение без разметки и служебной метки, не длиннее [maxChars] (обрезка по слову с начала). */
+    /** Последнее предложение без разметки, не длиннее [maxChars] (обрезка по слову с начала). */
     fun lastSentence(text: String, maxChars: Int): String {
-        var clean = text.replace("**", "").replace(Regex("\\s+"), " ").trim()
-        SpeechPlanner.SERVICE_LABELS.firstOrNull { clean.startsWith(it) }?.let { clean = clean.removePrefix(it).trim() }
+        val clean = text.replace("**", "").replace(Regex("\\s+"), " ").trim()
         if (clean.isEmpty()) return ""
         // Предложения кончаются на . ! ? — берём последнее непустое.
         val sentences = clean.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }

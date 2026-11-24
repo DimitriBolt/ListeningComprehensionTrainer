@@ -164,7 +164,6 @@ class RetryTest {
     fun `call timeouts are set per kind of call`() {
         assertEquals(25_000, OpenAiClient.transcribeHttp.callTimeoutMillis)
         assertEquals(20_000, OpenAiClient.tutorHttp.callTimeoutMillis)
-        assertEquals(8_000, OpenAiClient.toolsHttp.callTimeoutMillis)
         assertEquals(0, OpenAiClient.http.callTimeoutMillis) // WebSocket Realtime — без общего предела
     }
 

@@ -8,7 +8,7 @@ import android.util.Log
 import com.example.listeningtrainer.conversation.ConversationController
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.eventlog.FileEventLog
-import com.example.listeningtrainer.openai.ChatTutor
+import com.example.listeningtrainer.openai.ResponsesTutor
 import java.io.File
 import java.util.Date
 
@@ -23,9 +23,9 @@ class TrainerApplication : Application() {
      * Учитель с историей диалога — один на процесс: разговор переживает «Back» и перезапуск
      * сервиса, пока приложение не закрыто совсем (D15).
      */
-    val tutor: ChatTutor by lazy {
+    val tutor: ResponsesTutor by lazy {
         val keyStore = ApiKeyStore(this)
-        ChatTutor(apiKey = { keyStore.current() }, log = AppLog)
+        ResponsesTutor(apiKey = { keyStore.current() }, log = AppLog)
     }
 
     override fun onCreate() {

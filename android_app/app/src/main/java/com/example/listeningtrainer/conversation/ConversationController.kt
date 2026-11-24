@@ -6,6 +6,7 @@ import com.example.listeningtrainer.eventlog.NoEventLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -29,7 +30,10 @@ data class ConversationUi(
     val state: ConversationState = ConversationState.Idle,
     val status: String = "Ready.",
     val studentText: String = "",
+    /** Текст учителя без сносок; растёт по мере ответа. */
     val teacherText: String = "",
+    /** Источники ответа (поиск в интернете): на экране — ссылками, вслух не читаются (D37). */
+    val sources: List<TutorSource> = emptyList(),
     /** Группа, которая звучит сейчас (с `**` для экрана). */
     val currentChunk: String = "",
     val autoMode: Boolean = false,
@@ -66,13 +70,19 @@ enum class EndReason(val description: String, val isError: Boolean = false) {
  * [waitTickEveryMs], если ученик ждёт учителя дольше [waitTickAfterMs], «не услышал» на молчании,
  * «ошибка» и «конец» на выходе из круга.
  *
- * Ответ учителя озвучивает [SpeechPipeline]: [synthesizer] (Realtime) по порядку групп со сверкой,
- * [fallbackSynthesizer] (Android TextToSpeech) — на отдельную группу или на остаток ответа.
+ * Ответ учителя приходит потоком (S02d): [StreamingSpeechPlanner] отдаёт группы, как только их
+ * текст уже не изменится, [SpeechPipeline] озвучивает их по порядку — [synthesizer] (Realtime) со
+ * сверкой, [fallbackSynthesizer] (Android TextToSpeech) — на отдельную группу или на остаток ответа.
+ * Пауза после группы берётся, когда группа прозвучала (D38). Пока учитель ищет в интернете и ещё
+ * ничего не сказал — заготовленная фраза [searchFiller] голосом учителя (D39).
+ * Сбой учителя, пока ничего не прозвучало, — один повтор; когда учитель уже говорит — готовые
+ * группы дочитываются, затем «ошибка», фраза голосом телефона и «конец».
  *
  * В [log] пишутся каждый переход состояния с причиной и причина каждого выхода из круга —
  * без ключа и без текстов, только их длины. На каждый круг одна строка замера с источником
  * [TIMING_SOURCE] (в Logcat — тег LCT-Timing): сколько мс от конца записи до текста ученика,
- * до ответа учителя, до запуска первого звука и до момента, когда голос **слышен** (после щита).
+ * до первого куска ответа, до первой группы в синтезе, до конца ответа, до запуска первого звука
+ * и до момента, когда голос **слышен** (после щита).
  */
 class ConversationController(
     private val scope: CoroutineScope,
@@ -98,6 +108,10 @@ class ConversationController(
     private val listenPulseEveryMs: Long = 2_000L,
     /** Сколько групп держать готовыми вперёд. */
     speechLookahead: Int = 3,
+    /** Пауза перед единственным повтором запроса к учителю. */
+    private val tutorRetryPauseMs: Long = ModelConfig.RETRY_PAUSE_MS,
+    /** Фраза на время поиска (D39); `null` — без неё. */
+    private val searchFiller: String? = SEARCH_FILLER,
 ) {
     private val speech = SpeechPipeline(synthesizer, fallbackSynthesizer, log, clock, speechLookahead)
 
@@ -117,6 +131,9 @@ class ConversationController(
     private var waitTicks: Job? = null
     /** Сколько «пульсов» прозвучало в текущей записи. */
     private var pulseCount = 0
+    /** Звук фразы на время поиска: синтезируется один раз за жизнь сервиса (D39). */
+    private var fillerAudio: SpeechAudio? = null
+    private var fillerJob: Job? = null
 
     /** Кнопка «Talk» (или средняя кнопка гарнитуры — [why]): начать круг. Если круг уже идёт — ничего не делает. */
     fun startTurn(why: String = "Talk button") {
@@ -270,6 +287,7 @@ class ConversationController(
         }
         // Сессия синтеза — заранее, пока ученик говорит (если оборвалась — переподключится сейчас).
         speech.prepare()
+        prepareFiller()
         // Запись — после сигнала: микрофон его не слышит, и 3 с тишины отсчитываются от конца сигнала.
         output.playCue(Cue.LISTEN)
         output.awaitCues()
@@ -327,7 +345,7 @@ class ConversationController(
         }
         silenceCount = 0
 
-        answer(recordedAt, transcribedAt) { onStatus -> tutor.reply(studentText, onStatus) }?.let { return it }
+        answer(recordedAt, transcribedAt) { onEvent -> tutor.reply(studentText, onEvent) }?.let { return it }
         return if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
     }
 
@@ -350,76 +368,212 @@ class ConversationController(
         _ui.update { it.copy(autoMode = false, status = "Auto-mode: Inactivity timeout.") }
         startWaitTicks()
         val now = clock()
-        return answer(recordedAt = now, transcribedAt = now, logTiming = false) { onStatus -> tutor.farewell(onStatus) }
+        return answer(recordedAt = now, transcribedAt = now, logTiming = false) { onEvent -> tutor.farewell(onEvent) }
             ?: EndReason.FAREWELL
     }
 
+    /** Замер одного ответа: моменты времени (часы [clock]) для строки `[Timing]`. */
+    private class ReplyTiming {
+        var firstToken: Long? = null
+        var firstGroup: Long? = null
+        var firstSound: Long? = null
+        var searchStart: Long? = null
+        var searchEnd: Long? = null
+        var repliedAt: Long? = null
+        var filler = false
+        var chars = 0
+
+        /** Повтор запроса: всё, кроме фразы на время поиска (она не повторяется). */
+        fun resetForRetry() {
+            firstToken = null; firstGroup = null; searchStart = null; searchEnd = null; repliedAt = null; chars = 0
+        }
+    }
+
+    /** Ничего не прозвучало, а поток учителя оборвался: ответ бросается целиком. */
+    private class AbortReply(val error: Exception) : Exception(error)
+
     /**
-     * Ответ учителя: текст → группы → синтез по порядку с опережением → воспроизведение по очереди.
+     * Ответ учителя: поток текста → группы → синтез по порядку с опережением → воспроизведение.
      * `null` — прозвучал, иначе — причина ошибки.
      */
     private suspend fun answer(
         recordedAt: Long,
         transcribedAt: Long,
         logTiming: Boolean = true,
-        ask: suspend (onStatus: (String) -> Unit) -> TutorReply,
+        ask: suspend (onEvent: suspend (TutorEvent) -> Unit) -> Unit,
     ): EndReason? {
         setState(ConversationState.Thinking, "asking the teacher") {
-            it.copy(teacherText = "", status = "Teacher is thinking... 🧠")
+            it.copy(teacherText = "", sources = emptyList(), status = "Teacher is thinking... 🧠")
         }
-        val reply = try {
-            ask { status -> _ui.update { it.copy(status = status) } }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            return fail(EndReason.TUTOR_ERROR, "Error: ${e.localizedMessage}", e)
-        }
-        val repliedAt = clock()
-        _ui.update { it.copy(teacherText = reply.text) }
-
-        val chunks = planner.plan(reply.text)
-        log.event(SOURCE, "reply: ${reply.text.length} chars, ${chunks.size} groups")
-        if (chunks.isEmpty()) {
-            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, reply, null, 0)
-            setState(ConversationState.Idle, "empty reply") { it.copy(status = "Ready.") }
-            return null
-        }
-        try {
-            coroutineScope {
-                // Щит Bluetooth — только если звук сейчас идёт в Bluetooth (выход проверяется перед ответом).
-                val shieldMs = output.prepareReply()
-                val groups = speech.start(this, chunks)
-                var firstSoundAt: Long? = null
-                for (i in chunks.indices) {
-                    if (i > 0) startWaitTicks() // долгий синтез посреди ответа — тоже ожидание
-                    val audio = groups.receive()
-                    if (i > 0) stopWaitTicks()
-                    if (audio.pcm.isEmpty()) {
-                        // Произносить нечего (группа из одного знака или пустой звук) — только пауза.
-                        if (i < chunks.size - 1) delay(chunks[i].pauseMs)
-                        continue
-                    }
-                    setState(ConversationState.Speaking, "first group ready") {
-                        it.copy(currentChunk = chunks[i].text, status = "Speaking ${i + 1}/${chunks.size} 🔊")
-                    }
-                    output.play(audio, shieldMs) {
-                        if (firstSoundAt == null) {
-                            firstSoundAt = clock()
-                            stopWaitTicks()
-                            if (logTiming) logTimings(recordedAt, transcribedAt, repliedAt, reply, firstSoundAt, shieldMs)
-                        }
-                    }
-                    // Опережающий запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
-                    if (i < chunks.size - 1) delay(maxOf(10L, chunks[i].pauseMs - shieldMs))
-                }
+        // Щит Bluetooth — только если звук сейчас идёт в Bluetooth (выход проверяется перед ответом).
+        val shieldMs = output.prepareReply()
+        val t = ReplyTiming()
+        var attempt = 1
+        while (true) {
+            val error = try {
+                speakReply(t, shieldMs, ask)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return fail(EndReason.SPEECH_ERROR, "Error: ${e.localizedMessage}", e)
+            } ?: break
+            val kind = (error as? ServiceException)?.kind
+            val detail = error.message ?: error.javaClass.simpleName
+            if (t.firstSound == null && attempt == 1 && kind?.retry == true) {
+                log.event(SOURCE, "tutor failed ($detail), nothing spoken yet: retry in $tutorRetryPauseMs ms")
+                attempt++
+                t.resetForRetry()
+                _ui.update { it.copy(teacherText = "", sources = emptyList(), status = "Teacher is thinking... 🧠") }
+                delay(tutorRetryPauseMs)
+                continue
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            return fail(EndReason.SPEECH_ERROR, "Error: ${e.localizedMessage}", e)
+            when {
+                t.firstSound != null -> log.event(SOURCE, "tutor stream broke ($detail) while the teacher was speaking: ready groups spoken")
+                attempt > 1 -> log.event(SOURCE, "tutor retry failed ($detail)")
+                else -> log.event(SOURCE, "tutor failed ($detail), no retry")
+            }
+            if (logTiming) logTimings(recordedAt, transcribedAt, t, shieldMs)
+            return fail(EndReason.TUTOR_ERROR, "Error: ${error.localizedMessage}", error)
         }
+        if (attempt > 1) log.event(SOURCE, "tutor retry succeeded")
+        if (logTiming) logTimings(recordedAt, transcribedAt, t, shieldMs)
         setState(ConversationState.Idle, "reply finished") { it.copy(currentChunk = "", status = "Ready.") }
         return null
+    }
+
+    /**
+     * Один запрос к учителю и озвучка по мере ответа. `null` — ответ прозвучал целиком; иначе —
+     * сбой потока учителя (если что-то уже прозвучало — после того, как дочитаны готовые группы).
+     * Сбой синтеза — исключение.
+     */
+    private suspend fun speakReply(
+        t: ReplyTiming,
+        shieldMs: Long,
+        ask: suspend (onEvent: suspend (TutorEvent) -> Unit) -> Unit,
+    ): Exception? {
+        val stream = StreamingSpeechPlanner(planner::plan)
+        /** Группы, отданные в синтез, по порядку: i-й звук из конвейера — это sent[i]. */
+        val sent = mutableListOf<SpeechChunk>()
+        var tutorError: Exception? = null
+        try {
+            coroutineScope {
+                val chunks = Channel<SpeechChunk>(Channel.UNLIMITED)
+                var filler: Job? = null
+                fun send(new: List<SpeechChunk>) {
+                    for (c in new) {
+                        if (t.firstGroup == null) t.firstGroup = clock()
+                        sent += c
+                        chunks.trySend(c)
+                    }
+                }
+                launch {
+                    try {
+                        ask { event ->
+                            when (event) {
+                                is TutorEvent.Text -> {
+                                    if (t.firstToken == null) t.firstToken = clock()
+                                    send(stream.feed(event.delta))
+                                    _ui.update { it.copy(teacherText = stream.screenText()) }
+                                }
+                                TutorEvent.SearchStarted -> {
+                                    if (t.searchStart == null) t.searchStart = clock()
+                                    _ui.update { it.copy(status = "Searching the web... 🌐") }
+                                    if (filler == null && sent.isEmpty() && t.firstSound == null && !t.filler) {
+                                        filler = startFiller(this@coroutineScope, shieldMs, t)
+                                    }
+                                }
+                                TutorEvent.SearchFinished -> t.searchEnd = clock()
+                                is TutorEvent.Source -> _ui.update { it.copy(sources = it.sources + event.source) }
+                                is TutorEvent.Done -> Unit
+                            }
+                        }
+                        send(stream.finish())
+                        t.repliedAt = clock()
+                        t.chars = stream.screenText().length
+                        _ui.update { it.copy(teacherText = stream.screenText()) }
+                        log.event(SOURCE, "reply: ${t.chars} chars, ${sent.size} groups")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        tutorError = e
+                        log.event(SOURCE, "reply broken off: ${sent.size} groups sent to synthesis")
+                        if (t.firstSound == null) throw AbortReply(e)
+                    } finally {
+                        chunks.close()
+                        if (stream.divergences.isNotEmpty()) {
+                            log.event(SOURCE, "stream planning: text of sent groups ${stream.divergences.joinToString(", ")} changed later")
+                        }
+                    }
+                }
+                val groups = speech.start(this, chunks)
+                var i = 0
+                var lastEnd = 0L
+                while (true) {
+                    if (i > 0) startWaitTicks() // долгий синтез посреди ответа — тоже ожидание
+                    val next = groups.receiveCatching()
+                    if (i > 0) stopWaitTicks()
+                    if (next.isClosed) {
+                        next.exceptionOrNull()?.let { throw it }
+                        break
+                    }
+                    val audio = next.getOrThrow()
+                    if (i > 0) {
+                        // Пауза после прошлой группы — по самой свежей нарезке (D38). Опережающий
+                        // запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
+                        val wait = maxOf(10L, stream.pauseAfter(i - 1) - shieldMs) - (clock() - lastEnd)
+                        if (wait > 0) delay(wait)
+                    }
+                    filler?.join() // фраза на время поиска не обрывается, ответ — после неё
+                    if (audio.pcm.isNotEmpty()) {
+                        // Произносить нечего (группа из одного знака или пустой звук) — только пауза.
+                        setState(ConversationState.Speaking, "first group ready") {
+                            it.copy(currentChunk = sent[i].text, status = "Speaking ${i + 1} 🔊")
+                        }
+                        output.play(audio, shieldMs) {
+                            if (t.firstSound == null) {
+                                t.firstSound = clock()
+                                stopWaitTicks()
+                            }
+                        }
+                    }
+                    lastEnd = clock()
+                    i++
+                }
+            }
+        } catch (e: AbortReply) {
+            return e.error
+        }
+        return tutorError
+    }
+
+    // ---- фраза на время поиска (D39) -------------------------------------------------------
+
+    /** Синтезировать фразу один раз за жизнь сервиса, пока ученик говорит. Не вышло — попробовать в следующий раз. */
+    private fun prepareFiller() {
+        val text = searchFiller ?: return
+        if (fillerAudio != null || fillerJob?.isActive == true) return
+        fillerJob = scope.launch {
+            val audio = speech.synthesizePrimary(text)
+            if (audio != null) {
+                fillerAudio = audio
+                log.event(SOURCE, "search filler ready: ${audio.durationMs} ms of audio")
+            } else {
+                log.event(SOURCE, "search filler not ready: will try again next turn")
+            }
+        }
+    }
+
+    /** Учитель начал искать и ещё ничего не сказал: фраза голосом учителя. Не готова — пропустить. */
+    private fun startFiller(scope: CoroutineScope, shieldMs: Long, t: ReplyTiming): Job? {
+        if (searchFiller == null) return null
+        val audio = fillerAudio
+        if (audio == null) {
+            log.event(SOURCE, "search started: filler not ready, skipped")
+            return null
+        }
+        t.filler = true
+        log.event(SOURCE, "search started, nothing said yet: filler phrase")
+        return scope.launch { output.play(audio, shieldMs) }
     }
 
     // ---- «пульс» слушания (D28) ------------------------------------------------------------
@@ -483,18 +637,21 @@ class ConversationController(
 
     /**
      * Строка замера. Все времена — мс от конца записи, кроме `enc` — сжатия записи (входит в `stt`)
-     * и `llm1` — длительности первого запроса к учителю. `search` — вызывал ли учитель инструмент, `reply_chars` — длина ответа.
-     * `first_audio` — запуск звука первой группы; `audible` — голос слышен (после щита, если он есть).
+     * и `search_ms` — от начала первого поиска до конца последнего. `first_token` — первый кусок
+     * текста учителя, `first_group` — первая группа ушла в синтез, `tutor` — конец ответа.
+     * `search` — искал ли учитель, `filler` — звучала ли фраза на время поиска, `reply_chars` —
+     * длина ответа без сносок. `first_audio` — запуск звука первой группы ответа (не фразы);
+     * `audible` — голос слышен (после щита, если он есть). `-` — не было.
      */
-    private fun logTimings(
-        recordedAt: Long, transcribedAt: Long, repliedAt: Long, reply: TutorReply, firstSoundAt: Long?, shieldMs: Long,
-    ) {
-        val first = firstSoundAt?.let { (it - recordedAt).toString() } ?: "-"
-        val audible = firstSoundAt?.let { (it + shieldMs - recordedAt).toString() } ?: "-"
+    private fun logTimings(recordedAt: Long, transcribedAt: Long, t: ReplyTiming, shieldMs: Long) {
+        fun rel(at: Long?) = at?.let { (it - recordedAt).toString() } ?: "-"
+        val searchMs = t.searchStart?.let { start -> t.searchEnd?.let { (it - start).toString() } } ?: "-"
         log.event(
             TIMING_SOURCE,
-            "enc=$lastEncodeMs stt=${transcribedAt - recordedAt} tutor=${repliedAt - recordedAt} llm1=${reply.firstRequestMs ?: "-"} " +
-                "search=${yesNo(reply.searched)} reply_chars=${reply.text.length} first_audio=$first audible=$audible",
+            "enc=$lastEncodeMs stt=${transcribedAt - recordedAt} first_token=${rel(t.firstToken)} " +
+                "first_group=${rel(t.firstGroup)} tutor=${rel(t.repliedAt)} search=${yesNo(t.searchStart != null)} " +
+                "search_ms=$searchMs filler=${yesNo(t.filler)} reply_chars=${t.chars} " +
+                "first_audio=${rel(t.firstSound)} audible=${rel(t.firstSound?.plus(shieldMs))}",
         )
     }
 
@@ -510,5 +667,7 @@ class ConversationController(
         private const val SOURCE = "Controller"
         /** Источник строки замера скорости (в Logcat — тег LCT-Timing, как в S01). */
         const val TIMING_SOURCE = "Timing"
+        /** Фраза учителя, пока идёт поиск и он ещё ничего не сказал (D39). */
+        const val SEARCH_FILLER = "Let me check."
     }
 }

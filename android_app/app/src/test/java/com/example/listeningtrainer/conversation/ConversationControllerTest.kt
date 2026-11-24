@@ -73,26 +73,54 @@ class ConversationControllerTest {
         }
     }
 
+    /**
+     * Подставной учитель: ответ [replyText] потоком через [replyDelayMs] после запроса, кусками по
+     * [pieceSize] знаков с паузой [pieceDelayMs]. [searchMs] — перед текстом «поиск» этой длины.
+     * Ошибка: [errors] — по одной на запрос (очередь), иначе [error] на каждый; [breakAfterChars] —
+     * обрыв потока (одного запроса), когда отдано столько знаков.
+     */
     private class FakeTutor(var replyText: String = "Hello there. How are you?") : Tutor {
         val replies = mutableListOf<String>()
         var farewells = 0
         var error: Exception? = null
+        val errors = ArrayDeque<Exception?>()
         var farewellError: Exception? = null
         var replyDelayMs = 1000L
-        var searched = false
-        var firstRequestMs: Long? = null
-        override suspend fun reply(studentText: String, onStatus: (String) -> Unit): TutorReply {
+        var searchMs: Long? = null
+        var pieceSize = Int.MAX_VALUE
+        var pieceDelayMs = 0L
+        var breakAfterChars: Int? = null
+        var breakError: Exception = ServiceException(FailureKind.NO_NETWORK, "SocketException")
+        var sources: List<TutorSource> = emptyList()
+        override suspend fun reply(studentText: String, onEvent: suspend (TutorEvent) -> Unit) {
             replies += studentText
-            delay(replyDelayMs)
-            error?.let { throw it }
-            return TutorReply(replyText, searched = searched, firstRequestMs = firstRequestMs)
+            stream(replyText, onEvent, errors.removeFirstOrNull() ?: error)
         }
 
-        override suspend fun farewell(onStatus: (String) -> Unit): TutorReply {
+        override suspend fun farewell(onEvent: suspend (TutorEvent) -> Unit) {
             farewells++
-            delay(1000)
-            farewellError?.let { throw it }
-            return TutorReply("Let's take a break.")
+            stream("Let's take a break.", onEvent, farewellError)
+        }
+
+        private suspend fun stream(text: String, onEvent: suspend (TutorEvent) -> Unit, failure: Exception?) {
+            searchMs?.let {
+                onEvent(TutorEvent.SearchStarted)
+                delay(it)
+                onEvent(TutorEvent.SearchFinished)
+            }
+            delay(replyDelayMs)
+            failure?.let { throw it }
+            var sent = 0
+            val breakAt = breakAfterChars.also { breakAfterChars = null } // обрыв — только в этом запросе
+            for (piece in text.chunked(minOf(pieceSize, maxOf(1, text.length)))) {
+                breakAt?.let { if (sent >= it) throw breakError }
+                if (sent > 0) delay(pieceDelayMs)
+                onEvent(TutorEvent.Text(piece))
+                sent += piece.length
+            }
+            breakAt?.let { if (sent >= it) throw breakError }
+            sources.forEach { onEvent(TutorEvent.Source(it)) }
+            onEvent(TutorEvent.Done(TutorStats()))
         }
 
         override var lastTeacherText: String? = null
@@ -177,7 +205,7 @@ class ConversationControllerTest {
         }
     }
 
-    private class Rig(scope: TestScope, vararg transcripts: Any) {
+    private class Rig(scope: TestScope, vararg transcripts: Any, filler: String? = null) {
         lateinit var controller: ConversationController
         private val ui = { controller.ui.value }
         private val clock = { scope.testScheduler.currentTime }
@@ -206,6 +234,7 @@ class ConversationControllerTest {
                 output = output,
                 clock = clock,
                 log = log,
+                searchFiller = filler,
             )
         }
 
@@ -324,14 +353,18 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `service label is shown but not synthesized`() = runTest {
+    fun `footnote is shown as a source, neither spoken nor in the teacher text`() = runTest {
         val rig = Rig(this, "Gas price?")
-        rig.tutor.replyText = "${SpeechPlanner.LABEL_LIVE_WEB} It is three dollars."
+        rig.tutor.replyText = "It is three dollars. ([site.com](https://site.com/gas?utm_source=openai))\n\nOk?"
+        rig.tutor.sources = listOf(TutorSource("Gas prices", "https://site.com/gas?utm_source=openai"))
+        rig.tutor.pieceSize = 3
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("It is three dollars."), rig.synth.texts)
-        assertTrue(rig.controller.ui.value.teacherText.startsWith(SpeechPlanner.LABEL_LIVE_WEB))
+        assertEquals(listOf("It is three dollars.", "Ok?"), rig.synth.texts)
+        assertEquals("It is three dollars.\n\nOk?", rig.controller.ui.value.teacherText)
+        assertEquals(listOf(TutorSource("Gas prices", "https://site.com/gas?utm_source=openai")), rig.controller.ui.value.sources)
+        assertFalse(rig.log.lines.any { "site.com" in it })
     }
 
     @Test
@@ -341,7 +374,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         // распознавание 300 мс, учитель +1000, синтез +200; щита нет — слышно сразу
-        assertEquals(listOf("enc=0 stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=1500"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=1500"), rig.timing)
     }
 
     @Test
@@ -366,7 +399,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("enc=0 stt=300 tutor=1300 llm1=- search=no reply_chars=25 first_audio=1500 audible=2700"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=2700"), rig.timing)
     }
 
     @Test
@@ -425,6 +458,193 @@ class ConversationControllerTest {
         assertEquals(requested, rig.synth.texts.size) // новых запросов синтеза после Stop нет
         assertTrue(requested <= 1 + 3) // первая + не больше 3 вперёд
         assertEquals(listOf("STOP_BUTTON"), rig.circleEnds)
+    }
+
+    // ---- поток ответа (S02d) ---------------------------------------------------------------
+
+    @Test
+    fun `streamed reply - the voice starts before the teacher has finished writing`() = runTest {
+        val rig = Rig(this, "Count")
+        rig.tutor.replyText = "One, two, three, four, five, six."
+        rig.tutor.pieceSize = 5
+        rig.tutor.pieceDelayMs = 500 // куски в 1300, 1800, … 4300
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("One,", "two,", "three,", "four,", "five,", "six."), rig.output.played)
+        // «One,» не изменится, когда после «two, » пришёл знак (2300); синтез 200 мс
+        assertEquals(
+            listOf("enc=0 stt=300 first_token=1300 first_group=2300 tutor=4300 search=no search_ms=- filler=no reply_chars=33 first_audio=2500 audible=2500"),
+            rig.timing,
+        )
+        assertTrue(rig.output.startTimes.first() < 4300)
+        assertEquals("One, two, three, four, five, six.", rig.controller.ui.value.teacherText)
+        assertTrue(rig.log.lines.contains("[Controller] reply: 33 chars, 6 groups"))
+    }
+
+    @Test
+    fun `teacher text grows on the screen while the reply streams`() = runTest {
+        val rig = Rig(this, "Count")
+        rig.tutor.replyText = "One, two, three."
+        rig.tutor.pieceSize = 5
+        rig.tutor.pieceDelayMs = 500
+        rig.controller.startTurn()
+        advanceTimeBy(1300 + 1)
+        assertEquals("One,", rig.controller.ui.value.teacherText)
+        advanceTimeBy(500)
+        assertEquals("One, two,", rig.controller.ui.value.teacherText)
+        advanceUntilIdle()
+        assertEquals("One, two, three.", rig.controller.ui.value.teacherText)
+    }
+
+    @Test
+    fun `pause after a group is decided when it has sounded - paragraph pause before a late heading`() = runTest {
+        val rig = Rig(this, "Sunset?")
+        rig.tutor.replyText = "Sunset today, **Monday, November 23**, is at 5:20 PM."
+        rig.tutor.pieceSize = 1
+        rig.tutor.pieceDelayMs = 20
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(SpeechPlanner().plan(rig.tutor.replyText).map { it.text.replace("**", "") }, rig.output.played)
+        val t = rig.output.startTimes
+        assertTrue("${t[1] - t[0]}", t[1] - t[0] >= 1600) // абзац перед жирным заголовком, а не 600 мс запятой
+    }
+
+    @Test
+    fun `stream broke before anything was spoken - one retry, the whole reply is spoken`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.errors += ServiceException(FailureKind.NO_NETWORK, "SocketException")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hello", "Hello"), rig.tutor.replies)
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+        assertTrue(rig.log.lines.contains("[Controller] tutor failed (SocketException), nothing spoken yet: retry in 1000 ms"))
+        assertTrue(rig.log.lines.contains("[Controller] tutor retry succeeded"))
+        assertFalse(Cue.ERROR in rig.output.cues)
+        // первая попытка: 300 + 1000, пауза 1000, вторая: +1000
+        assertTrue(rig.timing.single(), rig.timing.single().contains("first_token=3300"))
+    }
+
+    @Test
+    fun `stream broke after the first piece but before any sound - retry, screen starts again`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.replyText = "One, two, three."
+        rig.tutor.pieceSize = 5
+        rig.tutor.pieceDelayMs = 50
+        rig.tutor.breakAfterChars = 15 // «One, two, three» пришло, «One,» ушла в синтез, звука ещё нет
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(2, rig.tutor.replies.size)
+        assertEquals(listOf("One,", "two,", "three."), rig.output.played)
+        assertEquals("One, two, three.", rig.controller.ui.value.teacherText)
+        assertTrue(rig.log.lines.contains("[Controller] reply broken off: 1 groups sent to synthesis"))
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `second failure before any sound - error, phone voice, end`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.error = ServiceException(FailureKind.SERVER, "http 503")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(2, rig.tutor.replies.size)
+        assertEquals(listOf(FailureKind.Phrases.NO_ANSWER), rig.output.played)
+        assertTrue(rig.log.lines.contains("[Controller] tutor retry failed (http 503)"))
+        assertEquals(listOf("TUTOR_ERROR"), rig.circleEnds)
+    }
+
+    @Test
+    fun `no retry for a failure that a retry cannot fix`() = runTest {
+        val rig = Rig(this, "Hello")
+        rig.tutor.error = ServiceException(FailureKind.QUOTA, "http 429 insufficient_quota")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(1, rig.tutor.replies.size)
+        assertTrue(rig.log.lines.contains("[Controller] tutor failed (http 429 insufficient_quota), no retry"))
+        assertEquals(listOf(FailureKind.Phrases.QUOTA), rig.output.played)
+    }
+
+    @Test
+    fun `stream broke while the teacher was speaking - ready groups are read, then error, phone voice, end`() = runTest {
+        val rig = Rig(this, "Count")
+        rig.tutor.replyText = "One, two, three, four, five, six."
+        rig.tutor.pieceSize = 5
+        rig.tutor.pieceDelayMs = 500
+        rig.tutor.breakAfterChars = 20 // обрыв в 2800; «One,» звучит с 2500
+        rig.output.playMs = 1000
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(1, rig.tutor.replies.size) // без повтора: учитель уже говорил
+        assertEquals(listOf("One,", "two,", FailureKind.Phrases.NO_NETWORK), rig.output.played)
+        assertEquals(listOf("TUTOR_ERROR"), rig.circleEnds)
+        assertEquals(listOf(Cue.ERROR, Cue.END), rig.output.cues.takeLast(2))
+        assertTrue(rig.log.lines.contains("[Controller] tutor stream broke (SocketException) while the teacher was speaking: ready groups spoken"))
+        // «ошибка» — после последней готовой группы
+        val ev = rig.timeline.events
+        assertTrue(ev.lastIndexOf("cue:ERROR") > ev.indexOf("play") )
+        assertEquals(1, rig.timing.size)
+    }
+
+    // ---- фраза на время поиска (D39) -------------------------------------------------------
+
+    @Test
+    fun `search - the teacher says the filler phrase, then the answer`() = runTest {
+        val rig = Rig(this, "Gas price?", "And now?", filler = "Let me check.")
+        rig.tutor.searchMs = 2000
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Let me check.", "Hello there.", "How are you?"), rig.output.played)
+        assertEquals("Let me check.", rig.synth.texts.first()) // синтез — пока ученик говорит
+        assertTrue(rig.log.lines.any { it.startsWith("[Controller] search filler ready:") })
+        assertTrue(rig.log.lines.contains("[Controller] search started, nothing said yet: filler phrase"))
+        assertEquals(
+            listOf("enc=0 stt=300 first_token=3300 first_group=3300 tutor=3300 search=yes search_ms=2000 filler=yes reply_chars=25 first_audio=3500 audible=3500"),
+            rig.timing,
+        )
+        assertEquals(300L, rig.output.startTimes.first()) // фраза — сразу, как учитель начал искать
+
+        // Второй ответ: фраза та же, синтез не повторяется (один раз за жизнь сервиса).
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(1, rig.synth.texts.count { it == "Let me check." })
+        assertEquals(2, rig.output.played.count { it == "Let me check." })
+    }
+
+    @Test
+    fun `filler is not cut when the search ends early, the answer follows it`() = runTest {
+        val rig = Rig(this, "Gas price?", filler = "Let me check.")
+        rig.tutor.searchMs = 100
+        rig.output.playMs = 1500 // фраза 300…1800, первая группа готова в 1600
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("Let me check.", "Hello there.", "How are you?"), rig.output.played)
+        assertTrue(rig.output.startTimes[1] >= rig.output.startTimes[0] + 1500)
+    }
+
+    @Test
+    fun `no search - no filler phrase`() = runTest {
+        val rig = Rig(this, "Hello", filler = "Let me check.")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertTrue(rig.timing.single().contains("search=no search_ms=- filler=no"))
+    }
+
+    @Test
+    fun `filler not ready yet - skipped, the answer is spoken as usual`() = runTest {
+        val rig = Rig(this, "Gas price?", filler = "Let me check.")
+        rig.synth.delayMs = 1000 // фраза готова только в 1000, поиск начался в 300
+        rig.tutor.searchMs = 500
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertTrue(rig.log.lines.contains("[Controller] search started: filler not ready, skipped"))
+        assertTrue(rig.timing.single().contains("filler=no"))
     }
 
     // ---- ожидание учителя ----------------------------------------------------------------
@@ -708,18 +928,21 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
         // сжатие 400 (уже прошло) + распознавание 300; дальше всё на те же 400 больше
-        assertEquals(listOf("enc=400 stt=700 tutor=1700 llm1=- search=no reply_chars=25 first_audio=1900 audible=1900"), rig.timing)
+        assertEquals(listOf("enc=400 stt=700 first_token=1700 first_group=1700 tutor=1700 search=no search_ms=- filler=no reply_chars=25 first_audio=1900 audible=1900"), rig.timing)
     }
 
     @Test
-    fun `timing line has search, reply length and first tutor request`() = runTest {
+    fun `timing line has search, its length and reply length`() = runTest {
         val rig = Rig(this, "Gas price?")
-        rig.tutor.searched = true
-        rig.tutor.firstRequestMs = 640
+        rig.tutor.searchMs = 900
         rig.tutor.replyText = "It is three dollars."
         rig.controller.startTurn()
         advanceUntilIdle()
-        assertEquals(listOf("enc=0 stt=300 tutor=1300 llm1=640 search=yes reply_chars=20 first_audio=1500 audible=1500"), rig.timing)
+        // поиск 300…1200, текст через 1000 после него
+        assertEquals(
+            listOf("enc=0 stt=300 first_token=2200 first_group=2200 tutor=2200 search=yes search_ms=900 filler=no reply_chars=20 first_audio=2400 audible=2400"),
+            rig.timing,
+        )
     }
 
     @Test

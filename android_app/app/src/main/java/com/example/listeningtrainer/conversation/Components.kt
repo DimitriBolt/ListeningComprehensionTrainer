@@ -54,22 +54,53 @@ interface Transcriber {
     suspend fun transcribe(audio: RecordedAudio, prompt: String): String
 }
 
-/**
- * Ответ учителя. [text] может начинаться со служебной метки — она только для экрана.
- * [searched] — учитель вызывал инструмент (поиск, погода); [firstRequestMs] — время первого
- * запроса к модели (для строки `[Timing]`).
- */
-data class TutorReply(val text: String, val searched: Boolean = false, val firstRequestMs: Long? = null)
+/** Источник ответа учителя (сноска поиска `url_citation`): показывается на экране ссылкой, вслух не читается. */
+data class TutorSource(val title: String, val url: String)
 
-/** Учитель: история диалога, системный промпт, инструменты. */
+/**
+ * Итог ответа учителя для журнала: токены, поиски, типы источников (`url`, `oai-weather` …),
+ * оценка цены в долларах. Без текстов и адресов.
+ */
+data class TutorStats(
+    val inputTokens: Int = 0,
+    val cachedTokens: Int = 0,
+    val outputTokens: Int = 0,
+    val searches: Int = 0,
+    val sourceTypes: Map<String, Int> = emptyMap(),
+    val costUsd: Double = 0.0,
+)
+
+/** Событие потока ответа учителя (с S02d — Responses API, D36). */
+sealed interface TutorEvent {
+    /** Очередной кусок текста ответа (сноски поиска могут прийти прямо в тексте). */
+    data class Text(val delta: String) : TutorEvent
+    /** Учитель начал искать в интернете. */
+    data object SearchStarted : TutorEvent
+    /** Поиск закончился. */
+    data object SearchFinished : TutorEvent
+    /** Источник для экрана; один адрес приходит один раз. */
+    data class Source(val source: TutorSource) : TutorEvent
+    /** Ответ кончился. После него учитель запомнил реплику ученика и свой ответ. */
+    data class Done(val stats: TutorStats) : TutorEvent
+}
+
+/**
+ * Учитель: история диалога, системный промпт, поиск в интернете.
+ *
+ * Ответ — поток событий [TutorEvent]: [onEvent] вызывается по порядку, в контексте вызывающего.
+ * Функция возвращается после [TutorEvent.Done]. Сбой — исключение (`ServiceException` с типом
+ * сбоя, без повтора: повторять ли, решает контроллер — только пока ничего не прозвучало).
+ * Реплика ученика и ответ попадают в историю только вместе с [TutorEvent.Done]: оборванный ответ
+ * не запоминается, и повтор запроса не удваивает реплику.
+ */
 interface Tutor {
-    /** Ответ на реплику ученика. [onStatus] — строки состояния для экрана («Accessing internet…»). */
-    suspend fun reply(studentText: String, onStatus: (String) -> Unit): TutorReply
+    /** Ответ на реплику ученика. */
+    suspend fun reply(studentText: String, onEvent: suspend (TutorEvent) -> Unit)
 
     /** Короткое прощание после долгого молчания ученика. */
-    suspend fun farewell(onStatus: (String) -> Unit): TutorReply
+    suspend fun farewell(onEvent: suspend (TutorEvent) -> Unit)
 
-    /** Последний ответ учителя (для подсказки распознаванию); `null` — разговор только начался. */
+    /** Последний ответ учителя без сносок (для подсказки распознаванию); `null` — разговор только начался. */
     val lastTeacherText: String?
 
     /** Забыть историю диалога: следующий ответ — как в начале разговора. */

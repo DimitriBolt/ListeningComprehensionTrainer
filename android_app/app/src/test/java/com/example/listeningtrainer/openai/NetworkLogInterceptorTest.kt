@@ -19,10 +19,10 @@ class NetworkLogInterceptorTest {
     }
 
     @Test
-    fun `search and weather show only the host - their URLs contain the student's words`() {
-        val search = Request.Builder().url("https://duckduckgo.com/lite/?q=my+secret+question").build()
-        val weather = Request.Builder().url("https://wttr.in/Tucson?format=%l").build()
-        assertEquals("GET duckduckgo.com", NetworkLogInterceptor.describe(search))
-        assertEquals("GET wttr.in", NetworkLogInterceptor.describe(weather))
+    fun `other hosts show only the host - their URLs may contain the student's words`() {
+        val search = Request.Builder().url("https://example.com/search?q=my+secret+question").build()
+        val weather = Request.Builder().url("https://weather.example.org/Tucson?format=%l").build()
+        assertEquals("GET example.com", NetworkLogInterceptor.describe(search))
+        assertEquals("GET weather.example.org", NetworkLogInterceptor.describe(weather))
     }
 }

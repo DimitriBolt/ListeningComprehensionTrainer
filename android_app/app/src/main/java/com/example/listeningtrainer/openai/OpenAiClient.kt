@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * HTTP-клиенты процесса. Общий [http] (пул соединений один) — для WebSocket Realtime и проверки
- * ключа; у распознавания, учителя и инструментов — свой общий предел на весь вызов
+ * ключа; у распознавания и учителя — свой общий предел на весь вызов
  * (`callTimeout`, S02b): чтение и запись не дольше него же.
  */
 object OpenAiClient {
@@ -32,13 +32,10 @@ object OpenAiClient {
 
     val transcribeHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TRANSCRIBE_CALL_TIMEOUT_MS) }
     val tutorHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TUTOR_CALL_TIMEOUT_MS) }
-    /** Инструменты учителя: погода и поиск. */
-    val toolsHttp: OkHttpClient by lazy { withCallTimeout(ModelConfig.TOOLS_CALL_TIMEOUT_MS) }
 
     /** Проверка ключа. */
     val api: OpenAiService by lazy { retrofit(http) }
     val transcribeApi: OpenAiService by lazy { retrofit(transcribeHttp) }
-    val tutorApi: OpenAiService by lazy { retrofit(tutorHttp) }
 
     private fun retrofit(client: OkHttpClient): OpenAiService {
         val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }

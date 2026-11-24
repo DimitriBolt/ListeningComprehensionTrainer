@@ -22,6 +22,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -233,6 +236,23 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
                     markdown = ui.teacherText,
                     modifier = Modifier.padding(16.dp)
                 )
+            }
+            // Источники поиска (D37): кликабельные ссылки, вслух не читаются.
+            if (ui.sources.isNotEmpty()) {
+                val uriHandler = LocalUriHandler.current
+                Text(text = "Sources:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
+                ui.sources.forEach { source ->
+                    Text(
+                        text = source.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { runCatching { uriHandler.openUri(source.url) } }
+                            .padding(vertical = 6.dp)
+                    )
+                }
             }
         }
 

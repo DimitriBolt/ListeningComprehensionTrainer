@@ -4,6 +4,8 @@ import com.example.listeningtrainer.audio.Loudness
 import com.example.listeningtrainer.eventlog.EventLog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,7 +44,12 @@ class SpeechPipelineTest {
         override fun error(source: String, message: String, error: Throwable?) { lines += "[$source] ERROR $message" }
     }
 
-    private fun chunks(vararg texts: String) = texts.map { SpeechChunk(it, 250) }
+    /** Группы потоком: все сразу в канале, канал закрыт (ответ кончился). */
+    private fun chunks(vararg texts: String): ReceiveChannel<SpeechChunk> =
+        Channel<SpeechChunk>(Channel.UNLIMITED).apply {
+            texts.forEach { trySend(SpeechChunk(it, 250)) }
+            close()
+        }
 
     @Test
     fun `groups come in order, first requested first, at most lookahead ready ahead`() = runTest {
@@ -86,8 +93,8 @@ class SpeechPipelineTest {
         }
         assertEquals(2, primary.texts.size)
         assertTrue(fallback.texts.isEmpty())
-        assertTrue(log.lines.any { it.startsWith("[Audio] group 1/1: realtime mismatch (mismatch: expected 4 words, heard 5)") })
-        assertTrue(log.lines.any { it.startsWith("[Audio] group 1/1: realtime (attempt 2), ready in") })
+        assertTrue(log.lines.any { it.startsWith("[Audio] group 1: realtime mismatch (mismatch: expected 4 words, heard 5)") })
+        assertTrue(log.lines.any { it.startsWith("[Audio] group 1: realtime (attempt 2), ready in") })
     }
 
     @Test
@@ -101,9 +108,9 @@ class SpeechPipelineTest {
         }
         assertEquals(listOf("Tell me more.", "Tell me more.", "Good job!"), primary.texts)
         assertEquals(listOf("Tell me more."), fallback.texts)
-        assertTrue(log.lines.contains("[Audio] group 1/2: fallback to android after 2 attempts"))
-        assertTrue(log.lines.any { it.startsWith("[Audio] group 1/2: android, ready in") })
-        assertTrue(log.lines.any { it.startsWith("[Audio] group 2/2: realtime, ready in") })
+        assertTrue(log.lines.contains("[Audio] group 1: fallback to android after 2 attempts"))
+        assertTrue(log.lines.any { it.startsWith("[Audio] group 1: android, ready in") })
+        assertTrue(log.lines.any { it.startsWith("[Audio] group 2: realtime, ready in") })
     }
 
     @Test
@@ -118,8 +125,8 @@ class SpeechPipelineTest {
             SpeechPipeline(primary, fallback, log, { testScheduler.currentTime }).start(this, chunks("Hello.")).receive()
         }
         assertEquals(1, fallback.texts.size)
-        assertTrue(log.lines.contains("[Audio] group 1/1: realtime error (status failed (server_error)), attempt 1 of 2"))
-        assertTrue(log.lines.contains("[Audio] group 1/1: realtime error (IllegalStateException), attempt 2 of 2"))
+        assertTrue(log.lines.contains("[Audio] group 1: realtime error (status failed (server_error)), attempt 1 of 2"))
+        assertTrue(log.lines.contains("[Audio] group 1: realtime error (IllegalStateException), attempt 2 of 2"))
     }
 
     @Test
@@ -134,7 +141,7 @@ class SpeechPipelineTest {
         }
         assertEquals(listOf("One,"), primary.texts)
         assertEquals(listOf("One,", "two,", "three."), fallback.texts)
-        assertTrue(log.lines.contains("[Audio] realtime unavailable (http 401): group 1/3 and the rest of the reply via android"))
+        assertTrue(log.lines.contains("[Audio] realtime unavailable (http 401): group 1 and the rest of the reply via android"))
 
         coroutineScope { pipeline.start(this, chunks("Next.")).receive() }
         assertEquals(listOf("One,", "Next."), primary.texts)
@@ -151,7 +158,7 @@ class SpeechPipelineTest {
         } catch (e: SynthesisException) {
             assertEquals("android tts: no English voice data", e.message)
         }
-        assertTrue(log.lines.contains("[Audio] group 1/1: android failed (android tts: no English voice data)"))
+        assertTrue(log.lines.contains("[Audio] group 1: android failed (android tts: no English voice data)"))
     }
 
     @Test
@@ -183,7 +190,7 @@ class SpeechPipelineTest {
         val level = Loudness.measure(audio.pcm, audio.sampleRate)
         // Цель −13 дБFS (D25); звук на −37 дБFS упирается в предел усиления +24 дБ.
         assertEquals(-13.0, level.rmsDbfs, 1.0)
-        val line = log.lines.single { it.startsWith("[Audio] group 1/1:") }
+        val line = log.lines.single { it.startsWith("[Audio] group 1:") }
         assertTrue(line, "ready in 100 ms, 100 ms of audio, rms -37.0 dBFS, peak -34.0 dBFS -> rms -13." in line)
         assertFalse(log.lines.any { "Secret" in it })
     }
@@ -199,7 +206,7 @@ class SpeechPipelineTest {
         }
         assertEquals(listOf("1. Make a plan", "write it down."), primary.texts)
         assertEquals(listOf(false, true, false, true, true), audios.map { it.pcm.isEmpty() })
-        assertTrue(log.lines.contains("[Audio] group 2/5: no words, not synthesized"))
+        assertTrue(log.lines.contains("[Audio] group 2: no words, not synthesized"))
     }
 
     @Test

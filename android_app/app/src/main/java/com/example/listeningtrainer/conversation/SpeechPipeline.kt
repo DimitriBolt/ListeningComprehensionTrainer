@@ -12,8 +12,9 @@ import kotlinx.coroutines.channels.produce
 /**
  * Озвучка ответа учителя по группам. Чистый Kotlin (инвариант 3).
  *
- * - Группы синтезируются **по порядку**: первая запрашивается первой и ничего не ждёт, дальше
- *   готовыми держатся не больше [lookahead] групп вперёд (D8, бриф S02 п. 3).
+ * - Группы приходят **потоком** (S02d: учитель ещё пишет ответ) и синтезируются **по порядку**:
+ *   первая запрашивается первой и ничего не ждёт, дальше готовыми держатся не больше [lookahead]
+ *   групп вперёд (D8, бриф S02 п. 3).
  * - Каждая группа основного синтеза сверяется с его расшифровкой ([TranscriptCheck]).
  *   Расхождение или ошибка → один повтор → снова не так → эта группа читается [fallback].
  * - Основной синтез недоступен целиком (нет сети, 401, 429, сессия) → остаток ответа читает
@@ -48,31 +49,30 @@ class SpeechPipeline(
     }
 
     /**
-     * Начинает синтез групп [chunks] в [scope]. Звук групп приходит в канал в том же порядке.
-     * Ошибка запасного синтеза завершает канал этой ошибкой. Отмена [scope] обрывает синтез.
+     * Начинает синтез групп, которые приходят в [chunks] (канал закрывается, когда ответ кончился).
+     * Звук групп приходит в канал в том же порядке. Ошибка запасного синтеза завершает канал этой
+     * ошибкой. Отмена [scope] обрывает синтез.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun start(scope: CoroutineScope, chunks: List<SpeechChunk>): ReceiveChannel<SpeechAudio> =
+    fun start(scope: CoroutineScope, chunks: ReceiveChannel<SpeechChunk>): ReceiveChannel<SpeechAudio> =
         // Ёмкость lookahead - 1: пока звучит группа i, в канале лежат i+1 … i+lookahead-1, а группа
         // i+lookahead готова и ждёт места — всего lookahead готовых вперёд.
         scope.produce(capacity = lookahead - 1) {
             var primaryAvailable = true
-            chunks.forEachIndexed { index, chunk ->
-                val number = "${index + 1}/${chunks.size}"
+            var index = 0
+            for (chunk in chunks) {
+                val number = "${++index}"
                 val text = chunk.text.replace("**", "") // ** нужны только на экране
                 if (!hasWords(text)) {
                     log.event(SOURCE, "group $number: no words, not synthesized")
                     send(SpeechAudio(ShortArray(0), ModelConfig.SPEECH_SAMPLE_RATE))
-                    return@forEachIndexed
+                    continue
                 }
                 val started = clock()
                 val (speech, how) = synthesizeGroup(number, text, primaryAvailable) { primaryAvailable = false }
                 val readyMs = clock() - started
                 val audio = speech.audio
-                val norm = Loudness.normalize(
-                    audio.pcm, audio.sampleRate,
-                    ModelConfig.SPEECH_TARGET_RMS_DBFS, ModelConfig.SPEECH_PEAK_CEILING_DBFS, ModelConfig.SPEECH_MAX_GAIN_DB,
-                )
+                val norm = normalize(audio)
                 log.event(
                     SOURCE,
                     "group $number: $how, ready in $readyMs ms, ${audio.durationMs} ms of audio, " +
@@ -83,15 +83,38 @@ class SpeechPipeline(
         }
 
     /**
+     * Заготовленная фраза голосом основного синтеза (D39, «Let me check.»): со сверкой, той же
+     * громкости. Не вышло (ошибка, расхождение) — `null`: фраза просто не прозвучит.
+     */
+    suspend fun synthesizePrimary(text: String): SpeechAudio? {
+        val speech = try {
+            primary.synthesize(text)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.event(SOURCE, "${primary.name} error (${e.message ?: e.javaClass.simpleName})")
+            return null
+        }
+        if (!TranscriptCheck.compare(text, speech.transcript).ok) {
+            log.event(SOURCE, "${primary.name} mismatch")
+            return null
+        }
+        val norm = normalize(speech.audio)
+        return SpeechAudio(norm.pcm, speech.audio.sampleRate)
+    }
+
+    private fun normalize(audio: SpeechAudio) = Loudness.normalize(
+        audio.pcm, audio.sampleRate,
+        ModelConfig.SPEECH_TARGET_RMS_DBFS, ModelConfig.SPEECH_PEAK_CEILING_DBFS, ModelConfig.SPEECH_MAX_GAIN_DB,
+    )
+
+    /**
      * Короткое сообщение голосом телефона (ошибка сети, D21): запасной синтез, та же громкость.
      * Ошибка синтеза пробрасывается — тогда остаются только сигналы.
      */
     suspend fun speakFallback(text: String): SpeechAudio {
         val audio = fallback.synthesize(text).audio
-        val norm = Loudness.normalize(
-            audio.pcm, audio.sampleRate,
-            ModelConfig.SPEECH_TARGET_RMS_DBFS, ModelConfig.SPEECH_PEAK_CEILING_DBFS, ModelConfig.SPEECH_MAX_GAIN_DB,
-        )
+        val norm = normalize(audio)
         return SpeechAudio(norm.pcm, audio.sampleRate)
     }
 

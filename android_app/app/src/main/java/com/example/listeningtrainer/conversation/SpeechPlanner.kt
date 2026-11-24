@@ -10,10 +10,9 @@ data class SpeechChunk(val text: String, val pauseMs: Long)
 class SpeechPlanner {
 
     fun plan(text: String): List<SpeechChunk> {
-        val spokenText = stripServiceLabel(text)
         // Жирный заголовок — отдельный абзац (номер пункта `1. ` в начале строки идёт с ним,
         // а ниже отделяется в свою группу).
-        val preparedText = spokenText.replace(HEADING_REGEX, "\n$1\n")
+        val preparedText = text.replace(HEADING_REGEX, "\n$1\n")
         val paragraphs = preparedText.split(Regex("\\n+")).filter { it.trim().isNotEmpty() }
         val allChunks = mutableListOf<SpeechChunk>()
 
@@ -86,19 +85,7 @@ class SpeechPlanner {
         return out
     }
 
-    /** Служебная метка в начале ответа нужна только на экране, вслух не звучит. */
-    private fun stripServiceLabel(text: String): String {
-        val trimmed = text.trimStart()
-        val label = SERVICE_LABELS.firstOrNull { trimmed.startsWith(it) } ?: return text
-        return trimmed.removePrefix(label).trimStart()
-    }
-
     companion object {
-        /** Метки, которые учитель ставит перед ответом после поиска в интернете. */
-        const val LABEL_LIVE_WEB = "(Live Web Data):"
-        const val LABEL_SEARCH_FALLBACK = "(Search attempted, fallback):"
-        val SERVICE_LABELS = listOf(LABEL_LIVE_WEB, LABEL_SEARCH_FALLBACK)
-
         private val HEADING_REGEX = Regex("(?m)\\s*((?:^[ \\t]*\\d{1,2}\\.[ \\t]+)?\\*\\*.*?\\*\\*)")
         private val HEADING_CHUNK_REGEX = Regex("(?:\\d{1,2}\\.\\s+)?\\*\\*.*\\*\\*")
         /** Абзац, который начинается с номера пункта списка: `1. …`. */

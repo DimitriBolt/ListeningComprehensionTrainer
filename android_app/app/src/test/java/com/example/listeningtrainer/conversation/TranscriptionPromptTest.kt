@@ -13,8 +13,8 @@ class TranscriptionPromptTest {
     }
 
     @Test
-    fun `last teacher sentence without markup and service label`() {
-        val text = "${SpeechPlanner.LABEL_SEARCH_FALLBACK} There was a big **outage** today.\n\nHave you heard about the outage?"
+    fun `last teacher sentence without markup`() {
+        val text = "There was a big **outage** today.\n\nHave you heard about the outage?"
         assertEquals("Have you heard about the outage?", TranscriptionPrompt.lastSentence(text, 200))
         assertEquals(
             "${TranscriptionPrompt.CONTEXT} The teacher just said: \"Have you heard about the outage?\"",

@@ -32,11 +32,22 @@ object ModelConfig {
      */
     const val LISTEN_PULSE_MIC_MASK_MS = 350L
 
-    /** Учитель: Chat Completions (D11). Инструменты работают только при `reasoning_effort: none`. */
+    /**
+     * Учитель: Responses API (D36, проба S02c — вариант 3): поток, встроенный `web_search`,
+     * `reasoning.effort: none` (поиск при нём работает), `store: false` — историю шлёт приложение.
+     */
+    const val TUTOR_URL = OPENAI_BASE_URL + "v1/responses"
     const val TUTOR_MODEL = "gpt-6-luna"
     const val TUTOR_REASONING_EFFORT = "none"
-    /** История учителя (D27): системный промпт + не больше стольких последних сообщений. */
+    /** `low` — быстрее (первая группа 3,8 с против 4,2 с у `medium` в пробе), данные те же. */
+    const val TUTOR_WEB_SEARCH_CONTEXT_SIZE = "low"
+    /** История учителя (D27): не больше стольких последних сообщений (реплики ученика и ответы учителя). */
     const val TUTOR_HISTORY_MESSAGES = 30
+    /** Цена для журнала (страница модели, прочитана в S02c): $ за 1M токенов и за один поиск (D40). */
+    const val TUTOR_PRICE_INPUT_PER_M = 0.10
+    const val TUTOR_PRICE_CACHED_PER_M = 0.01
+    const val TUTOR_PRICE_OUTPUT_PER_M = 0.50
+    const val TUTOR_PRICE_PER_SEARCH = 0.01
 
     // --- Синтез речи учителя (S02, решения D8, D9) ---
     /** Realtime API по WebSocket: к адресу добавляется модель. */
@@ -83,22 +94,14 @@ object ModelConfig {
     /** Сервис без идущего круга и без видимого экрана закрывается сам через столько. */
     const val SERVICE_IDLE_TIMEOUT_MS = 10 * 60_000L
 
-    // --- Инструменты учителя ---
-    /** Погода: `{location}` заменяется на город. */
-    const val WEATHER_URL = "https://wttr.in/{location}?format=%l:+%C+%t"
-    /** Поиск: к адресу добавляется запрос в URL-кодировке. */
-    const val SEARCH_URL = "https://duckduckgo.com/lite/?q="
-    const val SEARCH_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-
     // --- Сеть ---
     /** Таймауты OkHttp. Значения по умолчанию OkHttp (10 с), как было до S01. */
     const val CONNECT_TIMEOUT_MS = 10_000L
     const val READ_TIMEOUT_MS = 10_000L
     const val WRITE_TIMEOUT_MS = 10_000L
-    /** Общий предел на весь вызов (S02b, А4): распознавание, один запрос к учителю, поиск и погода. */
+    /** Общий предел на весь вызов (S02b, А4): распознавание; у учителя — весь поток ответа с поиском (в пробе худшее 12,3 с). */
     const val TRANSCRIBE_CALL_TIMEOUT_MS = 25_000L
     const val TUTOR_CALL_TIMEOUT_MS = 20_000L
-    const val TOOLS_CALL_TIMEOUT_MS = 8_000L
     /** Пауза перед единственным автоматическим повтором (сеть, таймаут, 5xx, 429). */
     const val RETRY_PAUSE_MS = 1_000L
 }

@@ -23,7 +23,6 @@ class FileTranscriberTest {
     private class FakeApi(val answer: (fileName: String) -> String) : OpenAiService {
         val files = mutableListOf<String>()
         val fields = mutableListOf<Map<String, String>>()
-        override suspend fun chat(authHeader: String, request: ChatRequest): ChatResponse = error("not used")
         override suspend fun listModels(authHeader: String): ResponseBody = error("not used")
         override suspend fun transcribeAudio(
             authHeader: String, file: MultipartBody.Part, model: RequestBody, language: RequestBody, prompt: RequestBody,

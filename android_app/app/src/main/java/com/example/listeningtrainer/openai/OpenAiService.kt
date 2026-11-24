@@ -2,71 +2,14 @@
 package com.example.listeningtrainer.openai
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.GET
-import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
-
-@Serializable
-data class ChatRequest(
-    val model: String,
-    val messages: List<Message>,
-    val tools: List<Tool>? = null,
-    val tool_choice: String? = null,
-    /** `gpt-6-luna` в Chat Completions вызывает инструменты только при `none` (docs/research/00-models.md). */
-    val reasoning_effort: String? = null,
-)
-
-@Serializable
-data class Message(
-    val role: String,
-    val content: String? = null,
-    val tool_calls: List<ToolCall>? = null,
-    val tool_call_id: String? = null,
-    val name: String? = null
-)
-
-@Serializable
-data class Tool(
-    val type: String = "function",
-    val function: FunctionDef
-)
-
-@Serializable
-data class FunctionDef(
-    val name: String,
-    val description: String,
-    val parameters: JsonElement // Схема параметров в формате JSON Schema
-)
-
-@Serializable
-data class ToolCall(
-    val id: String,
-    val type: String,
-    val function: FunctionCall
-)
-
-@Serializable
-data class FunctionCall(
-    val name: String,
-    val arguments: String // JSON-строка с аргументами
-)
-
-@Serializable
-data class ChatResponse(
-    val choices: List<Choice>
-)
-
-@Serializable
-data class Choice(
-    val message: Message
-)
 
 @Serializable
 data class TranscriptionResponse(
@@ -74,13 +17,6 @@ data class TranscriptionResponse(
 )
 
 interface OpenAiService {
-    /** Разговор с учителем. */
-    @POST("v1/chat/completions")
-    suspend fun chat(
-        @Header("Authorization") authHeader: String,
-        @Body request: ChatRequest
-    ): ChatResponse
-
     /** Проверка ключа: список моделей — бесплатно, без запроса к модели. */
     @GET("v1/models")
     suspend fun listModels(@Header("Authorization") authHeader: String): ResponseBody

@@ -9,7 +9,7 @@ import okhttp3.Response
 
 /**
  * Пишет в журнал каждый сетевой вызов: метод, адрес, код ответа, длительность до заголовков ответа.
- * Путь пишется только для OpenAI: в адресах поиска и погоды есть слова ученика, от них — только хост.
+ * Путь пишется только для OpenAI; от других адресов — только хост (в них могут быть слова ученика).
  * Заголовки (в том числе ключ) и тела не пишутся.
  */
 class NetworkLogInterceptor(private val log: EventLog) : Interceptor {
@@ -41,7 +41,7 @@ class NetworkLogInterceptor(private val log: EventLog) : Interceptor {
         fun failureLine(what: String, ms: Long, e: Exception, canceled: Boolean): String =
             if (canceled) "$what cancelled after $ms ms" else "$what failed after $ms ms: ${e.javaClass.simpleName}"
 
-        /** «POST api.openai.com/v1/audio/transcriptions, up 96 KB» или «GET duckduckgo.com». */
+        /** «POST api.openai.com/v1/audio/transcriptions, up 96 KB» или «GET example.com». */
         fun describe(request: Request): String {
             val url = request.url
             val where = if (url.host == OPENAI_HOST) url.host + url.encodedPath else url.host
