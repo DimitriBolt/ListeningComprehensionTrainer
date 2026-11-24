@@ -91,6 +91,9 @@ class ResponsesTutor(
         try {
             transport.stream(OpenAiClient.bearer(apiKey()), requestBody(input).toString(), stream::line)
             stream.end()
+        } catch (e: StopAtQuestion) {
+            // Реплика кончилась первым вопросом: продолжение не нужно, поток закрыт (транспорт закрывает ответ).
+            stream.endAtQuestion()
         } catch (e: CancellationException) {
             throw e
         } catch (e: ServiceException) {
@@ -124,10 +127,18 @@ class ResponsesTutor(
         put("store", false)
     }
 
+    /** Реплика кончилась первым вопросом ([ReplyText.firstQuestionEnd]): остаток потока не читается. */
+    private class StopAtQuestion : Exception()
+
     /** Разбор одного потока ответа (SSE: строки `event:`, `data:`, пустая строка — конец события). */
     private inner class Stream(private val userText: String, private val onEvent: suspend (TutorEvent) -> Unit) {
         private val data = StringBuilder()
         private val text = StringBuilder()
+        /** Что пришло после первого вопроса: дочитывается, только пока это сноска к нему (источник для экрана). */
+        private val tail = StringBuilder()
+        private var atQuestion = false
+        /** Поток оборван на первом вопросе: после него было что-то, кроме сноски. */
+        private var stoppedEarly = false
         private val searchesStarted = mutableSetOf<String>()
         private var searchActions = 0
         private val sourceTypes = sortedMapOf<String, Int>()
@@ -168,14 +179,33 @@ class ResponsesTutor(
             when (e.str("type")) {
                 "response.output_text.delta" -> {
                     val delta = e.str("delta").orEmpty()
-                    if (delta.isNotEmpty()) {
-                        text.append(delta)
-                        onEvent(TutorEvent.Text(delta))
+                    if (delta.isEmpty()) return
+                    if (atQuestion) {
+                        tail.append(delta)
+                        if (!tailIsFootnote()) throw StopAtQuestion()
+                        return
                     }
+                    text.append(delta)
+                    val cut = ReplyText.firstQuestionEnd(text.toString())
+                    if (cut == null) {
+                        onEvent(TutorEvent.Text(delta))
+                        return
+                    }
+                    // Первый вопрос кончился: дальше — только сноска к нему, иначе поток обрывается.
+                    val keep = delta.length - (text.length - cut)
+                    if (keep > 0) onEvent(TutorEvent.Text(delta.substring(0, keep)))
+                    tail.append(text, cut, text.length)
+                    text.setLength(cut)
+                    atQuestion = true
+                    if (!tailIsFootnote()) throw StopAtQuestion()
                 }
                 "response.output_item.added" -> {
                     val item = e.obj("item") ?: return
-                    if (item.str("type") == "web_search_call" && searchesStarted.add(item.str("id") ?: "#${searchesStarted.size}")) {
+                    // Новый элемент после вопроса (поиск или второе сообщение): реплика кончилась вопросом.
+                    // «Спросил и ищет» обрывается до поиска — без фразы «Let me check.» и лишнего ожидания.
+                    val kind = item.str("type")
+                    if ((kind == "web_search_call" || kind == "message") && endsWithQuestion()) throw StopAtQuestion()
+                    if (kind == "web_search_call" && searchesStarted.add(item.str("id") ?: "#${searchesStarted.size}")) {
                         onEvent(TutorEvent.SearchStarted)
                     }
                     // Текст до поиска и после него — разные сообщения; без пробела они слипаются:
@@ -228,6 +258,31 @@ class ResponsesTutor(
             onEvent(TutorEvent.Source(TutorSource(o.str("title")?.takeIf { it.isNotBlank() } ?: url, url)))
         }
 
+        /** Уже был первый вопрос, или текст кончается им (следующего знака ещё нет)? */
+        private fun endsWithQuestion(): Boolean {
+            if (atQuestion) return true
+            val cut = ReplyText.firstQuestionEnd("$text ") ?: return false
+            text.setLength(minOf(cut, text.length))
+            atQuestion = true
+            return true
+        }
+
+        /** Хвост после вопроса — пробелы или сноска поиска (возможно, ещё не закрытая)? */
+        private fun tailIsFootnote(): Boolean {
+            val t = tail.toString().trimStart()
+            if (t.isEmpty()) return true
+            if (t[0] != '(' && t[0] != '[') return false
+            return SpeechText.clean(t.substring(0, SpeechText.openBracketLimit(t))).isBlank()
+        }
+
+        /** Поток оборван на первом вопросе: ответ закончен (токенов сервер не сообщил). */
+        suspend fun endAtQuestion() {
+            if (done) return
+            log.event(SOURCE, "tutor reply ended at the first question: the rest is not read")
+            stoppedEarly = true
+            complete(null, incomplete = null)
+        }
+
         private suspend fun complete(response: JsonObject?, incomplete: String?) {
             if (done) return
             done = true
@@ -236,7 +291,10 @@ class ResponsesTutor(
             val cached = usage?.obj("input_tokens_details")?.int("cached_tokens") ?: 0
             val output = usage?.int("output_tokens") ?: 0
             val truncated = incomplete == "max_output_tokens"
-            val stats = TutorStats(input, cached, output, searchActions, sourceTypes.toMap(), cost(input, cached, output, searchActions), truncated)
+            val stats = TutorStats(
+                input, cached, output, searchActions, sourceTypes.toMap(), cost(input, cached, output, searchActions),
+                truncated, endedAtQuestion = stoppedEarly,
+            )
             val answer = SpeechText.clean(text.toString()).trim()
             history += Turn(ROLE_USER, userText)
             // Обрезанный ответ запоминается так, как он прозвучал: без незаконченной фразы.

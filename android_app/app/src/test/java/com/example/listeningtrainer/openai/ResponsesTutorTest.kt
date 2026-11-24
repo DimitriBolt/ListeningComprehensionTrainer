@@ -109,7 +109,8 @@ class ResponsesTutorTest {
         assertEquals(file.replace(ResponsesTutor.DATE_MARK, "Monday, November 23, 2026"), prompt)
         assertFalse(prompt.contains(ResponsesTutor.DATE_MARK))
         for (rule in listOf(
-            "Each sentence has 6 to 8 words at most", "30 words at most", "End almost every reply with one simple question",
+            "Each sentence has 6 to 8 words at most", "30 words at most", "End almost every reply with exactly one simple question", "Never ask the same thing twice",
+            "A missing or wrong small word",
             "first ask a short question with two choices", "Give one main detail only",
             "The third time: say one key word in Russian", "Start at level A1",
             "Never search in a reply where you ask a clarifying question", "Your question is the last thing in your reply",
@@ -228,19 +229,71 @@ class ResponsesTutorTest {
     fun `text before and after a search - two messages joined with a space`() = runTest {
         val message = """{"type":"response.output_item.added","output_index":1,"item":{"id":"msg_2","type":"message","role":"assistant","content":[]}}"""
         val transport = FakeTransport().apply {
-            streams += sse(message, delta("Now or tonight?"), searchAdded, searchDone, message, delta("It is 64 degrees."), completed)
+            streams += sse(message, delta("Let me see."), searchAdded, searchDone, message, delta("It is 64 degrees."), completed)
         }
         val t = tutor(transport)
         val texts = mutableListOf<String>()
         t.reply("Temperature?") { if (it is TutorEvent.Text) texts += it.delta }
-        assertEquals("Now or tonight? It is 64 degrees.", texts.joinToString(""))
-        assertEquals("Now or tonight? It is 64 degrees.", t.lastTeacherText)
+        assertEquals("Let me see. It is 64 degrees.", texts.joinToString(""))
+        assertEquals("Let me see. It is 64 degrees.", t.lastTeacherText)
+    }
+
+    private val message2 = """{"type":"response.output_item.added","output_index":1,"item":{"id":"msg_2","type":"message","role":"assistant","content":[]}}"""
+
+    @Test
+    fun `reply ends at the first question - asked and then searched - no search, no answer`() = runTest {
+        val log = Log()
+        val transport = FakeTransport().apply {
+            streams += sse(message2, delta("I think you meant \"What is the temperature in Tucson?\", right? Now or "), delta("tonight?"),
+                searchAdded, searchDone, message2, delta("It is 64 degrees."), completed)
+        }
+        val t = tutor(transport, log)
+        val events = mutableListOf<TutorEvent>()
+        t.reply("What is temperature in Tucson?") { events += it }
+        val said = events.filterIsInstance<TutorEvent.Text>().joinToString("") { it.delta }
+        assertEquals("I think you meant \"What is the temperature in Tucson?\", right? Now or tonight?", said)
+        assertFalse(events.any { it is TutorEvent.SearchStarted }) // без «Let me check.»
+        assertTrue((events.last() as TutorEvent.Done).stats.endedAtQuestion)
+        assertEquals(said, t.lastTeacherText)
+        assertTrue(log.lines.contains("[Network] tutor reply ended at the first question: the rest is not read"))
+    }
+
+    @Test
+    fun `reply ends at the first question - the same question twice in one piece`() = runTest {
+        val transport = FakeTransport().apply {
+            streams += sse(delta("Do you mean now or today? Do you mean the temperature now?"), completed)
+            streams += sse(delta("It is 15 degrees. Is that warm or cold? "), completed)
+        }
+        val t = tutor(transport)
+        val texts = mutableListOf<String>()
+        t.reply("Temperature?") { if (it is TutorEvent.Text) texts += it.delta }
+        assertEquals("Do you mean now or today?", texts.joinToString(""))
+        assertEquals("Do you mean now or today?", t.lastTeacherText)
+        // Вопрос в конце — обычный ответ.
+        val events = mutableListOf<TutorEvent>()
+        t.reply("Now.") { events += it }
+        assertFalse((events.last() as TutorEvent.Done).stats.endedAtQuestion)
+        assertEquals("It is 15 degrees. Is that warm or cold?", t.lastTeacherText)
+    }
+
+    @Test
+    fun `reply ends at the first question - its footnote is still read for the screen`() = runTest {
+        val transport = FakeTransport().apply {
+            streams += sse(delta("Sunset is at 5:20 PM. Is that early? "), delta("([site.com](https://site.com/a?utm_source=openai))"),
+                citation, delta(" It is late in summer."), completed)
+        }
+        val t = tutor(transport)
+        val events = mutableListOf<TutorEvent>()
+        t.reply("Sunset?") { events += it }
+        assertEquals("Sunset is at 5:20 PM. Is that early?", events.filterIsInstance<TutorEvent.Text>().joinToString("") { it.delta })
+        assertEquals(1, events.count { it is TutorEvent.Source })
+        assertTrue((events.last() as TutorEvent.Done).stats.endedAtQuestion)
     }
 
     @Test
     fun `length limit - max_output_tokens in the request, cut reply remembered without the unfinished sentence`() = runTest {
         val transport = FakeTransport().apply {
-            streams += sse(delta("It is warm. Is it nice? And the"), """{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":10,"output_tokens":120}}}""")
+            streams += sse(delta("It is warm. It is nice. And the"), """{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":10,"output_tokens":120}}}""")
             streams += sse(delta("Fine."), """{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"content_filter"}}}""")
         }
         val t = tutor(transport)
@@ -248,7 +301,7 @@ class ResponsesTutorTest {
         t.reply("Weather?") { events += it }
         assertEquals(ModelConfig.TUTOR_MAX_OUTPUT_TOKENS, transport.bodies.single()["max_output_tokens"]!!.jsonPrimitive.content.toInt())
         assertTrue((events.last() as TutorEvent.Done).stats.truncated)
-        assertEquals("It is warm. Is it nice?", t.lastTeacherText)
+        assertEquals("It is warm. It is nice.", t.lastTeacherText)
         // Другая причина неполного ответа — не обрезка по длине.
         events.clear()
         t.reply("Ok") { events += it }

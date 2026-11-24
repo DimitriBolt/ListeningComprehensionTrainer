@@ -2,6 +2,7 @@ package com.example.listeningtrainer.conversation
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -38,5 +39,22 @@ class ReplyTextTest {
         assertEquals("Noon is, okay?", ReplyText.withoutRussian("Noon is полдень, okay?"))
         assertTrue(ReplyText.withoutRussian("«полдень».").none { it.isLetterOrDigit() })
         assertEquals("", ReplyText.withoutRussian("полдень"))
+    }
+
+    @Test
+    fun `reply ends at the first question - the correction and its right are not a question`() {
+        fun cut(t: String) = ReplyText.firstQuestionEnd(t)?.let { t.substring(0, it) }
+        assertEquals("Now or tonight?", cut("Now or tonight? It is 64 degrees."))
+        assertEquals("Do you like it?\"", cut("Do you like it?\" I do."))
+        assertNull(cut("Now or tonight?")) // следующего знака ещё нет — решать рано
+        assertNull(cut("It is 15 degrees."))
+        val fix = "I think you meant \"What is the temperature in Tucson?\", right?"
+        assertEquals("$fix At night or at noon?", cut("$fix At night or at noon? It is 68."))
+        assertNull(cut("$fix At night")) // вопроса после поправки ещё нет
+        assertNull(cut("I think you meant \"What is the temperature in Tucson? ")) // поправка ещё идёт
+        assertNull(cut("I think you meant \"What is the temperature in Tucson?\", ri")) // «right?» ещё идёт
+        assertNull(cut("I think you me"))
+        assertEquals("I think you meant “I went home.” Where?", cut("I think you meant “I went home.” Where? Then"))
+        assertEquals("I think it is hot. Do you?", cut("I think it is hot. Do you? Yes."))
     }
 }

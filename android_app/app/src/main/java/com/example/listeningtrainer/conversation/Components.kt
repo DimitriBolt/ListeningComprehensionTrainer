@@ -70,6 +70,8 @@ data class TutorStats(
     val costUsd: Double = 0.0,
     /** Ответ обрезан пределом `max_output_tokens` (S02e): незаконченная фраза в конце не звучит. */
     val truncated: Boolean = false,
+    /** Ответ оборван на первом вопросе (S02e): остаток потока не читался, токенов сервер не сообщил. */
+    val endedAtQuestion: Boolean = false,
 )
 
 /** Событие потока ответа учителя (с S02d — Responses API, D36). */

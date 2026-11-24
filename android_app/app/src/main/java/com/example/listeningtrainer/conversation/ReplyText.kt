@@ -2,7 +2,7 @@ package com.example.listeningtrainer.conversation
 
 /**
  * Ответ учителя как реплика диалога (S02e, раздел «Методика»). Чистый Kotlin (инвариант 3).
- * Копия в Python — `reply_metrics` и `drop_unfinished` в `tools/probe/probe.py` (проба `tutor-dialog`).
+ * Копия в Python — `reply_metrics`, `drop_unfinished`, `first_question_end` в `tools/probe/tutor_dialog.py`.
  */
 object ReplyText {
 
@@ -37,6 +37,41 @@ object ReplyText {
     fun dropUnfinished(text: String): String {
         val last = SENTENCE_END.findAll(text).lastOrNull() ?: return text
         return text.substring(0, last.range.last + 1)
+    }
+
+    /**
+     * Реплика кончается первым вопросом (S02e, ручная проверка: учитель задавал два вопроса подряд или
+     * сам отвечал на свой уточняющий вопрос). Позиция сразу после первого вопроса — `?`, закрывающие
+     * кавычки или скобки и пробел за ними; `null` — такого вопроса ещё нет или решать рано.
+     *
+     * Поправка ученика в начале реплики (D47) — не вопрос: «I think you meant "…", right?» пропускается
+     * целиком, вместе с `?` внутри кавычек. Пока поправка не пришла до конца — `null` (ждём).
+     */
+    fun firstQuestionEnd(text: String): Int? {
+        val from = afterCorrection(text) ?: return null
+        val m = QUESTION_END.find(text, from) ?: return null
+        return m.range.last + 1
+    }
+
+    private const val CORRECTION_START = "i think you meant"
+    private val QUESTION_END = Regex("""\?["'”»)\]*]*(?=\s)""")
+    private val CORRECTION_QUOTE = Regex("""^(\s*I think you meant,?\s*)["“]""", RegexOption.IGNORE_CASE)
+    private val CLOSING_QUOTE = Regex("""["”]""")
+    private val RIGHT_TAG = Regex("""^\s*,?\s*right\s*\?""", RegexOption.IGNORE_CASE)
+
+    /** Где кончается поправка в начале [text]: 0 — поправки нет; `null` — она ещё не пришла целиком. */
+    private fun afterCorrection(text: String): Int? {
+        val lead = text.trimStart().lowercase()
+        if (!lead.startsWith(CORRECTION_START)) return if (CORRECTION_START.startsWith(lead)) null else 0
+        val open = CORRECTION_QUOTE.find(text)
+            ?: return if (lead.removePrefix(CORRECTION_START).trim(' ', ',').isEmpty()) null else 0
+        val close = CLOSING_QUOTE.find(text, open.range.last + 1) ?: return null
+        val afterQuote = close.range.last + 1
+        val rest = text.substring(afterQuote)
+        RIGHT_TAG.find(rest)?.let { return afterQuote + it.range.last + 1 }
+        // «, right?» ещё может прийти: пока хвост — его начало, решать рано.
+        val tail = rest.replace(Regex("""[\s,]+"""), "").lowercase()
+        return if ("right?".startsWith(tail)) null else afterQuote
     }
 
     /**

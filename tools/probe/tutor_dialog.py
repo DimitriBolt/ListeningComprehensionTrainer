@@ -57,8 +57,10 @@ SCENARIOS = [
     {
         "id": "S1", "title": "Вопрос с ошибкой",
         "expect": "сначала поправка — весь вопрос правильно, — затем уточняющий вопрос; поиск только после уточнения",
-        "turns": ["What is temperature in Tuscon?", "At noon.", "Yes, it is hot."],
-        "corrections": {1: ["the temperature", "tucson"]},
+        # Как это запишет распознавание: ошибки написания «Tuscon» в живой речи нет, ошибка — пропущенное «the»
+        # (ручная проверка S02e: с «Tuscon» проба поправку видела, на телефоне — нет).
+        "turns": ["What is temperature in Tucson?", "At noon.", "Yes, it is hot."],
+        "corrections": {1: ["the temperature"]},
         "no_search_before": 2,
     },
     {
@@ -147,6 +149,93 @@ def reply_metrics(text: str) -> dict:
     }
 
 
+_QUESTION_END = re.compile(r"\?[\"'”»)\]*]*(?=\s)")
+_CORRECTION_QUOTE = re.compile(r"^(\s*I think you meant,?\s*)[\"“]", re.I)
+_CORRECTION_START = "i think you meant"
+
+
+def _after_correction(text: str) -> int | None:
+    """Копия ReplyText.afterCorrection: 0 — поправки нет; None — она ещё не пришла целиком."""
+    lead = text.lstrip().lower()
+    if not lead.startswith(_CORRECTION_START):
+        return None if _CORRECTION_START.startswith(lead) else 0
+    m = _CORRECTION_QUOTE.match(text)
+    if not m:
+        return None if not lead[len(_CORRECTION_START):].strip(" ,") else 0
+    close = re.compile(r"[\"”]").search(text, m.end())
+    if not close:
+        return None
+    after = close.end()
+    rest = text[after:]
+    tag = re.match(r"\s*,?\s*right\s*\?", rest, re.I)
+    if tag:
+        return after + tag.end()
+    tail = re.sub(r"[\s,]+", "", rest).lower()
+    return None if "right?".startswith(tail) else after
+
+
+def first_question_end(text: str) -> int | None:
+    """Копия ReplyText.firstQuestionEnd: реплика кончается первым вопросом (поправка — не вопрос)."""
+    start = _after_correction(text)
+    if start is None:
+        return None
+    m = _QUESTION_END.search(text, start)
+    return m.end() if m else None
+
+
+def _tail_is_footnote(tail: str) -> bool:
+    from speech_planner import clean_for_speech as clean
+    t = tail.lstrip()
+    if not t:
+        return True
+    if t[0] not in "([":
+        return False
+    depth_sq = depth_rd = 0
+    first_open = -1
+    for i, ch in enumerate(t):  # копия SpeechText.openBracketLimit
+        if ch == "[":
+            if depth_sq == 0 and depth_rd == 0:
+                first_open = i
+            depth_sq += 1
+        elif ch == "]" and depth_sq:
+            depth_sq -= 1
+        elif ch == "(":
+            if depth_sq == 0 and depth_rd == 0:
+                first_open = i
+            depth_rd += 1
+        elif ch == ")" and depth_rd:
+            depth_rd -= 1
+        if depth_sq == 0 and depth_rd == 0:
+            first_open = -1
+    limit = first_open if first_open >= 0 else len(t)
+    return not clean(t[:limit]).strip()
+
+
+def app_stop(events: list) -> tuple[list, bool]:
+    """Где приложение (ResponsesTutor) оборвало бы поток по правилу «реплика кончается первым вопросом»:
+    события до остановки и признак обрыва."""
+    text, tail, at_q = "", "", False
+    for i, (t, e) in enumerate(events):
+        typ = e.get("type")
+        if typ == "response.output_item.added" and (e.get("item") or {}).get("type") in ("web_search_call", "message"):
+            if at_q or first_question_end(text + " ") is not None:
+                return events[:i], True
+        elif typ == "response.output_text.delta":
+            d = e.get("delta") or ""
+            if at_q:
+                tail += d
+                if not _tail_is_footnote(tail):
+                    return events[:i], True
+                continue
+            text += d
+            cut = first_question_end(text)
+            if cut is not None:
+                at_q, tail, text = True, text[cut:], text[:cut]
+                if not _tail_is_footnote(tail):
+                    return events[:i + 1], True
+    return events, False
+
+
 def drop_unfinished(text: str) -> str:
     """Копия ReplyText.dropUnfinished."""
     last = None
@@ -192,13 +281,19 @@ def run_scenario(api, prompt: str, sc: dict, budget: Budget) -> dict:
             break
         history.append({"role": "user", "content": student})
         r = probe.responses_stream(api, request_body(prompt, history))
-        a = probe.analyze_stream(r["events"])
+        model_text = clean_for_speech(probe.analyze_stream(r["events"])["text"]).strip()
+        events, stopped = app_stop(r["events"])  # как приложение: реплика кончается первым вопросом
+        a = probe.analyze_stream(events)
         error = r["error"] or ("; ".join(a["errors"]) if a["errors"] and a["status"] != "incomplete" else None)
         incomplete = None
         for t, e in r["events"]:
             if e.get("type") == "response.incomplete":
                 incomplete = ((e.get("response") or {}).get("incomplete_details") or {}).get("reason")
         text = clean_for_speech(a["text"]).strip()
+        if stopped:
+            cut = first_question_end(text + " ")
+            text = text[:cut] if cut else text
+            incomplete = None
         if incomplete == "max_output_tokens":
             text = drop_unfinished(text)
         cost = sum(probe.resp_cost(u) for u in a["usages"]) + a["n_search_actions"] * probe.PRICE_WEB_SEARCH
@@ -206,6 +301,7 @@ def run_scenario(api, prompt: str, sc: dict, budget: Budget) -> dict:
         usage = (a["usages"] or [None])[-1] or {}
         step = {
             "step": i, "student": student, "teacher": text, "raw_chars": len(a["text"]),
+            "ended_at_question": stopped, "model_text": model_text if stopped else None,
             "error": error, "incomplete": incomplete,
             "searched": a["n_search_calls"] > 0, "n_search": a["n_search_calls"],
             "search_queries": [q for s in a["searches"] for q in (s.get("queries") or [])],
@@ -217,7 +313,8 @@ def run_scenario(api, prompt: str, sc: dict, budget: Budget) -> dict:
         steps.append(step)
         log(f"  {sc['id']}.{i}: {step['words']} сл., вопрос {'да' if step['question'] else 'нет'}"
             f"{', поиск' if step['searched'] else ''}{', RU' if step['russian'] else ''}"
-            f"{', ОБРЕЗАН' if incomplete else ''}{'  ОШИБКА: ' + error if error else ''}")
+            f"{', ОБРЕЗАН' if incomplete else ''}{', до первого вопроса' if stopped else ''}"
+            f"{'  ОШИБКА: ' + error if error else ''}")
         if error:
             break
         history.append({"role": "assistant", "content": text})
@@ -319,6 +416,7 @@ def summarize(scenarios: list[dict]) -> dict:
         "corrections_ok": sum(c["ok"] for c in corr), "corrections_total": len(corr),
         "checks_ok": sum(c["ok"] for c in checks), "checks_total": len(checks),
         "truncated": sum(1 for s in steps if s["incomplete"]),
+        "ended_at_question": sum(1 for s in steps if s.get("ended_at_question")),
         "searches": sum(1 for s in steps if s["searched"]),
         "errors": sum(1 for sc in scenarios for s in sc["steps"] if s["error"]),
         "median_first_group_plain": statistics.median(tfg_plain) if tfg_plain else None,
@@ -437,6 +535,8 @@ def render(runs: list[dict]) -> str:
          "разговор.", "",
          f"Цели: медиана слов в реплике ≤ {GOAL_MEDIAN_WORDS}, максимум ≤ {GOAL_MAX_WORDS}, вопрос в конце "
          f"≥ {round(GOAL_QUESTION_SHARE * 100)} % реплик, каждая заложенная ошибка в сценариях 1–2 поправлена (D47).", "",
+         "С 6-го прогона в таблицах — то, что **прозвучит** в приложении: реплика кончается первым вопросом "
+         "(`ReplyText.firstQuestionEnd`, ручная проверка S02e); что модель написала целиком — в скобках.", "",
          "Слова считаются как в журнале приложения (`ReplyText.metrics`): все слова реплики, вместе с поправкой. "
          "«Макс. в фразе» — самое длинное предложение **без** поправки (предел промпта 6–8 слов). Время до первой "
          "группы — от отправки запроса до момента, когда потоковая нарезка отдала бы первую группу в синтез "
@@ -476,6 +576,7 @@ def render_run(r: dict) -> list[str]:
          f"{s['median_sentence_words_max']} / {s['max_sentence_words']} | 6–8 |",
          f"| проверки сценариев | {s['checks_ok']} из {s['checks_total']} | |",
          f"| обрезано пределом длины | {s['truncated']} | 0 |",
+         f"| оборвано на первом вопросе (приложение) | {s.get('ended_at_question', '—')} | |",
          f"| реплик с поиском | {s['searches']} | |",
          f"| первая группа, медиана: без поиска / с поиском, с | {_s(s['median_first_group_plain'])} / "
          f"{_s(s['median_first_group_search'])} (худшее {_s(s['max_first_group'])}) | |",
@@ -494,6 +595,8 @@ def render_run(r: dict) -> list[str]:
             teacher = _cell(st["teacher"]) if not st["error"] else f"**ошибка:** {_cell(st['error'])}"
             if st["incomplete"]:
                 teacher += f" *(обрезан: {st['incomplete']})*"
+            if st.get("ended_at_question"):
+                teacher += f" *(оборван на первом вопросе; модель написала: «{_cell(st['model_text'])}»)*"
             L.append(f"| {st['step']} | {_cell(st['student'])} | {teacher} | {st['words']} | {st['sentences']} | "
                      f"{st['max_sentence_words']} | {_yes(st['question'])} | {'да' if st['searched'] else '—'} | "
                      f"{'да' if st['russian'] else '—'} | {_s(st['t_first_group'])} |")

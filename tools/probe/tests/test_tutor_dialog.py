@@ -57,6 +57,34 @@ def test_metrics_like_reply_text_kt():
     assert td.drop_unfinished("No end here") == "No end here"
 
 
+def test_first_question_end_like_reply_text_kt():
+    # Те же случаи, что в ReplyTextTest.kt.
+    def cut(t):
+        c = td.first_question_end(t)
+        return t[:c] if c is not None else None
+    assert cut("Now or tonight? It is 64 degrees.") == "Now or tonight?"
+    assert cut('Do you like it?" I do.') == 'Do you like it?"'
+    assert cut("Now or tonight?") is None and cut("It is 15 degrees.") is None
+    fix = 'I think you meant "What is the temperature in Tucson?", right?'
+    assert cut(f"{fix} At night or at noon? It is 68.") == f"{fix} At night or at noon?"
+    assert cut(f"{fix} At night") is None
+    assert cut('I think you meant "What is the temperature in Tucson? ') is None
+    assert cut('I think you meant "What is the temperature in Tucson?", ri') is None
+    assert cut("I think you me") is None
+    assert cut("I think you meant “I went home.” Where? Then") == "I think you meant “I went home.” Where?"
+    assert cut("I think it is hot. Do you? Yes.") == "I think it is hot. Do you?"
+
+
+def test_app_stop_asked_then_searched():
+    ev = [(0.0, e) for e in wrap("r", text_events("Now or tonight?") + search_events(["q"]) + text_events("It is 64."))]
+    kept, stopped = td.app_stop(ev)
+    assert stopped and not any((e.get("item") or {}).get("type") == "web_search_call" for _, e in kept)
+    a = probe.analyze_stream(kept)
+    assert a["text"] == "Now or tonight?" and a["n_search_calls"] == 0
+    ev = [(0.0, e) for e in wrap("r", text_events("It is 15 degrees. Is that warm? ([a.com](https://a.com))"))]
+    assert td.app_stop(ev)[1] is False  # после вопроса только сноска — обычный конец
+
+
 def test_checks():
     sc = td.SCENARIOS[0]
     good = [{"step": 1, "correction": "What is the temperature in Tucson?", "searched": False, "question": True,
@@ -84,7 +112,7 @@ class FakeTutor:
         body = json.loads(request.content)
         self.requests.append(body)
         student = body["input"][-1]["content"]
-        if "Tuscon" in student:
+        if "temperature in" in student:
             text = 'I think you meant "What is the temperature in Tucson?", right? At night or at noon?'
             ev = wrap("r1", text_events(text))
         elif "noon" in student.lower():
