@@ -152,3 +152,53 @@ def test_safe_cut_rules():
     assert sp.safe_cut("Hi. T") == 4
     assert sp.safe_cut("Rules:\n1") == 7
     assert sp.safe_cut("Hi. **Tip. More") == 4           # незакрытый жирный
+
+
+# --- S02d: жирный не режется посередине, пауза — поздно; ответы из приложения 02c-results.md ---
+
+PROBE_REPLIES = Path(__file__).resolve().parents[3] / "android_app/app/src/test/resources/02c-replies.txt"
+
+
+def stream_with_late_pauses(text, pieces):
+    """Группы и пауза каждой — в момент, когда пришла следующая (или конец), как в приложении."""
+    s = sp.StreamPlanner()
+    texts, pauses = [], []
+
+    def take(new):
+        for c in new:
+            if texts:
+                pauses.append(s.pause_after(len(texts) - 1))
+            texts.append(c.text)
+
+    for p in pieces:
+        take(s.feed(p))
+    take(s.finish())
+    if texts:
+        pauses.append(s.pause_after(len(texts) - 1))
+    return [Chunk(t, p) for t, p in zip(texts, pauses)], s
+
+
+def test_safe_cut_not_inside_bold_pair():
+    assert sp.safe_cut("a, **b, c") == 3
+    assert sp.safe_cut("a, **b, c**") == 3
+    assert sp.safe_cut("a, **b, c**, d") == len("a, **b, c**, ")
+
+
+def test_heading_piece_by_piece_keeps_paragraph_pause():
+    # Расхождение пробы S02c (в5 B4 #1): 600 мс вместо 1600 мс.
+    text = "Sunset in Tucson today, **Monday, November 23, 2026**, is at about **5:20 PM**.\n\nWill you watch it?"
+    got, s = stream_with_late_pauses(text, list(text))
+    assert got[0] == Chunk("Sunset in Tucson today,", 1600)
+    assert got == plan(text) and s.divergences == []
+
+
+def test_all_probe_replies_stream_like_whole_text():
+    replies = [t.strip() for t in PROBE_REPLIES.read_text(encoding="utf-8").split("\n=====\n") if t.strip()]
+    assert len(replies) == 90
+    for n, text in enumerate(replies):
+        expected = plan(sp.clean_for_speech(text))
+        rng = random.Random(n)
+        ways = [list(text)] + [split_random(text, rng) for _ in range(5)]
+        for way in ways:
+            got, s = stream_with_late_pauses(text, way)
+            assert got == expected and s.divergences == [], f"ответ {n + 1}"

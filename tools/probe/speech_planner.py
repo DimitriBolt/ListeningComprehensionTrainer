@@ -6,7 +6,7 @@
 (инвариант 1). Эталонные случаи — из `SpeechPlannerTest.kt` (перенесены в tests/test_speech_planner.py).
 Если SpeechPlanner.kt меняется, эту копию надо поменять так же.
 
-`StreamPlanner` — кандидат для S02d: текст приходит кусками (`response.output_text.delta`),
+`StreamPlanner` — копия `StreamingSpeechPlanner.kt` (S02d): текст приходит кусками (`response.output_text.delta`),
 группы отдаются в синтез, как только их уже не может изменить продолжение текста.
 
 Правило (почему группы совпадают с нарезкой готового текста):
@@ -16,7 +16,9 @@
    пробелы целиком, есть ли в них `\n` (пауза абзаца), начинается ли следующий абзац.
    Точки после одиночной цифры (`2. `, номер пункта) безопасными не считаются — SpeechPlanner там не режет.
 2. Незакрытая ссылка или сноска (`[`, `(` без пары) останавливает безопасную точку перед собой:
-   сноску нельзя вычистить, пока она не пришла целиком.
+   сноску нельзя вычистить, пока она не пришла целиком. Жирный `**…**` не режется посередине
+   (поправка S02d): точка внутри пары — не точка, незакрытая `**` на последней строке — граница.
+   Пары ищутся так же, как в SpeechPlanner: в пределах строки, слева направо.
 3. Префикс до безопасной точки чистится от сносок (`clean_for_speech`) и нарезается `plan()`;
    отдаются все группы, кроме **последней**: её ещё может изменить продолжение (знак без букв
    присоединится к ней по D23, жирный заголовок сразу за ней сделает паузу абзацной).
@@ -161,6 +163,8 @@ def speech_leftovers(text: str) -> list[str]:
 # --------------------------------------------------------------------------
 
 _SAFE_RE = re.compile(r"(?<=[,;:!?])\s+|(?<=[.])(?<!\b\d\.)\s+|\n\s*")
+_BOLD_PAIR_RE = re.compile(r"\*\*.*?\*\*")
+_REGEX_SPACE = " \t\n\x0b\x0c\r"  # \s регулярных выражений Java (как в Kotlin)
 
 
 def safe_cut(text: str) -> int:
@@ -186,35 +190,46 @@ def safe_cut(text: str) -> int:
             first_open = None
     if first_open is not None:
         limit = first_open
-    # Незакрытый жирный заголовок «**…» — тоже только до него.
-    bold = [m.start() for m in re.finditer(r"\*\*", text)]
-    if len(bold) % 2:
-        limit = min(limit, bold[-1])
+    # Жирный «**…**»: пары — как у SpeechPlanner (в пределах строки, слева направо).
+    # Незакрытая «**» на последней строке — граница; точка внутри пары — не точка (поправка S02d).
+    pairs = [(m.start(), m.end()) for m in _BOLD_PAIR_RE.finditer(text)]
+    last_line = text.rfind("\n") + 1
+    for m in re.finditer(r"\*\*", text):
+        if not any(a <= m.start() < b for a, b in pairs) and m.start() >= last_line:
+            limit = min(limit, m.start())
     cut = 0
     for m in _SAFE_RE.finditer(text, 0, limit):
+        end = m.end()
         # после точки должен прийти непробельный знак, иначе пробелы могут продолжиться
-        if m.end() < len(text) and not text[m.end()].isspace():
-            cut = m.end()
+        if end >= len(text) or text[end] in _REGEX_SPACE:
+            continue
+        if any(a < end < b for a, b in pairs):
+            continue
+        cut = end
     return cut
 
 
 @dataclass
 class StreamPlanner:
-    """Текст кусками → группы, как только их уже не изменит продолжение."""
+    """Текст кусками → группы, как только их уже не изменит продолжение.
+    Копия StreamingSpeechPlanner.kt: пауза после группы берётся позже (`pause_after`), из самой
+    свежей нарезки; разошедшийся текст отданной группы записывается, нарезка идёт дальше."""
     clean: bool = True
     text: str = ""
     emitted: list[Chunk] = field(default_factory=list)
     divergences: list[str] = field(default_factory=list)
+    latest: list[Chunk] = field(default_factory=list)
+    last_cut: int = 0
 
     def _plan(self, s: str) -> list[Chunk]:
         return plan(clean_for_speech(s) if self.clean else s)
 
     def _emit_from(self, chunks: list[Chunk]) -> list[Chunk]:
-        n = len(self.emitted)
-        if chunks[:n] != self.emitted:
-            self.divergences.append(f"уже отдано {self.emitted[:n]}, новая нарезка {chunks[:n]}")
-            return []
-        new = chunks[n:]
+        n = min(len(self.emitted), len(chunks))
+        for i in range(n):
+            if chunks[i].text != self.emitted[i].text:
+                self.divergences.append(f"группа {i + 1}: уже отдано {self.emitted[i]}, новая нарезка {chunks[i]}")
+        new = chunks[len(self.emitted):]
         self.emitted.extend(new)
         return new
 
@@ -222,11 +237,21 @@ class StreamPlanner:
         """Добавить кусок текста; вернуть новые группы, готовые к синтезу."""
         self.text += delta
         cut = safe_cut(self.text)
-        if cut == 0:
+        if cut <= self.last_cut:
             return []
+        self.last_cut = cut
         chunks = self._plan(self.text[:cut])
-        return self._emit_from(chunks[:-1]) if len(chunks) > 1 else []
+        self.latest = chunks
+        return self._emit_from(chunks[:-1])
 
     def finish(self) -> list[Chunk]:
         """Поток кончился: отдать остаток."""
-        return self._emit_from(self._plan(self.text))
+        chunks = self._plan(self.text)
+        self.latest = chunks
+        return self._emit_from(chunks)
+
+    def pause_after(self, index: int) -> int:
+        """Пауза после отданной группы — по самой свежей нарезке (когда пришла следующая или конец)."""
+        if index < len(self.latest) and self.latest[index].text == self.emitted[index].text:
+            return self.latest[index].pause_ms
+        return self.emitted[index].pause_ms
