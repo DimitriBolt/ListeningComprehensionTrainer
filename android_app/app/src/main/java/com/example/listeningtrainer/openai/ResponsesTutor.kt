@@ -178,6 +178,12 @@ class ResponsesTutor(
                     if (item.str("type") == "web_search_call" && searchesStarted.add(item.str("id") ?: "#${searchesStarted.size}")) {
                         onEvent(TutorEvent.SearchStarted)
                     }
+                    // Текст до поиска и после него — разные сообщения; без пробела они слипаются:
+                    // «…or tonight?I think…» (проба S02e) — нарезка не видит конца предложения.
+                    if (item.str("type") == "message" && text.isNotEmpty() && !text.last().isWhitespace()) {
+                        text.append(' ')
+                        onEvent(TutorEvent.Text(" "))
+                    }
                 }
                 "response.output_item.done" -> {
                     val item = e.obj("item") ?: return

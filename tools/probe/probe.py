@@ -3,7 +3,8 @@
 
 S00b: вопросы «не подтверждено» из docs/research/00-models.md (подкоманды verbatim … vadservice, all).
 S02c: учитель на Responses API — встроенный web_search, поток, погода (подкоманда responses;
-документация — в начале её раздела). Код приложения не меняет. Запуск и цена — в tools/probe/README.md.
+документация — в начале её раздела). S02e: учитель-собеседник, диалоги по сценариям (подкоманда
+tutor-dialog, код — tutor_dialog.py). Код приложения не меняет. Запуск и цена — в tools/probe/README.md.
 
 Официальная документация, по которой написан код (прочитана 2026-11-16):
   [R-conv]   https://developers.openai.com/api/docs/guides/realtime-conversations
@@ -1649,6 +1650,14 @@ def analyze_stream(events: list[tuple[float, dict]]) -> dict:
             item = e.get("item") or {}
             if item.get("type") == "web_search_call":
                 searches.setdefault(item.get("id") or f"ws{len(searches)}", {})["t_start"] = t
+            elif item.get("type") == "message" and text and not text[-1].isspace():
+                # Как ResponsesTutor (S02e): сообщение до поиска и после него разделяет пробел.
+                text += " "
+                new = sp.feed(" ")
+                if new:
+                    group_times += [t] * len(new)
+                    if t_first_group is None:
+                        t_first_group = t
         elif typ and typ.startswith("response.web_search_call."):
             s = searches.setdefault(e.get("item_id") or f"ws{len(searches)}", {})
             s.setdefault("t_start", t)
@@ -2456,6 +2465,13 @@ OPTIONS = [
      ("transcribe",)),
     (("--repeats",), dict(type=int, default=3, metavar="N", help="повторов для замера времени (по умолчанию 3)"),
      ("transcribe", "responses")),
+    (("--dialog-repeats",), dict(type=int, default=2, metavar="N", dest="repeats",
+                                 help="повторов каждого сценария (по умолчанию 2)"), ("tutor-dialog",)),
+    (("--label",), dict(default="", metavar="ТЕКСТ", help="метка прогона в отчёте (например, что поменяли в промпте)"),
+     ("tutor-dialog",)),
+    (("--dialog-budget",), dict(type=float, default=1.0, metavar="$", dest="budget",
+                                help="остановить прогон, когда потрачено столько, $ (по умолчанию 1.0)"),
+     ("tutor-dialog",)),
     (("--variants",), dict(default=",".join(RESP_VARIANTS), metavar="СПИСОК",
                            help="варианты через запятую (по умолчанию все: " + ",".join(RESP_VARIANTS)
                                 + "; что это — в README)"),
@@ -2473,7 +2489,8 @@ OPTIONS = [
     (("--tail",), dict(type=float, default=8.0, metavar="С",
                        help="секунд тишины после звука (по умолчанию 8: semantic_vad low ждёт до 8 с)"),
      ("vadservice",)),
-    (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"), ("all", "responses")),
+    (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"),
+     ("all", "responses", "tutor-dialog")),
 ]
 
 COMMANDS = {
@@ -2485,6 +2502,7 @@ COMMANDS = {
     "vadservice": "semantic_vad в разговорной сессии без ответов и в сессии транскрипции",
     "all": "всё по очереди S00b (сначала покажет оценку стоимости)",
     "responses": "S02c: учитель на Responses API — web_search при reasoning none, поток, погода, цена",
+    "tutor-dialog": "S02e: учитель-собеседник — диалоги по сценариям, длина реплик, вопросы, поправки, русское слово",
 }
 
 
@@ -2543,6 +2561,14 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "responses":
             if probe_responses(ctx):
                 print_responses_next_steps(ctx)
+            return 0
+        elif args.cmd == "tutor-dialog":
+            sys.modules.setdefault("probe", sys.modules[__name__])  # tutor_dialog делает import probe: тот же модуль
+            import tutor_dialog
+            if tutor_dialog.probe_tutor_dialog(ctx):
+                print("\nОтправить архитектору (из корня репозитория):\n"
+                      "  git add docs/research/02e-dialogs.md docs/research/02e-dialogs.json && "
+                      'git commit -m "[S02e] Диалоги по сценариям" && git push')
             return 0
         else:
             ctx.key  # проверить ключ до начала

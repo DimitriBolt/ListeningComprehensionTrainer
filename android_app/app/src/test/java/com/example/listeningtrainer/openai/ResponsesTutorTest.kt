@@ -1,5 +1,6 @@
 package com.example.listeningtrainer.openai
 
+import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.FailureKind
 import com.example.listeningtrainer.conversation.ServiceException
 import com.example.listeningtrainer.conversation.TutorEvent
@@ -110,7 +111,8 @@ class ResponsesTutorTest {
         for (rule in listOf(
             "Each sentence has 6 to 8 words at most", "30 words at most", "End almost every reply with one simple question",
             "first ask a short question with two choices", "Give one main detail only",
-            "after two simpler tries, say one key word in Russian", "Start at level A1",
+            "The third time: say one key word in Russian", "Start at level A1",
+            "Never search in a reply where you ask a clarifying question", "Your question is the last thing in your reply",
             "I think you meant \"...\", right?", "The words inside the quotes do not count",
             "Use web_search ONLY for fresh facts", "Do NOT guess",
         )) assertTrue(rule, prompt.contains(rule))
@@ -223,6 +225,19 @@ class ResponsesTutorTest {
     }
 
     @Test
+    fun `text before and after a search - two messages joined with a space`() = runTest {
+        val message = """{"type":"response.output_item.added","output_index":1,"item":{"id":"msg_2","type":"message","role":"assistant","content":[]}}"""
+        val transport = FakeTransport().apply {
+            streams += sse(message, delta("Now or tonight?"), searchAdded, searchDone, message, delta("It is 64 degrees."), completed)
+        }
+        val t = tutor(transport)
+        val texts = mutableListOf<String>()
+        t.reply("Temperature?") { if (it is TutorEvent.Text) texts += it.delta }
+        assertEquals("Now or tonight? It is 64 degrees.", texts.joinToString(""))
+        assertEquals("Now or tonight? It is 64 degrees.", t.lastTeacherText)
+    }
+
+    @Test
     fun `length limit - max_output_tokens in the request, cut reply remembered without the unfinished sentence`() = runTest {
         val transport = FakeTransport().apply {
             streams += sse(delta("It is warm. Is it nice? And the"), """{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":10,"output_tokens":120}}}""")
@@ -231,7 +246,7 @@ class ResponsesTutorTest {
         val t = tutor(transport)
         val events = mutableListOf<TutorEvent>()
         t.reply("Weather?") { events += it }
-        assertEquals(120, transport.bodies.single()["max_output_tokens"]!!.jsonPrimitive.content.toInt())
+        assertEquals(ModelConfig.TUTOR_MAX_OUTPUT_TOKENS, transport.bodies.single()["max_output_tokens"]!!.jsonPrimitive.content.toInt())
         assertTrue((events.last() as TutorEvent.Done).stats.truncated)
         assertEquals("It is warm. Is it nice?", t.lastTeacherText)
         // Другая причина неполного ответа — не обрезка по длине.
