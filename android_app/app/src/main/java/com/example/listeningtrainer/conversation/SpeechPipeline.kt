@@ -161,8 +161,14 @@ class SpeechPipeline(
     }
 
     private suspend fun fallbackGroup(number: String, text: String): Pair<SynthesizedSpeech, String> {
+        // Голос телефона английский: русское слово (D43) он не прочтёт — пропускаем слово, а не группу.
+        val spoken = if (ReplyText.hasRussian(text)) ReplyText.withoutRussian(text) else text
+        if (spoken != text) {
+            log.event(SOURCE, "group $number: russian word skipped by ${fallback.name}")
+            if (!hasWords(spoken)) return SynthesizedSpeech(SpeechAudio(ShortArray(0), ModelConfig.SPEECH_SAMPLE_RATE), null) to fallback.name
+        }
         val speech = try {
-            fallback.synthesize(text)
+            fallback.synthesize(spoken)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

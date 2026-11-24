@@ -4,7 +4,9 @@ package com.example.listeningtrainer.conversation
  * Сверка: прочитал ли синтезатор группу дословно. Чистый Kotlin, перенос `compare_texts`
  * из `tools/probe/probe.py` (пробы S00b, 50 из 50 групп): сравнение после нормализации —
  * регистр, пунктуация, `**`, кавычки, числа словами или цифрами, `$`, `%`; сокращения
- * (I'm = I am) тоже считаются совпадением.
+ * (I'm = I am) тоже считаются совпадением. Слова — любыми буквами, в том числе русскими (S02e: одно
+ * русское слово в английской фразе, D43); если расшифровка записала русское слово латиницей, оно
+ * совпадает с любым одним словом на своём месте.
  */
 object TranscriptCheck {
 
@@ -13,6 +15,8 @@ object TranscriptCheck {
         VERBATIM(true),
         /** Совпало после раскрытия сокращений (I'm = I am). */
         CONTRACTIONS(true),
+        /** Совпало, если русское слово считать любым одним словом (расшифровка записала его латиницей). */
+        RUSSIAN_WORD(true),
         /** Слова различаются. */
         MISMATCH(false),
         /** Расшифровки нет. */
@@ -26,7 +30,24 @@ object TranscriptCheck {
         if (ev.any { it in hv }) return Verdict.VERBATIM
         val ec = ev.map(::expandContractions).toSet()
         if (hv.any { expandContractions(it) in ec }) return Verdict.CONTRACTIONS
+        if (ev.any { e -> e.split(' ').count(::isRussian) in 1..MAX_RUSSIAN_WORDS && hv.any { h -> sameExceptRussian(e, h) } }) {
+            return Verdict.RUSSIAN_WORD
+        }
         return Verdict.MISMATCH
+    }
+
+    private const val MAX_RUSSIAN_WORDS = 2
+    private val RUSSIAN = Regex("""\p{IsCyrillic}+""")
+    private fun isRussian(word: String) = RUSSIAN.matches(word)
+
+    /**
+     * Те же слова на тех же местах; русское слово в [expected] совпадает с одним словом латиницей
+     * (расшифровка транслитом). Другое русское слово — расхождение.
+     */
+    private fun sameExceptRussian(expected: String, heard: String): Boolean {
+        val e = expandContractions(expected).split(' ')
+        val h = expandContractions(heard).split(' ')
+        return e.size == h.size && e.indices.all { e[it] == h[it] || (isRussian(e[it]) && !isRussian(h[it])) }
     }
 
     /** Число слов после нормализации — для журнала (тексты туда не пишутся). */
@@ -107,7 +128,7 @@ object TranscriptCheck {
     }
 
     private fun preNormalize(text: String): String {
-        var s = text.lowercase().replace("**", " ")
+        var s = text.lowercase().replace("**", " ").replace('ё', 'е')
             .replace('’', '\'').replace('‘', '\'').replace('“', '"').replace('”', '"')
         s = s.replace(Regex("\\b([ap])\\.\\s?m\\."), "$1m")
         s = s.replace(Regex("\\$(\\d[\\d,]*(?:\\.\\d+)?)"), "$1 dollars")
@@ -120,7 +141,7 @@ object TranscriptCheck {
         return s
     }
 
-    private val TOKEN = Regex("\\d+(?:st|nd|rd|th)\\b|\\d+|[a-z]+(?:'[a-z]+)?")
+    private val TOKEN = Regex("\\d+(?:st|nd|rd|th)\\b|\\d+|\\p{L}+(?:'\\p{L}+)?")
     private val ORDINAL = Regex("(\\d+)(st|nd|rd|th)")
 
     /** Слова текста; у числа — несколько вариантов прочтения. */

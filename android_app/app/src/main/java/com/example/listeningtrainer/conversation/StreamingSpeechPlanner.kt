@@ -45,8 +45,11 @@ class StreamingSpeechPlanner(
     /** Весь пришедший текст (со сносками). */
     val rawText: String get() = raw.toString()
 
+    /** Весь текст после [finish] (без сносок; при обрезке — без незаконченной фразы). */
+    private var finalText = ""
+
     /** Текст для экрана: без сносок и без хвоста незаконченной сноски. */
-    fun screenText(): String = if (finished) SpeechText.clean(raw.toString()).trim() else SpeechText.forScreen(raw.toString())
+    fun screenText(): String = if (finished) finalText else SpeechText.forScreen(raw.toString())
 
     /** Добавить кусок текста; вернуть новые группы, готовые к синтезу. */
     fun feed(delta: String): List<SpeechChunk> {
@@ -61,11 +64,16 @@ class StreamingSpeechPlanner(
         return emitFrom(chunks.dropLast(1))
     }
 
-    /** Ответ кончился: отдать остаток. */
-    fun finish(): List<SpeechChunk> {
+    /**
+     * Ответ кончился: отдать остаток. [dropUnfinished] — ответ обрезан пределом длины (S02e):
+     * незаконченная фраза в конце не звучит (уже отданные группы не отзываются).
+     */
+    fun finish(dropUnfinished: Boolean = false): List<SpeechChunk> {
         if (finished) return emptyList()
         finished = true
-        val chunks = plan(SpeechText.clean(raw.toString()))
+        val clean = SpeechText.clean(raw.toString()).trim()
+        finalText = if (dropUnfinished) ReplyText.dropUnfinished(clean) else clean
+        val chunks = plan(finalText)
         latest = chunks
         return emitFrom(chunks)
     }

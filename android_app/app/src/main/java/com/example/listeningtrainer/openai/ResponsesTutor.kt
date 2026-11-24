@@ -2,6 +2,7 @@ package com.example.listeningtrainer.openai
 
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.FailureKind
+import com.example.listeningtrainer.conversation.ReplyText
 import com.example.listeningtrainer.conversation.ServiceException
 import com.example.listeningtrainer.conversation.SpeechText
 import com.example.listeningtrainer.conversation.Tutor
@@ -111,6 +112,7 @@ class ResponsesTutor(
             for (t in input) addJsonObject { put("role", t.role); put("content", t.text) }
         }
         putJsonObject("reasoning") { put("effort", ModelConfig.TUTOR_REASONING_EFFORT) }
+        put("max_output_tokens", ModelConfig.TUTOR_MAX_OUTPUT_TOKENS)
         putJsonArray("tools") {
             addJsonObject {
                 put("type", "web_search")
@@ -227,9 +229,12 @@ class ResponsesTutor(
             val input = usage?.int("input_tokens") ?: 0
             val cached = usage?.obj("input_tokens_details")?.int("cached_tokens") ?: 0
             val output = usage?.int("output_tokens") ?: 0
-            val stats = TutorStats(input, cached, output, searchActions, sourceTypes.toMap(), cost(input, cached, output, searchActions))
+            val truncated = incomplete == "max_output_tokens"
+            val stats = TutorStats(input, cached, output, searchActions, sourceTypes.toMap(), cost(input, cached, output, searchActions), truncated)
+            val answer = SpeechText.clean(text.toString()).trim()
             history += Turn(ROLE_USER, userText)
-            history += Turn(ROLE_ASSISTANT, SpeechText.clean(text.toString()).trim())
+            // Обрезанный ответ запоминается так, как он прозвучал: без незаконченной фразы.
+            history += Turn(ROLE_ASSISTANT, if (truncated) ReplyText.dropUnfinished(answer) else answer)
             trim()
             if (incomplete != null) log.event(SOURCE, "tutor reply incomplete ($incomplete)")
             log.event(SOURCE, statsLine(stats))

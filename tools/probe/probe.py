@@ -315,7 +315,7 @@ def _number_variants(n: int) -> list[str]:
 
 
 def _pre_normalize(text: str) -> str:
-    s = text.lower().replace("**", " ")
+    s = text.lower().replace("**", " ").replace("ё", "е")
     s = s.replace("\u2019", "'").replace("\u2018", "'").replace("\u201c", '"').replace("\u201d", '"')
     s = re.sub(r"\b([ap])\.\s?m\.", r"\1m", s)
     s = re.sub(r"\$(\d[\d,]*(?:\.\d+)?)", r"\1 dollars", s)
@@ -332,7 +332,8 @@ def _pre_normalize(text: str) -> str:
 def _token_alternatives(text: str) -> list[list[str]]:
     """Слова текста; число — список вариантов прочтения."""
     s = _pre_normalize(text)
-    toks = re.findall(r"\d+(?:st|nd|rd|th)\b|\d+|[a-z]+(?:'[a-z]+)?", s)
+    # Слова — любыми буквами, в том числе русскими (S02e, как TranscriptCheck.kt).
+    toks = re.findall(r"\d+(?:st|nd|rd|th)\b|\d+|[^\W\d_]+(?:'[^\W\d_]+)?", s)
     alts: list[list[str]] = []
     for t in toks:
         m = re.fullmatch(r"(\d+)(st|nd|rd|th)", t)
@@ -384,6 +385,8 @@ def compare_texts(expected: str, heard: str) -> dict:
     hc = {expand_contractions(x) for x in hv}
     if ec & hc:
         return {"verdict": "contractions", "diff": "только сокращения", "suspected_answer": False}
+    if any(1 <= sum(map(_is_russian, e.split())) <= 2 and any(_same_except_russian(e, h) for h in hv) for e in ev):
+        return {"verdict": "russian_word", "diff": "русское слово записано латиницей", "suspected_answer": False}
     # различия — по самой похожей паре прочтений
     best = max(((e, h) for e in ev[:16] for h in hv[:16]),
                key=lambda p: difflib.SequenceMatcher(None, p[0].split(), p[1].split()).ratio())
@@ -391,6 +394,19 @@ def compare_texts(expected: str, heard: str) -> dict:
     ew, hw = len(best[0].split()), len(best[1].split())
     return {"verdict": "mismatch", "diff": diff,
             "suspected_answer": hw > 2 * ew + 3}
+
+
+_RUSSIAN_WORD_RE = re.compile(r"[\u0400-\u04ff]+")
+
+
+def _is_russian(word: str) -> bool:
+    return _RUSSIAN_WORD_RE.fullmatch(word) is not None
+
+
+def _same_except_russian(expected: str, heard: str) -> bool:
+    """Копия TranscriptCheck.sameExceptRussian: русское слово совпадает с одним словом латиницей."""
+    e, h = expand_contractions(expected).split(), expand_contractions(heard).split()
+    return len(e) == len(h) and all(a == b or (_is_russian(a) and not _is_russian(b)) for a, b in zip(e, h))
 
 
 def word_diff(a: str, b: str) -> str:

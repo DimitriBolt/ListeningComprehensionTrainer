@@ -2,6 +2,7 @@ package com.example.listeningtrainer.conversation
 
 import com.example.listeningtrainer.conversation.TranscriptCheck.Verdict
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TranscriptCheckTest {
@@ -53,5 +54,24 @@ class TranscriptCheckTest {
     fun `word counts for the log`() {
         assertEquals(4, TranscriptCheck.wordCount("What do you think?"))
         assertEquals(0, TranscriptCheck.wordCount(null))
+    }
+
+    @Test
+    fun `russian word inside an english phrase - cyrillic is a word, not dropped (S02e)`() {
+        assertEquals(TranscriptCheck.Verdict.VERBATIM, TranscriptCheck.compare("\"Noon\" is \"полдень\".", "Noon is полдень."))
+        assertEquals(TranscriptCheck.Verdict.VERBATIM, TranscriptCheck.compare("Это «ёлка».", "это елка"))
+        assertEquals(3, TranscriptCheck.wordCount("Noon is полдень."))
+        // Раньше кириллица выпадала из сравнения: другое русское слово сошло бы за совпадение.
+        assertEquals(TranscriptCheck.Verdict.MISMATCH, TranscriptCheck.compare("Noon is полдень.", "Noon is полночь."))
+    }
+
+    @Test
+    fun `russian word written in latin letters by the transcript - still the same reading`() {
+        assertEquals(TranscriptCheck.Verdict.RUSSIAN_WORD, TranscriptCheck.compare("\"Noon\" is \"полдень\".", "Noon is poldyen."))
+        assertTrue(TranscriptCheck.compare("Noon is полдень.", "Noon is pol'den.").ok)
+        // Лишнее или пропущенное слово — по-прежнему расхождение.
+        assertEquals(TranscriptCheck.Verdict.MISMATCH, TranscriptCheck.compare("Noon is полдень.", "Noon is pol den."))
+        assertEquals(TranscriptCheck.Verdict.MISMATCH, TranscriptCheck.compare("Noon is полдень.", "Noon is."))
+        assertEquals(TranscriptCheck.Verdict.MISMATCH, TranscriptCheck.compare("Noon is полдень.", "Night is poldyen."))
     }
 }

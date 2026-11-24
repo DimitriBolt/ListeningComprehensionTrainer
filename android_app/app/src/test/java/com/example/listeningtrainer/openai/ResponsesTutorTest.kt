@@ -223,6 +223,24 @@ class ResponsesTutorTest {
     }
 
     @Test
+    fun `length limit - max_output_tokens in the request, cut reply remembered without the unfinished sentence`() = runTest {
+        val transport = FakeTransport().apply {
+            streams += sse(delta("It is warm. Is it nice? And the"), """{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":10,"output_tokens":120}}}""")
+            streams += sse(delta("Fine."), """{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"content_filter"}}}""")
+        }
+        val t = tutor(transport)
+        val events = mutableListOf<TutorEvent>()
+        t.reply("Weather?") { events += it }
+        assertEquals(120, transport.bodies.single()["max_output_tokens"]!!.jsonPrimitive.content.toInt())
+        assertTrue((events.last() as TutorEvent.Done).stats.truncated)
+        assertEquals("It is warm. Is it nice?", t.lastTeacherText)
+        // Другая причина неполного ответа — не обрезка по длине.
+        events.clear()
+        t.reply("Ok") { events += it }
+        assertFalse((events.last() as TutorEvent.Done).stats.truncated)
+    }
+
+    @Test
     fun `history window keeps the last messages only`() = runTest {
         val transport = FakeTransport().apply { repeat(4) { streams += sse(delta("Answer $it."), completed) } }
         val t = tutor(transport, limit = 4)

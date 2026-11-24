@@ -273,3 +273,12 @@ def test_next_steps_depend_on_done_probes(tmp_path):
     assert "voices/*.wav" in steps and "Usage" in steps and "git add" in steps
     ctx.results.put("tutor", {"error": "boom"}, "## tutor")
     assert "tutor" in probe.next_steps(ctx)[0] and "git add" not in "\n".join(probe.next_steps(ctx))
+
+
+def test_compare_russian_word():
+    # S02e: одно русское слово в английской фразе (D43) — как TranscriptCheck.kt.
+    assert probe.compare_texts('"Noon" is "полдень".', "Noon is полдень.")["verdict"] == "verbatim"
+    assert probe.compare_texts("Это «ёлка».", "это елка")["verdict"] == "verbatim"
+    assert probe.compare_texts("Noon is полдень.", "Noon is poldyen.")["verdict"] == "russian_word"
+    assert probe.compare_texts("Noon is полдень.", "Noon is полночь.")["verdict"] == "mismatch"
+    assert probe.compare_texts("Noon is полдень.", "Noon is pol den.")["verdict"] == "mismatch"

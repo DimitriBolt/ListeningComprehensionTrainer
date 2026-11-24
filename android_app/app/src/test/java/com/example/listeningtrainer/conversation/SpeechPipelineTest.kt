@@ -225,4 +225,32 @@ class SpeechPipelineTest {
         fun tone(amplitude: Double, samples: Int) =
             ShortArray(samples) { (sin(2 * PI * 440 * it / 24_000) * amplitude * 32767).toInt().toShort() }
     }
+
+    @Test
+    fun `russian word - Realtime reads it, the check accepts it (S02e)`() = runTest {
+        val primary = Fake("realtime")
+        val fallback = Fake("android")
+        coroutineScope {
+            SpeechPipeline(primary, fallback, Log(), { testScheduler.currentTime }).start(this, chunks("\"Noon\" is \"полдень\".")).receive()
+        }
+        assertEquals(listOf("\"Noon\" is \"полдень\"."), primary.texts)
+        assertTrue(fallback.texts.isEmpty())
+    }
+
+    @Test
+    fun `russian word - the english phone voice skips the word, not the group`() = runTest {
+        val primary = Fake("realtime").apply { errors += SynthesisException("no network", unavailable = true) }
+        val fallback = Fake("android", withTranscript = false)
+        val log = Log()
+        val got = mutableListOf<SpeechAudio>()
+        coroutineScope {
+            val groups = SpeechPipeline(primary, fallback, log, { testScheduler.currentTime })
+                .start(this, chunks("\"Noon\" is \"полдень\".", "полдень.", "Is it clear?"))
+            repeat(3) { got += groups.receive() }
+        }
+        assertEquals(listOf("\"Noon\" is.", "Is it clear?"), fallback.texts)
+        assertTrue(got[1].pcm.isEmpty()) // только русское слово — тишина, группа не ломается
+        assertTrue(got[2].pcm.isNotEmpty())
+        assertEquals(2, log.lines.count { it.endsWith(": russian word skipped by android") })
+    }
 }

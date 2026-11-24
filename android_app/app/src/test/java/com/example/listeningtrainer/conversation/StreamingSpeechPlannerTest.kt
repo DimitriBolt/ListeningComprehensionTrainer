@@ -115,6 +115,16 @@ class StreamingSpeechPlannerTest {
     }
 
     @Test
+    fun `cut reply - finish drops the unfinished sentence, screen shows the same`() {
+        val sp = StreamingSpeechPlanner()
+        val first = sp.feed("Hello there. How are you? And the")
+        assertEquals(listOf("Hello there."), first.map { it.text })
+        assertEquals(listOf("How are you?"), sp.finish(dropUnfinished = true).map { it.text })
+        assertEquals("Hello there. How are you?", sp.screenText())
+        assertEquals(SpeechPlanner.PAUSE_SENTENCE_MS, sp.pauseAfter(0))
+    }
+
+    @Test
     fun `screen text grows with the reply`() {
         val sp = StreamingSpeechPlanner()
         sp.feed("Gas is cheap. ([site")

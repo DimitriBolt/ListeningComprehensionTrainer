@@ -381,6 +381,8 @@ class ConversationController(
         var searchEnd: Long? = null
         var repliedAt: Long? = null
         var filler = false
+        /** Когда зазвучала фраза на время поиска (D44); `null` — не звучала. */
+        var fillerSound: Long? = null
         var chars = 0
 
         /** Повтор запроса: всё, кроме фразы на время поиска (она не повторяется). */
@@ -455,6 +457,7 @@ class ConversationController(
         /** Группы, отданные в синтез, по порядку: i-й звук из конвейера — это sent[i]. */
         val sent = mutableListOf<SpeechChunk>()
         var tutorError: Exception? = null
+        var truncated = false
         try {
             coroutineScope {
                 val chunks = Channel<SpeechChunk>(Channel.UNLIMITED)
@@ -484,14 +487,17 @@ class ConversationController(
                                 }
                                 TutorEvent.SearchFinished -> t.searchEnd = clock()
                                 is TutorEvent.Source -> _ui.update { it.copy(sources = it.sources + event.source) }
-                                is TutorEvent.Done -> Unit
+                                is TutorEvent.Done -> truncated = event.stats.truncated
                             }
                         }
-                        send(stream.finish())
+                        send(stream.finish(dropUnfinished = truncated))
                         t.repliedAt = clock()
-                        t.chars = stream.screenText().length
-                        _ui.update { it.copy(teacherText = stream.screenText()) }
-                        log.event(SOURCE, "reply: ${t.chars} chars, ${sent.size} groups")
+                        val text = stream.screenText()
+                        t.chars = text.length
+                        _ui.update { it.copy(teacherText = text) }
+                        if (truncated) log.event(SOURCE, "reply cut by the length limit: unfinished sentence not spoken")
+                        // Мера реплики по «Методике» (S02e): слова, предложения, вопрос в конце, русское слово.
+                        log.event(SOURCE, "reply: ${t.chars} chars, ${sent.size} groups; ${ReplyText.metrics(text)}")
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -574,7 +580,7 @@ class ConversationController(
         }
         t.filler = true
         log.event(SOURCE, "search started, nothing said yet: filler phrase")
-        return scope.launch { output.play(audio, shieldMs) }
+        return scope.launch { output.play(audio, shieldMs) { if (t.fillerSound == null) t.fillerSound = clock() } }
     }
 
     // ---- «пульс» слушания (D28) ------------------------------------------------------------
@@ -642,7 +648,8 @@ class ConversationController(
      * текста учителя, `first_group` — первая группа ушла в синтез, `tutor` — конец ответа.
      * `search` — искал ли учитель, `filler` — звучала ли фраза на время поиска, `reply_chars` —
      * длина ответа без сносок (при обрыве — сколько успело прийти). `first_audio` — запуск звука первой группы ответа (не фразы);
-     * `audible` — голос слышен (после щита, если он есть). `-` — не было.
+     * `audible` — голос ответа слышен (после щита, если он есть); `filler_audio` — слышна фраза на время поиска
+     * (D44: цель — первый звук учителя, фраза или ответ). `-` — не было.
      */
     private fun logTimings(recordedAt: Long, transcribedAt: Long, t: ReplyTiming, shieldMs: Long) {
         fun rel(at: Long?) = at?.let { (it - recordedAt).toString() } ?: "-"
@@ -652,7 +659,8 @@ class ConversationController(
             "enc=$lastEncodeMs stt=${transcribedAt - recordedAt} first_token=${rel(t.firstToken)} " +
                 "first_group=${rel(t.firstGroup)} tutor=${rel(t.repliedAt)} search=${yesNo(t.searchStart != null)} " +
                 "search_ms=$searchMs filler=${yesNo(t.filler)} reply_chars=${t.chars} " +
-                "first_audio=${rel(t.firstSound)} audible=${rel(t.firstSound?.plus(shieldMs))}",
+                "first_audio=${rel(t.firstSound)} audible=${rel(t.firstSound?.plus(shieldMs))} " +
+                "filler_audio=${rel(t.fillerSound?.plus(shieldMs))}",
         )
     }
 

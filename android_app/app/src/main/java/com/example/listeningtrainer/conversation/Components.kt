@@ -68,6 +68,8 @@ data class TutorStats(
     val searches: Int = 0,
     val sourceTypes: Map<String, Int> = emptyMap(),
     val costUsd: Double = 0.0,
+    /** Ответ обрезан пределом `max_output_tokens` (S02e): незаконченная фраза в конце не звучит. */
+    val truncated: Boolean = false,
 )
 
 /** Событие потока ответа учителя (с S02d — Responses API, D36). */

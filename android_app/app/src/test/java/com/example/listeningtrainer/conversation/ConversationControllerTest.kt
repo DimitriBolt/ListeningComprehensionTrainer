@@ -92,6 +92,7 @@ class ConversationControllerTest {
         var breakAfterChars: Int? = null
         var breakError: Exception = ServiceException(FailureKind.NO_NETWORK, "SocketException")
         var sources: List<TutorSource> = emptyList()
+        var truncated = false
         override suspend fun reply(studentText: String, onEvent: suspend (TutorEvent) -> Unit) {
             replies += studentText
             stream(replyText, onEvent, errors.removeFirstOrNull() ?: error)
@@ -120,7 +121,7 @@ class ConversationControllerTest {
             }
             breakAt?.let { if (sent >= it) throw breakError }
             sources.forEach { onEvent(TutorEvent.Source(it)) }
-            onEvent(TutorEvent.Done(TutorStats()))
+            onEvent(TutorEvent.Done(TutorStats(truncated = truncated)))
         }
 
         override var lastTeacherText: String? = null
@@ -318,7 +319,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         assertTrue(rig.log.lines.contains("[Controller] transcript: 15 chars, counted as silence: no"))
-        assertTrue(rig.log.lines.contains("[Controller] reply: 22 chars, 1 groups"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 22 chars, 1 groups; words 3, sentences 1, question no, russian no"))
         assertFalse(rig.log.lines.any { "secret" in it || "Hidden" in it || "teacher answer" in it })
     }
 
@@ -374,7 +375,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         // распознавание 300 мс, учитель +1000, синтез +200; щита нет — слышно сразу
-        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=1500"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=1500 filler_audio=-"), rig.timing)
     }
 
     @Test
@@ -399,7 +400,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=2700"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=2700 filler_audio=-"), rig.timing)
     }
 
     @Test
@@ -460,6 +461,35 @@ class ConversationControllerTest {
         assertEquals(listOf("STOP_BUTTON"), rig.circleEnds)
     }
 
+    // ---- реплика по «Методике» (S02e) -------------------------------------------------------
+
+    @Test
+    fun `reply cut by the length limit - the unfinished sentence is not spoken`() = runTest {
+        val rig = Rig(this, "Weather?")
+        rig.tutor.replyText = "It is warm today. Do you like the sun? And the wind is"
+        rig.tutor.truncated = true
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("It is warm today.", "Do you like the sun?"), rig.output.played)
+        assertEquals("It is warm today. Do you like the sun?", rig.controller.ui.value.teacherText)
+        assertTrue(rig.log.lines.contains("[Controller] reply cut by the length limit: unfinished sentence not spoken"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 38 chars, 2 groups; words 9, sentences 2, question yes, russian no"))
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `reply metrics in the log - question at the end and a russian word, no text`() = runTest {
+        val rig = Rig(this, "What?")
+        rig.tutor.replyText = "I think you meant \"What is noon?\", right? \"Noon\" is \"полдень\". Is it clear?"
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        val line = rig.log.lines.single { it.startsWith("[Controller] reply: ") }
+        assertTrue(line, line.endsWith("; words 14, sentences 3, question yes, russian yes"))
+        assertFalse(line, "Noon" in line || "полдень" in line)
+    }
+
     // ---- поток ответа (S02d) ---------------------------------------------------------------
 
     @Test
@@ -474,12 +504,12 @@ class ConversationControllerTest {
         assertEquals(listOf("One,", "two,", "three,", "four,", "five,", "six."), rig.output.played)
         // «One,» не изменится, когда после «two, » пришёл знак (2300); синтез 200 мс
         assertEquals(
-            listOf("enc=0 stt=300 first_token=1300 first_group=2300 tutor=4300 search=no search_ms=- filler=no reply_chars=33 first_audio=2500 audible=2500"),
+            listOf("enc=0 stt=300 first_token=1300 first_group=2300 tutor=4300 search=no search_ms=- filler=no reply_chars=33 first_audio=2500 audible=2500 filler_audio=-"),
             rig.timing,
         )
         assertTrue(rig.output.startTimes.first() < 4300)
         assertEquals("One, two, three, four, five, six.", rig.controller.ui.value.teacherText)
-        assertTrue(rig.log.lines.contains("[Controller] reply: 33 chars, 6 groups"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 33 chars, 6 groups; words 6, sentences 1, question no, russian no"))
     }
 
     @Test
@@ -604,7 +634,7 @@ class ConversationControllerTest {
         assertTrue(rig.log.lines.any { it.startsWith("[Controller] search filler ready:") })
         assertTrue(rig.log.lines.contains("[Controller] search started, nothing said yet: filler phrase"))
         assertEquals(
-            listOf("enc=0 stt=300 first_token=3300 first_group=3300 tutor=3300 search=yes search_ms=2000 filler=yes reply_chars=25 first_audio=3500 audible=3500"),
+            listOf("enc=0 stt=300 first_token=3300 first_group=3300 tutor=3300 search=yes search_ms=2000 filler=yes reply_chars=25 first_audio=3500 audible=3500 filler_audio=300"),
             rig.timing,
         )
         assertEquals(300L, rig.output.startTimes.first()) // фраза — сразу, как учитель начал искать
@@ -929,7 +959,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
         // сжатие 400 (уже прошло) + распознавание 300; дальше всё на те же 400 больше
-        assertEquals(listOf("enc=400 stt=700 first_token=1700 first_group=1700 tutor=1700 search=no search_ms=- filler=no reply_chars=25 first_audio=1900 audible=1900"), rig.timing)
+        assertEquals(listOf("enc=400 stt=700 first_token=1700 first_group=1700 tutor=1700 search=no search_ms=- filler=no reply_chars=25 first_audio=1900 audible=1900 filler_audio=-"), rig.timing)
     }
 
     @Test
@@ -941,7 +971,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
         // поиск 300…1200, текст через 1000 после него
         assertEquals(
-            listOf("enc=0 stt=300 first_token=2200 first_group=2200 tutor=2200 search=yes search_ms=900 filler=no reply_chars=20 first_audio=2400 audible=2400"),
+            listOf("enc=0 stt=300 first_token=2200 first_group=2200 tutor=2200 search=yes search_ms=900 filler=no reply_chars=20 first_audio=2400 audible=2400 filler_audio=-"),
             rig.timing,
         )
     }
