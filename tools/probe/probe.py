@@ -2467,8 +2467,13 @@ OPTIONS = [
      ("transcribe", "responses")),
     (("--dialog-repeats",), dict(type=int, default=2, metavar="N", dest="repeats",
                                  help="повторов каждого сценария (по умолчанию 2)"), ("tutor-dialog",)),
+    (("--case-repeats",), dict(type=int, default=3, metavar="N", dest="repeats",
+                               help="повторов каждой фразы (по умолчанию 3)"), ("corrector",)),
+    (("--corrector-budget",), dict(type=float, default=0.5, metavar="$", dest="budget",
+                                   help="остановить прогон, когда потрачено столько, $ (по умолчанию 0.5)"),
+     ("corrector",)),
     (("--label",), dict(default="", metavar="ТЕКСТ", help="метка прогона в отчёте (например, что поменяли в промпте)"),
-     ("tutor-dialog",)),
+     ("tutor-dialog", "corrector")),
     (("--dialog-budget",), dict(type=float, default=1.0, metavar="$", dest="budget",
                                 help="остановить прогон, когда потрачено столько, $ (по умолчанию 1.0)"),
      ("tutor-dialog",)),
@@ -2490,7 +2495,7 @@ OPTIONS = [
                        help="секунд тишины после звука (по умолчанию 8: semantic_vad low ждёт до 8 с)"),
      ("vadservice",)),
     (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"),
-     ("all", "responses", "tutor-dialog")),
+     ("all", "responses", "tutor-dialog", "corrector")),
 ]
 
 COMMANDS = {
@@ -2503,6 +2508,7 @@ COMMANDS = {
     "all": "всё по очереди S00b (сначала покажет оценку стоимости)",
     "responses": "S02c: учитель на Responses API — web_search при reasoning none, поток, погода, цена",
     "tutor-dialog": "S02e: учитель-собеседник — диалоги по сценариям, длина реплик, вопросы, поправки, русское слово",
+    "corrector": "S02f: поправка ошибки ученика — правило в промпте учителя или отдельный запрос «поправщик»",
 }
 
 
@@ -2561,6 +2567,14 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "responses":
             if probe_responses(ctx):
                 print_responses_next_steps(ctx)
+            return 0
+        elif args.cmd == "corrector":
+            sys.modules.setdefault("probe", sys.modules[__name__])
+            import corrector
+            if corrector.probe_corrector(ctx):
+                print("\nОтправить архитектору (из корня репозитория):\n"
+                      "  git add docs/research/02f-corrector.md docs/research/02f-corrector.json && "
+                      'git commit -m "[S02f] Проба поправщика" && git push')
             return 0
         elif args.cmd == "tutor-dialog":
             sys.modules.setdefault("probe", sys.modules[__name__])  # tutor_dialog делает import probe: тот же модуль

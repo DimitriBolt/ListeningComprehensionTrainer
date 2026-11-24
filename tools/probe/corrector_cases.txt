@@ -1,0 +1,54 @@
+# Набор фраз ученика для пробы поправщика (S02f, `python tools/probe/probe.py corrector`).
+# Фразы — такие, какими их запишет распознавание: без ошибок написания.
+# Формат строки: вид | фраза ученика | правильный вариант | ключ
+#   вид — что за ошибка (ok — фраза правильная);
+#   правильный вариант — ожидаемая поправка (для ok — сама фраза);
+#   ключ — что обязано быть в поправке, чтобы ошибка считалась найденной: части через «;»
+#     (нужны все), варианты одной части через «/» (хватит любого). Сравнение без регистра и знаков.
+# Строки с # и пустые пропускаются.
+
+# --- ошибки (27) ---
+article | What is temperature in Tucson? | What is the temperature in Tucson? | the temperature
+article | I have dog. | I have a dog. | a dog
+article | Sun is very hot today. | The sun is very hot today. | the sun
+article | I want to buy new car. | I want to buy a new car. | a new car
+tense | Yesterday I go to the shop and buy some apples. | Yesterday I went to the shop and bought some apples. | went; bought
+tense | Last week we see a good film. | Last week we saw a good film. | saw/watched
+tense | I live in Moscow until 2000, then I moved to Tucson. | I lived in Moscow until 2000, then I moved to Tucson. | lived
+third-s | My wife like apples too. | My wife likes apples too. | likes
+third-s | He work in a bank. | He works in a bank. | works
+third-s | She don't like coffee. | She doesn't like coffee. | doesn t/does not
+was-were | The apples was very sweet. | The apples were very sweet. | were
+was-were | We was at home yesterday. | We were at home yesterday. | we were
+was-were | There is many people in the park. | There are many people in the park. | are many
+question | Where you live? | Where do you live? | do you live
+question | What you want to eat? | What do you want to eat? | do you want
+question | Why you are sad? | Why are you sad? | are you sad
+question | How much it costs? | How much does it cost? | does it cost
+question | Where is located the museum? | Where is the museum located? | is the museum located/is the museum
+preposition | I am going in the shop. | I am going to the shop. | to the shop
+preposition | We arrived to the airport at noon. | We arrived at the airport at noon. | arrived at
+preposition | I am good in math. | I am good at math. | good at
+preposition | It depends of the weather. | It depends on the weather. | depends on
+number | I have two cat. | I have two cats. | two cats
+number | I bought three book yesterday. | I bought three books yesterday. | three books
+number | Many peoples like this city. | Many people like this city. | many people
+verb | I am agree with you. | I agree with you. | i agree
+word-order | I very like this song. | I like this song very much. | very much/really like
+
+# --- правильные (15) ---
+ok | At noon. | At noon. |
+ok | Green. | Green. |
+ok | Yes, it is hot. | Yes, it is hot. |
+ok | I like to cook. | I like to cook. |
+ok | I live in Tucson with my wife. | I live in Tucson with my wife. |
+ok | I work at home. I write programs. | I work at home. I write programs. |
+ok | My favorite writer is Jack London. | My favorite writer is Jack London. |
+ok | What is the temperature in Tucson? | What is the temperature in Tucson? |
+ok | I don't understand. | I don't understand. |
+ok | Sorry? | Sorry? |
+ok | Tomorrow I will go to the doctor. | Tomorrow I will go to the doctor. |
+ok | Yes, I do. | Yes, I do. |
+ok | Maybe pizza. | Maybe pizza. |
+ok | My dog is black. | My dog is black. |
+ok | I think it is cold. | I think it is cold. |
