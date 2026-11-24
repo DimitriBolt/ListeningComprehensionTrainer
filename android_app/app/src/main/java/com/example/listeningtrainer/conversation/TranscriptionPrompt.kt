@@ -7,8 +7,12 @@ package com.example.listeningtrainer.conversation
  */
 object TranscriptionPrompt {
 
+    /**
+     * Начальный уровень ученика (D42). Про исправление ошибок здесь ничего нет (D47): распознавание
+     * должно записать, что сказано, — иначе учителю нечего поправлять.
+     */
     const val CONTEXT =
-        "An adult English learner (level A2-B1) is answering an English teacher in a spoken conversation."
+        "An adult beginner English learner is answering an English teacher in a spoken conversation."
 
     /** [lastTeacherText] — весь последний ответ учителя (может быть `null` в начале разговора). */
     fun build(lastTeacherText: String?, maxTeacherChars: Int): String {

@@ -250,29 +250,25 @@ class ResponsesTutor(
         private const val ROLE_USER = "user"
         private const val ROLE_ASSISTANT = "assistant"
 
-        /** Правило пустого поиска (S02b, для встроенного поиска — проба S02c): без выдумок. */
-        const val NO_DATA_RULE =
-            "If web_search finds nothing useful, tell the student honestly, in simple words, that you could " +
-                "not find fresh information about it. Do NOT guess. Do NOT give any numbers, prices, dates, " +
-                "names, or events about it from memory."
-
         private const val INACTIVITY_PROMPT =
             "The student has been silent for several minutes. Gently say that you'll take a break and they can click the button to continue later. Keep it very short."
 
-        /** Системный промпт: искать только ради свежих фактов (S02d), дата — в промпте. */
-        fun systemPrompt(date: Date): String {
-            val currentDate = SimpleDateFormat("EEEE, MMMM dd, yyyy", Locale.US).format(date)
-            return """
-                You are a patient English teacher. Today is $currentDate.
+        /**
+         * Системный промпт учителя — один файл ресурса (D46): `app/src/main/resources/tutor_prompt.txt`.
+         * Его же читает `tools/probe/probe.py`. Метка [DATE_MARK] заменяется датой.
+         */
+        const val PROMPT_RESOURCE = "/tutor_prompt.txt"
+        const val DATE_MARK = "{DATE}"
 
-                CRITICAL INSTRUCTIONS:
-                1. Use web_search ONLY for fresh facts that change over time: prices, news, weather, sports results, schedules, opening hours, times of events (like sunset), and who holds a position now. Do NOT search for normal conversation, grammar, word meanings, or general knowledge.
-                2. When you search, use the results and give the concrete facts (numbers, names, dates). Never say that your knowledge stops at some year.
-                3. $NO_DATA_RULE
-                4. Use short sentences, check understanding, and end with a question.
-                5. If the student makes a clear grammatical error or if the transcription suggests a phonetic mistake, briefly and kindly correct it first (e.g., "I think you meant '...', right?"). Then continue the conversation.
-            """.trimIndent()
+        private val promptTemplate: String by lazy {
+            val stream = ResponsesTutor::class.java.getResourceAsStream(PROMPT_RESOURCE)
+                ?: error("tutor prompt resource $PROMPT_RESOURCE is missing")
+            stream.use { it.readBytes().toString(Charsets.UTF_8) }.trim()
         }
+
+        /** Системный промпт по разделу «Методика» (S02e, D41–D43, D47) с сегодняшней датой. */
+        fun systemPrompt(date: Date): String =
+            promptTemplate.replace(DATE_MARK, SimpleDateFormat("EEEE, MMMM dd, yyyy", Locale.US).format(date))
 
         /** Окно истории: последние [limit] сообщений. Пар «вызов инструмента — ответ» в истории больше нет. */
         fun trimHistory(history: List<Turn>, limit: Int): List<Turn> =

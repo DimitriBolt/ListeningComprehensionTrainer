@@ -96,8 +96,26 @@ class ResponsesTutorTest {
         val prompt = body["instructions"]!!.jsonPrimitive.content
         assertTrue(prompt.contains("Today is Monday, November 23, 2026."))
         assertTrue(prompt.contains("Use web_search ONLY for fresh facts"))
-        assertTrue(prompt.contains(ResponsesTutor.NO_DATA_RULE))
+        assertTrue(prompt.contains("If web_search finds nothing useful, tell the student honestly"))
         assertFalse(prompt.contains("2023"))
+    }
+
+    @Test
+    fun `system prompt - one resource file by the method (D41-D43, D46, D47), date filled in`() {
+        val prompt = ResponsesTutor.systemPrompt(java.util.GregorianCalendar(2026, 10, 23).time)
+        // Тот же файл читает tools/probe/probe.py: ни одной копии в коде.
+        val file = java.io.File("src/main/resources/tutor_prompt.txt").readText().trim()
+        assertEquals(file.replace(ResponsesTutor.DATE_MARK, "Monday, November 23, 2026"), prompt)
+        assertFalse(prompt.contains(ResponsesTutor.DATE_MARK))
+        for (rule in listOf(
+            "Each sentence has 6 to 8 words at most", "30 words at most", "End almost every reply with one simple question",
+            "first ask a short question with two choices", "Give one main detail only",
+            "after two simpler tries, say one key word in Russian", "Start at level A1",
+            "I think you meant \"...\", right?", "The words inside the quotes do not count",
+            "Use web_search ONLY for fresh facts", "Do NOT guess",
+        )) assertTrue(rule, prompt.contains(rule))
+        // Прежние уровни A2/B1/B2 отменены.
+        for (old in listOf("A2", "B1", "B2", "2023")) assertFalse(old, prompt.contains(old))
     }
 
     @Test

@@ -1462,14 +1462,25 @@ APP_NO_DATA_RULE = ("If a tool result starts with NO_DATA:, the tool found nothi
 WEB_NO_DATA_RULE = ("If web_search finds nothing useful, tell the student honestly, in simple words, that you could "
                     "not find fresh information about it. Do NOT guess. Do NOT give any numbers, prices, dates, "
                     "names, or events about it from memory.")
-NO_LINKS_RULE = ("7. Your answer is read aloud to the student. Never write links, URLs, website names "
+NO_LINKS_RULE = ("Your answer is read aloud to the student. Never write links, URLs, website names "
                  "in brackets, or citations.")
+
+
+# Системный промпт учителя — один файл (D46, S02e): его читают и приложение, и пробы.
+TUTOR_PROMPT_FILE = REPO_ROOT / "android_app" / "app" / "src" / "main" / "resources" / "tutor_prompt.txt"
+TUTOR_PROMPT_DATE_MARK = "{DATE}"
+
+
+def tutor_prompt(date: str, extra: str = "") -> str:
+    """Промпт учителя из приложения (тот же файл, что читает ResponsesTutor.systemPrompt); extra — пункт сверху."""
+    p = TUTOR_PROMPT_FILE.read_text(encoding="utf-8").strip().replace(TUTOR_PROMPT_DATE_MARK, date)
+    return p + ("\n" + extra if extra else "")
 
 
 def app_tutor_prompt(date: str, search_tool: str = "search_live_web", no_data_rule: str = APP_NO_DATA_RULE,
                      extra: str = "") -> str:
-    """Скопировано из ChatTutor.systemPrompt() (android_app, состояние S02b). Для Responses меняется
-    только имя инструмента поиска и правило пустого поиска; extra — дополнительный пункт."""
+    """Промпт ChatTutor (состояние S02b, класс удалён в S02d) — только для варианта 1 пробы `responses`
+    (прежний путь Chat Completions с инструментами). Варианты Responses берут промпт приложения: tutor_prompt."""
     p = f"""You are a patient English teacher. Today is {date}.
 Your memory is limited to 2023.
 
@@ -1793,8 +1804,7 @@ class RespRunner:
         tools = [ws]
         if variant == "4":
             tools.append(resp_function_tool(tutor_tools()[0]))  # get_weather
-        prompt = app_tutor_prompt(self.date, "web_search", WEB_NO_DATA_RULE,
-                                  NO_LINKS_RULE if variant == "5" else "")
+        prompt = tutor_prompt(self.date, NO_LINKS_RULE if variant == "5" else "")
         return {"model": M_TUTOR_NEW, "instructions": prompt,
                 "input": [{"role": "user", "content": student}],
                 "reasoning": {"effort": effort}, "tools": tools,
@@ -1951,8 +1961,8 @@ def probe_responses(ctx: "Ctx", ask=input) -> bool:
             "effort_attempts": attempts, "rows": rows, "spent": runner.spent, "budget": runner.budget,
             "stub_search_delay": runner.stub_delay, "budget_exhausted": runner.over_budget(),
             "prompts": {"chat": app_tutor_prompt(date),
-                        "responses": app_tutor_prompt(date, "web_search", WEB_NO_DATA_RULE),
-                        "responses_no_links": app_tutor_prompt(date, "web_search", WEB_NO_DATA_RULE, NO_LINKS_RULE)}}
+                        "responses": tutor_prompt(date),
+                        "responses_no_links": tutor_prompt(date, NO_LINKS_RULE)}}
     save_responses_results(ctx, data)
     log(f"\nПотрачено ≈ ${runner.spent:.3f}. Итог: {Path(ctx.args.docs or DOCS_RESULTS_02C)}")
     return True

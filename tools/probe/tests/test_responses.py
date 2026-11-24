@@ -212,16 +212,17 @@ def test_estimate_within_budget():
     assert 0.3 < est["total"] < 1.5 and est["requests"] > 50
 
 
-def test_prompt_copied_from_app():
-    src = (Path(probe.__file__).parents[2] / "android_app/app/src/main/java/com/example/listeningtrainer/openai/"
-           "ChatTutor.kt").read_text()
-    p = probe.app_tutor_prompt("Monday, November 23, 2026")
-    for line in p.splitlines()[3:]:
-        if line.startswith("4."):
-            continue  # в Kotlin — $NO_DATA_RULE
-        assert line.replace("Monday, November 23, 2026", "$currentDate") in src, line
-    assert probe.APP_NO_DATA_RULE.replace("NO_DATA:", "${ToolResults.NO_DATA}")[:60] in src.replace('" +\n                "', "")
-    assert "'web_search'" in probe.app_tutor_prompt("d", "web_search", probe.WEB_NO_DATA_RULE)
+def test_prompt_is_the_app_file():
+    # D46: проба читает тот же файл, что приложение (ResponsesTutor.systemPrompt) — без копий.
+    f = Path(probe.__file__).parents[2] / "android_app/app/src/main/resources/tutor_prompt.txt"
+    assert probe.TUTOR_PROMPT_FILE == f
+    p = probe.tutor_prompt("Monday, November 23, 2026")
+    assert p == f.read_text(encoding="utf-8").strip().replace("{DATE}", "Monday, November 23, 2026")
+    assert "Today is Monday, November 23, 2026." in p and "{DATE}" not in p
+    assert probe.tutor_prompt("d", probe.NO_LINKS_RULE).endswith(probe.NO_LINKS_RULE)
+    kt = (Path(probe.__file__).parents[2] / "android_app/app/src/main/java/com/example/listeningtrainer/openai/"
+          "ResponsesTutor.kt").read_text()
+    assert 'PROMPT_RESOURCE = "/tutor_prompt.txt"' in kt and 'DATE_MARK = "{DATE}"' in kt
 
 
 # ---- прогон целиком ------------------------------------------------------------

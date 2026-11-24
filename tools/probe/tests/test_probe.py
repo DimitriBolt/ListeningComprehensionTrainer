@@ -213,16 +213,6 @@ def test_wav_roundtrip_and_resample():
 
 # ---- tutor ---------------------------------------------------------------
 
-def test_tool_schemas_copied_from_kotlin():
-    kt = (probe.REPO_ROOT / "android_app/app/src/main/java/com/example/listeningtrainer/openai/ChatTutor.kt").read_text()
-    for t in probe.tutor_tools():
-        fn = t["function"]
-        assert f'name = "{fn["name"]}"' in kt
-        assert fn["description"] in kt
-        for prop in fn["parameters"]["properties"].values():
-            assert prop["description"] in kt
-
-
 def test_tool_call_format_check():
     good = {"id": "call_1", "type": "function",
             "function": {"name": "search_live_web", "arguments": '{"query": "gas price Tucson"}'}}
