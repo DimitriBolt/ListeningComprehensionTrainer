@@ -285,6 +285,12 @@ enc=0 stt=812 first_token=3410 first_group=3655 tutor=4120 search=yes search_ms=
   `ResponsesTutor.kt`.
 - **Нажатие «Stop Recording» в первые ≈ 0,2 с записи** может потеряться (замечено в S03). Не трогал.
 
+- **Первая сборка S02d у пользователя падала при запуске**: `NoSuchMethodError: ConversationUi.<init>` в
+  `TrainerService.<clinit>`. Инкрементальная сборка не перекомпилировала `TrainerService.kt` (он не
+  менялся), хотя у `ConversationUi` появилось поле `sources`. После `./gradlew clean installDebug` всё
+  запустилось. Код исправен: в APK, собранном с нуля, все вызовы новые (проверено `dexdump`). При
+  похожих ошибках после этапов, меняющих классы данных, — сначала сборка с нуля.
+
 ## Вопросы к архитектору
 - Записать в `ARCHITECTURE.md`:
   - новый интерфейс `Tutor` (поток `TutorEvent`, повтор решает контроллер);
