@@ -1,7 +1,7 @@
 package com.example.listeningtrainer.conversation
 
 /**
- * Сноски поиска в тексте учителя (D37). Чистый Kotlin (инвариант 3).
+ * Сноски поиска в тексте учителя (D37) и разметка курсива (D57). Чистый Kotlin (инвариант 3).
  *
  * Responses с `web_search` вставляет сноску прямо в текст: `… by station. ([site.com](https://site.com/…?utm_source=openai))`.
  * Вслух её не читаем: текст чистится **до** нарезки. Источники показываются на экране отдельно
@@ -15,14 +15,23 @@ object SpeechText {
     private val INLINE_LINK = Regex("""\[([^\]\n]*)]\([^)\s]*\)""")
     /** Голый адрес, возможно в скобках. */
     private val BARE_URL = Regex("""[ \t]*\(?\s*(?:https?://|www\.)\S+?\s*\)?(?=[\s.,;:!?]*(?:\s|$))""")
+    /**
+     * Курсив `*…*` (D57): одиночная звёздочка, не часть `**` (жирное видит нарезка, D45). Снимается и
+     * непарная: в потоке закрывающая может ещё не прийти, а начало фразы уже уходит в синтез.
+     */
+    private val ITALIC_STAR = Regex("""(?<!\*)\*(?!\*)""")
+    /** `_…_` (D57): подчёркивания по краю слова. Внутри слова (`snake_case`) остаются. */
+    private val EDGE_UNDERSCORE = Regex("""(?<![\p{L}\p{N}_])_+|_+(?![\p{L}\p{N}_])""")
     private val SPACE_BEFORE_PUNCT = Regex("""[ \t]+([.,;:!?])""")
     private val MULTI_SPACE = Regex("""[ \t]{2,}""")
 
-    /** Убирает сноски, ссылки и адреса, которые пришли в тексте ответа. */
+    /** Убирает сноски, ссылки и адреса, которые пришли в тексте ответа, и разметку курсива (текст остаётся). */
     fun clean(text: String): String = text
         .replace(PAREN_LINK, "")
         .replace(INLINE_LINK) { it.groupValues[1] }
         .replace(BARE_URL, "")
+        .replace(ITALIC_STAR, "")
+        .replace(EDGE_UNDERSCORE, "")
         .replace(SPACE_BEFORE_PUNCT) { it.groupValues[1] }
         .replace(MULTI_SPACE, " ")
 

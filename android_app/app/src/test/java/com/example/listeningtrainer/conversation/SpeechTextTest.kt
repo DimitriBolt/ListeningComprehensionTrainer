@@ -60,6 +60,34 @@ class SpeechTextTest {
         assertEquals("Prices vary.", SpeechText.forScreen("Prices vary. ([site.com](https://site.c"))
         assertEquals("Prices vary. Ok", SpeechText.forScreen("Prices vary. ([site.com](https://site.com)) Ok"))
     }
+
+    // ---- S02h, D57: курсив ----------------------------------------------------------------
+
+    @Test
+    fun `italics - stars and underscores of emphasis are dropped, the words stay, groups have no stars`() {
+        val text = "His book *The Call of the Wild* is set in Alaska."
+        assertEquals("His book The Call of the Wild is set in Alaska.", SpeechText.clean(text))
+        val groups = SpeechPlanner().plan(SpeechText.clean(text)).map { it.text }
+        assertEquals(listOf("His book The Call of", "the Wild is set in Alaska."), groups)
+        assertEquals("I read Moby Dick.", SpeechText.clean("I read _Moby Dick_."))
+    }
+
+    @Test
+    fun `italics - bold stays for the planner, underscores inside words stay`() {
+        assertEquals("A **big** dog and *small* cat.".replace("*small*", "small"), SpeechText.clean("A **big** dog and *small* cat."))
+        assertEquals("1. **Make a plan**:", SpeechText.clean("1. **Make a plan**:"))
+        assertEquals("Call it snake_case or my_var_2.", SpeechText.clean("Call it snake_case or my_var_2."))
+    }
+
+    @Test
+    fun `italics - an unclosed star in the stream is dropped at once, so streamed groups match the whole text`() {
+        val text = "His book *The Call of the Wild* is set in Alaska. Dogs pull sleds there."
+        val streaming = StreamingSpeechPlanner()
+        val emitted = text.chunked(3).flatMap { streaming.feed(it) } + streaming.finish()
+        assertEquals(SpeechPlanner().plan(SpeechText.clean(text)).map { it.text }, emitted.map { it.text })
+        assertTrue(emitted.none { '*' in it.text })
+        assertTrue(streaming.divergences.isEmpty())
+    }
 }
 
 /** Ответы учителя из приложения `docs/research/02c-results.md` (тестовый ресурс). */

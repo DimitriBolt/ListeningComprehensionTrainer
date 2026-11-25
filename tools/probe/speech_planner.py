@@ -138,11 +138,18 @@ _SPACE_BEFORE_PUNCT_RE = re.compile(r"[ \t]+([.,;:!?])")
 _MULTI_SPACE_RE = re.compile(r"[ \t]{2,}")
 
 
+# Курсив (D57, копия SpeechText.kt): одиночная «*», не часть «**», — и непарная; «_» по краю слова.
+_ITALIC_STAR_RE = re.compile(r"(?<!\*)\*(?!\*)")
+_EDGE_UNDERSCORE_RE = re.compile(r"(?<![^\W_]|_)_+|_+(?![^\W_]|_)")
+
+
 def clean_for_speech(text: str) -> str:
-    """Убирает сноски, ссылки и адреса, которые пришли в тексте ответа."""
+    """Убирает сноски, ссылки и адреса, которые пришли в тексте ответа, и разметку курсива (текст остаётся)."""
     s = _PAREN_LINK_RE.sub("", text)
     s = _INLINE_LINK_RE.sub(lambda m: m.group(1), s)
     s = _BARE_URL_RE.sub("", s)
+    s = _ITALIC_STAR_RE.sub("", s)
+    s = _EDGE_UNDERSCORE_RE.sub("", s)
     s = _SPACE_BEFORE_PUNCT_RE.sub(r"\1", s)
     s = _MULTI_SPACE_RE.sub(" ", s)
     return s
