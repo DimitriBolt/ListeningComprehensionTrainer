@@ -100,6 +100,7 @@ class TrainerService : Service() {
             log = AppLog,
             speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
             corrector = ResponsesCorrector(apiKey),
+            studentLevel = (application as TrainerApplication).studentLevel,
         )
         // Средняя кнопка гарнитуры (D29): медиа-сеанс активен всё время жизни сервиса, как и аудиофокус.
         headsetButtons = HeadsetButtons(this, AppLog) { keyCode, pressMs -> controller.headsetButton(keyCode, pressMs) }

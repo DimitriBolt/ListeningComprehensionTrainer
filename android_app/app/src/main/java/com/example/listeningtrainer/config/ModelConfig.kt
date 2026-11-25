@@ -48,6 +48,24 @@ object ModelConfig {
      * только сбой промпта (лекция в 1400 знаков ≈ 300 токенов); незаконченная фраза при обрезке не звучит.
      */
     const val TUTOR_MAX_OUTPUT_TOKENS = 200
+    /**
+     * Уровень ученика (S02h, D56): цель длины реплики учителя — свои слова, без поправки. Уровень 1 — норма
+     * D51; каждый следующий — на фразу (≈ 10 слов) длиннее. Индекс + 1 = уровень. Копия — `LEVEL_TARGETS` в
+     * `tools/probe/tutor_dialog.py`.
+     */
+    val LEVEL_TARGETS = listOf(
+        LengthTarget(3, 4, 25, 40),
+        LengthTarget(4, 5, 35, 50),
+        LengthTarget(5, 6, 45, 60),
+        LengthTarget(6, 7, 55, 70),
+        LengthTarget(7, 8, 65, 80),
+    )
+    /** Окно уровня: столько реплик ученика, дошедших до учителя (молчание не считается). */
+    const val LEVEL_WINDOW = 20
+    /** «Не понял» в окне не больше стольких — уровень выше. */
+    const val LEVEL_UP_MAX_NOT_UNDERSTOOD = 1
+    /** «Не понял» в окне не меньше стольких — уровень ниже. */
+    const val LEVEL_DOWN_MIN_NOT_UNDERSTOOD = 4
     /** История учителя (D27): не больше стольких последних сообщений (реплики ученика и ответы учителя). */
     const val TUTOR_HISTORY_MESSAGES = 30
     /** Цена для журнала (страница модели, прочитана в S02c): $ за 1M токенов и за один поиск (D40). */
@@ -130,3 +148,6 @@ object ModelConfig {
     /** Пауза перед единственным автоматическим повтором (сеть, таймаут, 5xx, 429). */
     const val RETRY_PAUSE_MS = 1_000L
 }
+
+/** Цель длины реплики учителя на одном уровне ученика (D56): фраз и своих слов, от и до. */
+data class LengthTarget(val minSentences: Int, val maxSentences: Int, val minWords: Int, val maxWords: Int)

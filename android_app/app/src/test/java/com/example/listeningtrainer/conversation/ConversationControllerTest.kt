@@ -81,6 +81,7 @@ class ConversationControllerTest {
      */
     private class FakeTutor(var replyText: String = "Hello there. How are you?") : Tutor {
         val replies = mutableListOf<String>()
+        val levelNotes = mutableListOf<String?>()
         var farewells = 0
         var error: Exception? = null
         val errors = ArrayDeque<Exception?>()
@@ -93,7 +94,8 @@ class ConversationControllerTest {
         var breakError: Exception = ServiceException(FailureKind.NO_NETWORK, "SocketException")
         var sources: List<TutorSource> = emptyList()
         var truncated = false
-        override suspend fun reply(studentText: String, onEvent: suspend (TutorEvent) -> Unit) {
+        override suspend fun reply(studentText: String, levelNote: String?, onEvent: suspend (TutorEvent) -> Unit) {
+            levelNotes += levelNote
             replies += studentText
             stream(replyText, onEvent, errors.removeFirstOrNull() ?: error)
         }
@@ -220,7 +222,10 @@ class ConversationControllerTest {
         }
     }
 
-    private class Rig(scope: TestScope, vararg transcripts: Any, filler: String? = null, val corrector: FakeCorrector? = null) {
+    private class Rig(
+        scope: TestScope, vararg transcripts: Any, filler: String? = null, val corrector: FakeCorrector? = null,
+        val level: StudentLevel? = null,
+    ) {
         lateinit var controller: ConversationController
         private val ui = { controller.ui.value }
         private val clock = { scope.testScheduler.currentTime }
@@ -251,6 +256,7 @@ class ConversationControllerTest {
                 log = log,
                 searchFiller = filler,
                 corrector = corrector,
+                studentLevel = level,
             )
         }
 
@@ -1478,5 +1484,61 @@ class ConversationControllerTest {
         silent.controller.startTurn()
         advanceUntilIdle()
         assertTrue(silent.corrector!!.calls.isEmpty())
+    }
+
+    // ---- S02h: уровень ученика ---------------------------------------------------------------
+
+    @Test
+    fun `level - each student turn counted once, note of the level goes to the tutor, log line per turn`() = runTest {
+        val level = StudentLevel(MemoryLevelStore(StudentLevel.State(level = 3)))
+        val rig = Rig(this, "I am fine", level = level)
+        rig.tutor.errors += ServiceException(FailureKind.NO_NETWORK, "SocketException") // повтор запроса
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(2, rig.tutor.replies.size) // запрос и повтор
+        assertEquals(listOf(level.note(3), level.note(3)), rig.tutor.levelNotes)
+        assertEquals(StudentLevel.State(3, 1, 0), level.state.value) // но в окне — одна реплика
+        assertTrue(rig.log.lines.contains("[Controller] level 3 (window 1 of 20, not understood 0)"))
+        assertEquals("(App note: target length: 5 to 6 sentences, 45 to 60 words.)", rig.tutor.levelNotes[0])
+    }
+
+    @Test
+    fun `level - silence is not counted, level up logged, new conversation keeps the level`() = runTest {
+        val level = StudentLevel(MemoryLevelStore(StudentLevel.State(level = 1, turns = 19, notUnderstood = 1)))
+        val rig = Rig(this, "", "What?", level = level)
+        rig.controller.startTurn() // пустая расшифровка — молчание
+        advanceUntilIdle()
+        assertEquals(StudentLevel.State(1, 19, 1), level.state.value)
+
+        rig.controller.startTurn() // 20-я реплика: «не понял» 2 — уровень тот же
+        advanceUntilIdle()
+        assertEquals(StudentLevel.State(1, 0, 0), level.state.value)
+        assertTrue(rig.log.lines.contains("[Controller] level 1 (window 0 of 20, not understood 0)"))
+        assertFalse(rig.log.lines.any { "level up" in it })
+
+        level.setLevel(2)
+        rig.controller.newConversation()
+        assertEquals(2, level.level)
+    }
+
+    @Test
+    fun `level - the window full of understood turns moves the level up`() = runTest {
+        val level = StudentLevel(MemoryLevelStore(StudentLevel.State(level = 4, turns = 19, notUnderstood = 0)))
+        val rig = Rig(this, "I am fine", level = level)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertTrue(rig.log.lines.contains("[Controller] level up 4 → 5"))
+        assertTrue(rig.log.lines.contains("[Controller] level 5 (window 0 of 20, not understood 0)"))
+        assertEquals(level.note(5), rig.tutor.levelNotes.single())
+    }
+
+    @Test
+    fun `level - without a level there is no note`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(listOf<String?>(null), rig.tutor.levelNotes)
+        assertFalse(rig.log.lines.any { "] level " in it })
     }
 }

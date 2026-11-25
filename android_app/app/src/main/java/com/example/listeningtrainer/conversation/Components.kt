@@ -98,8 +98,11 @@ sealed interface TutorEvent {
  * не запоминается, и повтор запроса не удваивает реплику.
  */
 interface Tutor {
-    /** Ответ на реплику ученика. */
-    suspend fun reply(studentText: String, onEvent: suspend (TutorEvent) -> Unit)
+    /**
+     * Ответ на реплику ученика. [levelNote] — служебная строка цели длины по уровню ученика (D56): идёт
+     * только в этот запрос, в историю не попадает; `null` — без неё.
+     */
+    suspend fun reply(studentText: String, levelNote: String?, onEvent: suspend (TutorEvent) -> Unit)
 
     /** Короткое прощание после долгого молчания ученика. */
     suspend fun farewell(onEvent: suspend (TutorEvent) -> Unit)

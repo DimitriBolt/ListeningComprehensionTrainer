@@ -3,6 +3,9 @@ package com.example.listeningtrainer
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.conversation.ConversationState
 import com.example.listeningtrainer.conversation.SilenceTurnDetector
+import com.example.listeningtrainer.config.ModelConfig
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import com.example.listeningtrainer.eventlog.AppLog
 import android.Manifest
 import android.content.pm.PackageManager
@@ -183,6 +186,7 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(10.dp))
         Text(text = "Listening Practice", style = MaterialTheme.typography.headlineSmall)
+        StudentLevelLabel()
 
         if (ui.currentChunk.isNotEmpty()) {
             Spacer(modifier = Modifier.height(20.dp))
@@ -311,4 +315,27 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(40.dp))
     }
+}
+
+/**
+ * Уровень ученика мелким текстом (D56). Только в debug-сборке долгое нажатие переключает уровень по кругу
+ * 1 → 2 → … → 5 → 1 (ручная проверка: услышать длинные уровни сразу); окно начинается заново.
+ */
+@Composable
+private fun StudentLevelLabel() {
+    val studentLevel = (LocalContext.current.applicationContext as TrainerApplication).studentLevel
+    val state by studentLevel.state.collectAsState()
+    val modifier = if (!BuildConfig.DEBUG) Modifier else Modifier.pointerInput(Unit) {
+        detectTapGestures(onLongPress = {
+            val next = studentLevel.level % ModelConfig.LEVEL_TARGETS.size + 1
+            studentLevel.setLevel(next)
+            AppLog.event("UI", "level set by hand to $next (debug long press)")
+        })
+    }
+    Text(
+        text = "Level ${state.level}",
+        style = MaterialTheme.typography.labelSmall,
+        color = Color.Gray,
+        modifier = modifier.padding(4.dp),
+    )
 }

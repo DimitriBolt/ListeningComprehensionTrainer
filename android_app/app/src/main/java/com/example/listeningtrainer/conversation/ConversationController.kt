@@ -121,6 +121,8 @@ class ConversationController(
     private val corrector: Corrector? = null,
     /** Сколько ждать поправку после того, как учитель начал отвечать (первый текст, поиск или конец). */
     private val correctionWaitMs: Long = ModelConfig.CORRECTOR_WAIT_MS,
+    /** Уровень ученика (S02h, D56): цель длины — служебной строкой в запрос; `null` — без неё. */
+    private val studentLevel: StudentLevel? = null,
 ) {
     private val speech = SpeechPipeline(synthesizer, fallbackSynthesizer, log, clock, speechLookahead)
 
@@ -354,15 +356,29 @@ class ConversationController(
         }
         silenceCount = 0
 
+        // Реплика дошла до учителя: она идёт в окно уровня (D56) один раз, повтор запроса её не считает.
+        val levelNote = studentLevel?.let { countTurn(it, studentText) }
+
         // Поправщик — сразу, одновременно с учителем (S02f).
         val correction = corrector?.let { CorrectionTask(it, studentText, CoroutineScope(currentCoroutineContext())) }
         try {
-            answer(recordedAt, transcribedAt, correction = correction) { onEvent -> tutor.reply(studentText, onEvent) }
+            answer(recordedAt, transcribedAt, correction = correction) { onEvent -> tutor.reply(studentText, levelNote, onEvent) }
                 ?.let { return it }
         } finally {
             correction?.finish()
         }
         return if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
+    }
+
+    /** Учесть реплику в уровне ученика, записать в журнал; служебная строка цели длины для запроса. */
+    private fun countTurn(level: StudentLevel, studentText: String): String {
+        val step = level.onStudentTurn(studentText)
+        val s = step.state
+        step.from?.let { from ->
+            log.event(SOURCE, "level ${if (s.level > from) "up" else "down"} $from → ${s.level}")
+        }
+        log.event(SOURCE, "level ${s.level} (window ${s.turns} of ${level.windowSize}, not understood ${s.notUnderstood})")
+        return level.note(s.level)
     }
 
     /** Ученик промолчал. `null` — авто-режим, слушать снова. */

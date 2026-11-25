@@ -6,6 +6,7 @@ import android.app.ApplicationExitInfo
 import android.os.Build
 import android.util.Log
 import com.example.listeningtrainer.conversation.ConversationController
+import com.example.listeningtrainer.conversation.StudentLevel
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.eventlog.FileEventLog
 import com.example.listeningtrainer.openai.ResponsesTutor
@@ -27,6 +28,9 @@ class TrainerApplication : Application() {
         val keyStore = ApiKeyStore(this)
         ResponsesTutor(apiKey = { keyStore.current() }, log = AppLog)
     }
+
+    /** Уровень ученика (D56) — один на процесс, хранится на устройстве; его читает и экран. */
+    val studentLevel: StudentLevel by lazy { StudentLevel(LevelPrefsStore(this)) }
 
     override fun onCreate() {
         super.onCreate()

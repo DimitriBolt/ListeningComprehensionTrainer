@@ -82,7 +82,7 @@ class ResponsesTutorTest {
     @Test
     fun `request - model, effort none, stream, store false, web_search low, sources included`() = runTest {
         val transport = FakeTransport().apply { streams += sse(delta("Hi!"), completed) }
-        tutor(transport).reply("Hello") {}
+        tutor(transport).reply("Hello", null) {}
         val body = transport.bodies.single()
         assertEquals("gpt-6-luna", body["model"]!!.jsonPrimitive.content)
         assertEquals("none", body["reasoning"]!!.jsonObject["effort"]!!.jsonPrimitive.content)
@@ -135,7 +135,7 @@ class ResponsesTutorTest {
         }
         val log = Log()
         val events = mutableListOf<TutorEvent>()
-        tutor(transport, log).reply("How much is gas in Tucson today?") { events += it }
+        tutor(transport, log).reply("How much is gas in Tucson today?", null) { events += it }
 
         assertEquals(TutorEvent.SearchStarted, events[0])
         assertEquals(TutorEvent.SearchFinished, events[1])
@@ -167,10 +167,10 @@ class ResponsesTutorTest {
             streams += sse(delta("Good."), completed)
         }
         val t = tutor(transport)
-        t.reply("Gas?") {}
+        t.reply("Gas?", null) {}
         val clean = "Regular gas in Tucson is about **\$3.88 per gallon** today. Prices can vary by station.\n\nDoes that help?"
         assertEquals(clean, t.lastTeacherText)
-        t.reply("Yes") {}
+        t.reply("Yes", null) {}
         val input = transport.bodies[1]["input"]!!.jsonArray.map { it.jsonObject }
         assertEquals(listOf("user", "assistant", "user"), input.map { it["role"]!!.jsonPrimitive.content })
         assertEquals(clean, input[1]["content"]!!.jsonPrimitive.content)
@@ -185,7 +185,7 @@ class ResponsesTutorTest {
         }
         val t = tutor(transport)
         try {
-            t.reply("Hello") {}
+            t.reply("Hello", null) {}
             fail("expected an error")
         } catch (e: ServiceException) {
             assertEquals(FailureKind.SERVER, e.kind)
@@ -193,7 +193,7 @@ class ResponsesTutorTest {
         }
         assertNull(t.lastTeacherText)
         assertEquals(0, t.historySize)
-        t.reply("Hello") {}
+        t.reply("Hello", null) {}
         assertEquals(1, transport.bodies[1]["input"]!!.jsonArray.size)
         assertEquals("Whole answer.", t.lastTeacherText)
     }
@@ -204,20 +204,20 @@ class ResponsesTutorTest {
             error = HttpException(retrofit2.Response.error<Any>(401, "{}".toResponseBody("application/json".toMediaType())))
         }
         val log = Log()
-        assertEquals(FailureKind.KEY, kindOf { tutor(unauthorized, log).reply("Hi") {} })
+        assertEquals(FailureKind.KEY, kindOf { tutor(unauthorized, log).reply("Hi", null) {} })
         assertTrue(log.lines.contains("[Network] tutor stream: failed (http 401)"))
 
         val failed = FakeTransport().apply {
             streams += sse(delta("Hi"), """{"type":"response.failed","response":{"status":"failed","error":{"code":"server_error","message":"x"}}}""")
         }
-        assertEquals(FailureKind.SERVER, kindOf { tutor(failed).reply("Hi") {} })
+        assertEquals(FailureKind.SERVER, kindOf { tutor(failed).reply("Hi", null) {} })
 
         val quota = FakeTransport().apply { streams += sse("""{"type":"error","code":"insufficient_quota","message":"x","param":null}""") }
-        assertEquals(FailureKind.QUOTA, kindOf { tutor(quota).reply("Hi") {} })
+        assertEquals(FailureKind.QUOTA, kindOf { tutor(quota).reply("Hi", null) {} })
         assertFalse(FailureKind.QUOTA.retry)
 
         val noNetwork = FakeTransport().apply { error = java.net.UnknownHostException("api.openai.com") }
-        assertEquals(FailureKind.NO_NETWORK, kindOf { tutor(noNetwork).reply("Hi") {} })
+        assertEquals(FailureKind.NO_NETWORK, kindOf { tutor(noNetwork).reply("Hi", null) {} })
     }
 
     @Test
@@ -227,7 +227,7 @@ class ResponsesTutorTest {
             streams += sse(delta("Short."), """{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":10,"output_tokens":5}}}""")
         }
         val events = mutableListOf<TutorEvent>()
-        tutor(transport, log).reply("Hi") { events += it }
+        tutor(transport, log).reply("Hi", null) { events += it }
         assertTrue(events.last() is TutorEvent.Done)
         assertTrue(log.lines.contains("[Network] tutor reply incomplete (max_output_tokens)"))
     }
@@ -240,7 +240,7 @@ class ResponsesTutorTest {
         }
         val t = tutor(transport)
         val texts = mutableListOf<String>()
-        t.reply("Temperature?") { if (it is TutorEvent.Text) texts += it.delta }
+        t.reply("Temperature?", null) { if (it is TutorEvent.Text) texts += it.delta }
         assertEquals("Let me see. It is 64 degrees.", texts.joinToString(""))
         assertEquals("Let me see. It is 64 degrees.", t.lastTeacherText)
     }
@@ -256,7 +256,7 @@ class ResponsesTutorTest {
         }
         val t = tutor(transport, log)
         val events = mutableListOf<TutorEvent>()
-        t.reply("What is temperature in Tucson?") { events += it }
+        t.reply("What is temperature in Tucson?", null) { events += it }
         val said = events.filterIsInstance<TutorEvent.Text>().joinToString("") { it.delta }
         assertEquals("I think you meant \"What is the temperature in Tucson?\", right? Now or tonight?", said)
         assertFalse(events.any { it is TutorEvent.SearchStarted }) // без «Let me check.»
@@ -275,12 +275,12 @@ class ResponsesTutorTest {
         }
         val t = tutor(transport)
         val texts = mutableListOf<String>()
-        t.reply("Temperature?") { if (it is TutorEvent.Text) texts += it.delta }
+        t.reply("Temperature?", null) { if (it is TutorEvent.Text) texts += it.delta }
         assertEquals("Do you mean now or today?", texts.joinToString(""))
         assertEquals("Do you mean now or today?", t.lastTeacherText)
         // Вопрос в конце — обычный ответ.
         val events = mutableListOf<TutorEvent>()
-        t.reply("Now.") { events += it }
+        t.reply("Now.", null) { events += it }
         assertFalse((events.last() as TutorEvent.Done).stats.endedAtQuestion)
         assertEquals("It is 15 degrees. Is that warm or cold?", t.lastTeacherText)
     }
@@ -293,7 +293,7 @@ class ResponsesTutorTest {
         }
         val t = tutor(transport)
         val events = mutableListOf<TutorEvent>()
-        t.reply("Sunset?") { events += it }
+        t.reply("Sunset?", null) { events += it }
         assertEquals("Sunset is at 5:20 PM. Is that early?", events.filterIsInstance<TutorEvent.Text>().joinToString("") { it.delta })
         assertEquals(1, events.count { it is TutorEvent.Source })
         assertTrue((events.last() as TutorEvent.Done).stats.endedAtQuestion)
@@ -307,13 +307,13 @@ class ResponsesTutorTest {
         }
         val t = tutor(transport)
         val events = mutableListOf<TutorEvent>()
-        t.reply("Weather?") { events += it }
+        t.reply("Weather?", null) { events += it }
         assertEquals(ModelConfig.TUTOR_MAX_OUTPUT_TOKENS, transport.bodies.single()["max_output_tokens"]!!.jsonPrimitive.content.toInt())
         assertTrue((events.last() as TutorEvent.Done).stats.truncated)
         assertEquals("It is warm. It is nice.", t.lastTeacherText)
         // Другая причина неполного ответа — не обрезка по длине.
         events.clear()
-        t.reply("Ok") { events += it }
+        t.reply("Ok", null) { events += it }
         assertFalse((events.last() as TutorEvent.Done).stats.truncated)
     }
 
@@ -321,7 +321,7 @@ class ResponsesTutorTest {
     fun `history window keeps the last messages only`() = runTest {
         val transport = FakeTransport().apply { repeat(4) { streams += sse(delta("Answer $it."), completed) } }
         val t = tutor(transport, limit = 4)
-        repeat(4) { t.reply("Question $it") {} }
+        repeat(4) { t.reply("Question $it", null) {} }
         assertEquals(4, t.historySize)
         assertEquals("Question 2", t.turns.first().text)
         // В запросе — окно и новая реплика, не больше limit сообщений.
@@ -358,7 +358,7 @@ class ResponsesTutorTest {
         }
         val log = Log()
         val t = tutor(transport, log)
-        for (said in listOf("I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand.")) t.reply(said) {}
+        for (said in listOf("I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand.")) t.reply(said, null) {}
 
         fun lastUser(i: Int) = transport.bodies[i]["input"]!!.jsonArray.last().jsonObject["content"]!!.jsonPrimitive.content
         assertEquals("I like to cook.", lastUser(0))
@@ -372,13 +372,34 @@ class ResponsesTutorTest {
         assertFalse(log.lines.any { "cook" in it })
     }
 
+    // ---- S02h ---------------------------------------------------------------------------
+
+    @Test
+    fun `level note - in this request only, before the not understood note, history keeps the student's words`() = runTest {
+        val transport = FakeTransport().apply {
+            repeat(2) { streams += sse(delta("What do you cook?"), completed) }
+        }
+        val t = tutor(transport)
+        val level = "(App note: target length: 7 to 8 sentences, 65 to 80 words.)"
+        t.reply("I like to cook.", level) {}
+        t.reply("What?", level) {}
+
+        fun lastUser(i: Int) = transport.bodies[i]["input"]!!.jsonArray.last().jsonObject["content"]!!.jsonPrimitive.content
+        assertEquals("I like to cook.\n$level", lastUser(0))
+        // Обе строки вместе: цель длины, затем «не понял» — она последняя и главнее (промпт).
+        assertEquals("What?\n$level\n${NotUnderstood.note(1)}", lastUser(1))
+        assertEquals(listOf("I like to cook.", "What?"), t.turns.filter { it.role == "user" }.map { it.text })
+        // В истории второго запроса прошлая реплика — без строки.
+        assertEquals("I like to cook.", transport.bodies[1]["input"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content)
+    }
+
     @Test
     fun `replace last reply - the history keeps what was spoken`() = runTest {
         val transport = FakeTransport().apply { streams += sse(delta("Hello there."), completed) }
         val t = tutor(transport)
         t.replaceLastReply("nothing yet") // истории ещё нет — ничего
         assertTrue(t.turns.isEmpty())
-        t.reply("I have dog.") {}
+        t.reply("I have dog.", null) {}
         t.replaceLastReply("I think you meant \"I have a dog\", right? Hello there.")
         assertEquals("I think you meant \"I have a dog\", right? Hello there.", t.lastTeacherText)
         assertEquals(2, t.turns.size)
