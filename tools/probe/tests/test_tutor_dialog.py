@@ -178,7 +178,7 @@ def make_ctx(tmp_path, fake, extra=()):
 @pytest.fixture(autouse=True)
 def no_realtime(monkeypatch):
     rows = [{"text": t, "transcript": t, "verdict": "verbatim", "error": None, "cost": 0.0001}
-            for t in td.RUSSIAN_PHRASES]
+            for t in td.SYNTH_PHRASES]
 
     def check(ctx, budget):
         budget.spent += sum(r["cost"] for r in rows)
@@ -231,8 +231,12 @@ def test_full_run_writes_docs_and_keeps_old_runs(tmp_path):
     assert [(sc["id"], sc["level"]) for sc in run["scenarios"]] == [(sc["id"], lv) for sc, lv in plan]
     assert sum(len(s["steps"]) for s in run["scenarios"]) == sum(len(sc["turns"]) for sc, _ in plan)
     s = run["summary"]
-    assert s["question_share"] > 0.8 and s["max_words"] <= 30 and s["corrections_total"] == 5  # S1 (уровни 1 и 5) и S2
-    assert sorted(int(k) for k in s["by_level"]) == [1, 3, 5]
+    assert s["question_share"] > 0.8 and s["max_words"] <= 30 and s["corrections_total"] == 1  # S1 на уровне 5
+    # S02i: S3 и S6 на 1 и 5, S1 и S4 на 5.
+    assert plan and [(sc["id"], lv) for sc, lv in plan] == [("S3", 1), ("S6", 1), ("S3", 5), ("S6", 5), ("S1", 5), ("S4", 5)]
+    assert sorted(int(k) for k in s["by_level"]) == [1, 5]
+    assert sorted(int(k) for k in s["s3_russian_by_level"]) == [1, 5] and set(s["goals_02i"]) == {
+        "after_nu", "s3_russian_step4", "s6_no_russian_before_3", "numbers", "titles_quoted", "l5_median", "truncated"}
     # S02h, S02i (D58): в каждом запросе учителя — цель длины уровня или, при «не понял», только строка «не понял».
     for b in fake.requests:
         last = b["input"][-1]["content"]
@@ -248,7 +252,7 @@ def test_full_run_writes_docs_and_keeps_old_runs(tmp_path):
     assert run["prompt"] == probe.TUTOR_PROMPT_FILE.read_text(encoding="utf-8").strip()
     md = (tmp_path / "02e.md").read_text(encoding="utf-8")
     assert "## Сводка по прогонам" in md and "## Прогон 1" in md and "## Прогон 2" in md
-    assert "Ожидание:" in md and "Русское слово в синтезе" in md
+    assert "Ожидание:" in md and "Фразы в синтезе" in md and "### Цели S02i" in md
     assert FAKE_KEY not in md and "utm_source" not in md
     # Промпт приложения с датой — в каждом запросе.
     assert "Today is " in fake.requests[0]["instructions"] and "{DATE}" not in fake.requests[0]["instructions"]
@@ -413,3 +417,40 @@ def test_rejudge_last_run(tmp_path):
     data = json.loads((tmp_path / "02e.json").read_text(encoding="utf-8"))
     assert len(data["runs"]) == 1 and len(fake.requests) == n_teacher  # учителю — ни одного запроса
     assert len(fake.judge_requests) == 2 * sum(len(sc["turns"]) for sc, _ in td.plan_runs())
+
+
+# ---- S02i: числа (D61), названия в кавычках (D60), цели ------------------------------------------
+
+def test_numbers_count():
+    assert td.numbers("Tea is a good start to the day.") == 0
+    assert td.numbers("Some drink five cups a day!") == 1
+    assert td.numbers("It is 68 degrees at noon and 75 at 3:30.") == 3
+    assert td.numbers("November 24, 2026") == 2
+    assert td.numbers("In the 1890s, two men went north.") == 2
+    assert td.numbers("Tucson has one hundred and five parks. One day I saw one dog.") == 1
+    assert td.numbers("twenty-five cups, and five and two cats") == 3
+    assert td.numbers("It costs $1,000 or 68.5 dollars.") == 2
+
+
+def test_titles_in_quotes():
+    assert td.titles('His favorite book is "The Call of the Wild".') == {"seen": 1, "quoted": 1, "italic": 0}
+    assert td.titles('He wrote “White Fang.”') == {"seen": 1, "quoted": 1, "italic": 0}
+    assert td.titles("He wrote White Fang and *Martin Eden*.") == {"seen": 2, "quoted": 0, "italic": 1}
+    assert td.titles("I like dogs.") == {"seen": 0, "quoted": 0, "italic": 0}
+
+
+def test_summary_goals_s02i():
+    def sc(sid, lv, steps, ok=True):
+        name = "шаг 4: одно слово по-русски" if sid == "S3" else "без русского до шага 4"
+        return {"id": sid, "rep": 1, "level": lv, "checks": [{"check": name, "ok": ok, "note": ""}], "steps": steps}
+    good = [sc("S3", 1, [_step(1, 30), _step(2, 12, "after_nu"), _step(4, 15, "after_nu")]),
+            sc("S3", 5, [_step(1, 60), _step(2, 18, "after_nu")]),
+            sc("S6", 5, [_step(1, 62), _step(2, 10, "after_nu")]),
+            sc("S4", 5, [_step(1, 58, numbers=2, titles={"seen": 1, "quoted": 1, "italic": 0})])]
+    s = td.summarize(good)
+    assert s["goals_02i"] == {k: True for k in s["goals_02i"]} and s["goals_met"], s["goals_02i"]
+    assert s["own_after_nu_by_level"] == {1: 15, 5: 18} and s["s3_russian_by_level"] == {1: [True], 5: [True]}
+    bad = td.summarize(good[:1] + [sc("S4", 5, [_step(1, 30, numbers=3, titles={"seen": 1, "quoted": 0, "italic": 0})]),
+                                   sc("S3", 1, [_step(2, 21, "after_nu")], ok=False)])
+    assert not any(bad["goals_02i"][k] for k in ("after_nu", "s3_russian_step4", "numbers", "titles_quoted", "l5_median"))
+    assert bad["numbers_over"] == 1 and not bad["goals_met"]

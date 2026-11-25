@@ -7,6 +7,10 @@
 приложении (`StudentLevel.note`); цели длины — по уровню; S5 — после выбора нет нового выбора; разметка курсива
 (D57). Итог — `docs/research/02h-dialogs.md`.
 
+С S02i: при «не понял» в запросе только строка «не понял» с указанием, без цели длины (D58); короткий прогон только по
+пунктам брифа — S3 и S6 на уровнях 1 и 5, S1 и S4 на уровне 5; новые меры — чисел в реплике (D61) и названия книг в
+кавычках (D60); синтез проверяет фразы с названием в кавычках. Итог — `docs/research/02i-dialogs.md`.
+
 
 Тот же промпт (файл приложения `tutor_prompt.txt`, D46), та же модель и те же параметры запроса, что
 в приложении (`ResponsesTutor.requestBody`): `gpt-6-luna`, Responses API, поток, `reasoning.effort: none`,
@@ -39,9 +43,9 @@ import probe
 from probe import ProbeError, log, redact
 from speech_planner import clean_for_speech, plan
 
-# С S02h прогоны пишутся в 02h-dialogs (уровень ученика D56); прогоны S02e–S02g остаются в своих файлах.
-DOCS_MD = probe.REPO_ROOT / "docs" / "research" / "02h-dialogs.md"
-DOCS_JSON = probe.REPO_ROOT / "docs" / "research" / "02h-dialogs.json"
+# С S02i прогоны пишутся в 02i-dialogs; прогоны S02e–S02h остаются в своих файлах.
+DOCS_MD = probe.REPO_ROOT / "docs" / "research" / "02i-dialogs.md"
+DOCS_JSON = probe.REPO_ROOT / "docs" / "research" / "02i-dialogs.json"
 JUDGE_PROMPT_FILE = probe.PROBE_DIR / "judge_prompt.txt"
 MODEL_CONFIG_KT = (probe.REPO_ROOT / "android_app" / "app" / "src" / "main" / "java" / "com" / "example"
                    / "listeningtrainer" / "config" / "ModelConfig.kt")
@@ -58,9 +62,8 @@ SPEECH_SPEED = 0.88
 
 # Уровень ученика (S02h, D56) — копия ModelConfig.LEVEL_TARGETS (тест сверяет): уровень → (фраз от, до, слов от, до).
 LEVEL_TARGETS = {1: (3, 4, 25, 40), 2: (4, 5, 35, 50), 3: (5, 6, 45, 60), 4: (6, 7, 55, 70), 5: (7, 8, 65, 80)}
-# Прогон S02h: S1–S7 на уровне 1; S4 и S7 — ещё на 3 и 5; S1 на 5 — длина ответа с поиском на верхнем уровне
-# (`max_output_tokens`, бриф п. 1).
-LEVEL_RUNS = [(None, 1), ("S4", 3), ("S7", 3), ("S4", 5), ("S7", 5), ("S1", 5)]
+# Прогон S02i (бриф п. 5): «не понял» и молчание на уровнях 1 и 5, погода с поиском и Jack London на уровне 5.
+LEVEL_RUNS = [("S3", 1), ("S6", 1), ("S3", 5), ("S6", 5), ("S1", 5), ("S4", 5)]
 
 # Цели брифа S02h (п. 4) и прежние S02g. Слова — свои слова учителя, без поправки (own_words).
 GOAL_AFTER_NU_MAX = 20           # после «не понял» (S3 шаги 2–4, S6) — на любом уровне
@@ -70,6 +73,9 @@ GOAL_QUESTION_SHARE = 0.90
 GOAL_LINKED_SHARE = 0.90
 GOAL_CONTENT_SHARE = 0.90
 GOAL_TYPE_SHARE = 0.25           # среди вопросов обычных реплик: проверка понимания и личный — каждого ≥ 25 %
+# Цели S02i (бриф п. 5).
+GOAL_NUMBERS_MAX = 2             # чисел в одной реплике — все реплики (D61)
+GOAL_L5_MEDIAN_MIN = 58          # обычные реплики на уровне 5: медиана own_words не меньше итогового прогона S02h
 # Судья (S02g): тип вопроса, связь со сказанным, содержание. Отдельный короткий запрос без поиска.
 JUDGE_MODEL = probe.M_TUTOR_NEW
 JUDGE_MAX_OUTPUT_TOKENS = 60
@@ -131,10 +137,17 @@ SCENARIOS = [
     },
 ]
 
-# Фразы для проверки русского слова в синтезе (так их нарезал бы SpeechPlanner: группа со словом).
+# Фразы для проверки русского слова в синтезе (S02e–S02h; так их нарезал бы SpeechPlanner: группа со словом).
 RUSSIAN_PHRASES = ['"Noon" is "полдень".', '"Temperature" is "температура".', 'Night is "ночь".',
                    '"Soup" is "суп".', '"Cook" means "готовить".', 'Happy is "счастливый".']
+# S02i (D60): группы с названием в кавычках — кавычки не звучат, сверка проходит. Синтез проверяет их.
+TITLE_PHRASES = ['His favorite book is', '"The Call of the Wild".', 'He also wrote "White Fang".']
+SYNTH_PHRASES = TITLE_PHRASES
 RUSSIAN_REPEATS = 2
+# Названия книг Jack London (S4): в реплике — в кавычках, без курсива (D60).
+JACK_LONDON_TITLES = ["The Call of the Wild", "White Fang", "Martin Eden", "The Sea-Wolf", "The Sea Wolf",
+                      "To Build a Fire", "The Iron Heel", "Burning Daylight", "Love of Life", "The Star Rover",
+                      "Smoke Bellew", "Before Adam", "The People of the Abyss"]
 
 # --------------------------------------------------------------------------------------------------
 # Мера реплики (копия ReplyText.kt) и поправка
@@ -360,6 +373,52 @@ def markup(text: str) -> int:
     return len(_MARKUP.findall(text or ""))
 
 
+_NUM_WORDS = {"two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen",
+              "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty",
+              "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million", "billion", "dozen"}
+_NUM_TOKEN = re.compile(r"\d+(?:[.,:]\d+)*(?:st|nd|rd|th|s)?|[A-Za-z]+(?:-[A-Za-z]+)*")
+
+
+def numbers(text: str) -> int:
+    """Сколько чисел в тексте (S02i, D61): группа цифр («3:30», «1,000», «68.5») — одно число; число словами —
+    тоже («twenty-five», «one hundred and five» — одно). «one» само по себе не считается: чаще это местоимение."""
+    toks = [t for t in _NUM_TOKEN.findall(text or "")]
+
+    def numeric(t, nxt):
+        if t[0].isdigit():
+            return True
+        parts = t.lower().split("-")
+        if all(x in _NUM_WORDS or x == "one" for x in parts) and any(x in _NUM_WORDS for x in parts):
+            return True
+        return t.lower() == "one" and nxt is not None and numeric(nxt, None) and not nxt[0].isdigit()
+
+    n, prev = 0, False
+    for i, t in enumerate(toks):
+        nxt = toks[i + 1] if i + 1 < len(toks) else None
+        cur = numeric(t, nxt)
+        if cur and not (prev and not t[0].isdigit()):  # число словами сразу после числа словами — то же число
+            n += 1
+        # «and» после hundred/thousand/million («one hundred and five») не разрывает число.
+        prev = (cur and not t[0].isdigit()) or (prev and t.lower() == "and" and i > 0
+                                                and toks[i - 1].lower() in ("hundred", "thousand", "million")
+                                                and nxt is not None and numeric(nxt, None) and not nxt[0].isdigit())
+    return n
+
+
+def titles(text: str) -> dict:
+    """Названия книг Jack London в тексте (S02i, D60): сколько упомянуто, сколько в кавычках, сколько в курсиве."""
+    seen = quoted = italic = 0
+    for t in JACK_LONDON_TITLES:
+        for m in re.finditer(re.escape(t), text or ""):
+            seen += 1
+            before, after = text[:m.start()], text[m.end():]
+            if re.search(r'["“]$', before) and re.match(r'[.,!?]?["”]', after):
+                quoted += 1
+            if re.search(r"[*_]$", before) or re.match(r"[*_]", after):
+                italic += 1
+    return {"seen": seen, "quoted": quoted, "italic": italic}
+
+
 # --------------------------------------------------------------------------------------------------
 # Запрос — как в приложении
 # --------------------------------------------------------------------------------------------------
@@ -483,6 +542,7 @@ def run_scenario(api, prompt: str, sc: dict, budget: Budget, corr_prompt: str | 
         step = {
             "step": i, "student": student, "teacher": spoken, "raw_chars": len(a["text"]),
             "markup_model": markup(a["text"]), "markup_spoken": markup(spoken),
+            "numbers": numbers(own_text(spoken)), "titles": titles(spoken), "titles_model": titles(a["text"]),
             "not_understood": count,
             "ended_at_question": stopped, "model_text": model_text if stopped else None,
             "error": error, "incomplete": incomplete,
@@ -499,6 +559,7 @@ def run_scenario(api, prompt: str, sc: dict, budget: Budget, corr_prompt: str | 
         steps.append(step)
         log(f"  {sc['id']}.{i}: {step['own_words']} своих сл., вопрос {'да' if step['question'] else 'нет'}"
             f"{', поиск' if step['searched'] else ''}{', RU' if step['russian'] else ''}"
+            f"{', чисел ' + str(step['numbers']) if step['numbers'] else ''}"
             f"{', не понял ×' + str(count) if count else ''}"
             f"{', поправка: ' + step['correction_source'] if step['correction_source'] else ''}"
             f"{', поправщик: ' + corr['outcome'] if corr else ''}"
@@ -663,7 +724,7 @@ async def _russian_synth(ctx) -> list[dict]:
     out = []
     async with probe.Realtime(ctx.key, ctx.timeout, probe.REALTIME_URL.format(model=probe.M_REALTIME)) as rt:
         await rt.update_session(probe.synth_session(SPEECH_VOICE, SPEECH_SPEED, 1))
-        for i, text in enumerate([p for p in RUSSIAN_PHRASES for _ in range(RUSSIAN_REPEATS)], 1):
+        for i, text in enumerate([p for p in SYNTH_PHRASES for _ in range(RUSSIAN_REPEATS)], 1):
             r = await probe.rt_say(rt, text)
             heard = r["transcript"]
             verdict = probe.compare_texts(text, heard)["verdict"] if not r["error"] else "error"
@@ -824,7 +885,37 @@ def summarize(scenarios: list[dict]) -> dict:
         "markup": g["markup_spoken"] == 0,
         "truncated": g["truncated"] == 0,
     }
-    summary["goals_met"] = all(summary["goals"].values())
+    # S02i (бриф п. 5): цели этого прогона.
+    s3_by = {}
+    s6_by = {}
+    for sc in scenarios:
+        lv = sc.get("level") or 1
+        if sc["id"] == "S3":
+            s3_by.setdefault(lv, []).append(all(c["ok"] for c in sc["checks"] if "русск" in c["check"]))
+        if sc["id"] == "S6":
+            s6_by.setdefault(lv, []).append(all(c["ok"] for c in sc["checks"] if c["check"].startswith("без русского")))
+    nums = [s.get("numbers", 0) for s in steps]
+    tt = [s.get("titles") or {"seen": 0, "quoted": 0, "italic": 0} for s in steps]
+    tm = [s.get("titles_model") or {"seen": 0, "quoted": 0, "italic": 0} for s in steps]
+    l5 = by_level.get(5, {}).get("own_median_normal")
+    summary.update({
+        "s3_russian_by_level": s3_by, "s6_no_russian_by_level": s6_by,
+        "max_numbers": max(nums, default=None), "numbers_over": sum(1 for x in nums if x > GOAL_NUMBERS_MAX),
+        "numbers_median": _median(nums),
+        "titles_seen": sum(x["seen"] for x in tt), "titles_quoted": sum(x["quoted"] for x in tt),
+        "titles_italic_model": sum(x["italic"] for x in tm),
+        "own_after_nu_by_level": {lv: b["own_max_after_nu"] for lv, b in by_level.items()},
+    })
+    summary["goals_02i"] = {
+        "after_nu": g["own_max_after_nu"] is not None and g["own_max_after_nu"] <= GOAL_AFTER_NU_MAX,
+        "s3_russian_step4": bool(s3_by) and all(all(v) and len(v) > 0 for v in s3_by.values()),
+        "s6_no_russian_before_3": bool(s6_by) and all(all(v) for v in s6_by.values()),
+        "numbers": bool(nums) and summary["numbers_over"] == 0,
+        "titles_quoted": summary["titles_quoted"] == summary["titles_seen"] and summary["titles_italic_model"] == 0,
+        "l5_median": l5 is not None and l5 >= GOAL_L5_MEDIAN_MIN,
+        "truncated": g["truncated"] == 0,
+    }
+    summary["goals_met"] = all(summary["goals_02i"].values())
     return summary
 
 
@@ -844,8 +935,8 @@ def estimate(repeats: int) -> dict:
     plain = 3500 * probe.PRICE_LUNA["in"] + 100 * probe.PRICE_LUNA["out"]
     side = 1000 * probe.PRICE_LUNA["in"] + 35 * probe.PRICE_LUNA["out"]
     search = 8000 * probe.PRICE_LUNA["in"] + probe.PRICE_WEB_SEARCH
-    n_search = 4 * repeats + 3 * sum(1 for sc, _ in runs[len(SCENARIOS):] if sc["id"] == "S1") * repeats
-    rt = len(RUSSIAN_PHRASES) * RUSSIAN_REPEATS * (3 * 20 * probe.PRICE["rt_audio_out"] + 250 * probe.PRICE["rt_text_in"])
+    n_search = (3 * sum(1 for sc, _ in runs if sc["id"] == "S1") + 2 * sum(1 for sc, _ in runs if sc["id"] == "S5")) * repeats
+    rt = len(SYNTH_PHRASES) * RUSSIAN_REPEATS * (3 * 20 * probe.PRICE["rt_audio_out"] + 250 * probe.PRICE["rt_text_in"])
     total = n * (plain + side) + n_search * search + rt
     return {"requests": n, "total": total}
 
@@ -887,12 +978,13 @@ def _save(runs: list[dict], docs_json: Path, docs_md: Path) -> None:
 
 def _log_summary(run: dict) -> None:
     s = run["summary"]
-    failed = [k for k, v in s["goals"].items() if not v]
+    failed = [k for k, v in (s.get("goals_02i") or s["goals"]).items() if not v]
     lv = ", ".join(f"L{k} {b['own_median_normal']}" for k, b in (s.get("by_level") or {}).items())
     log(f"\nПрогон {run['n']}: own_words обычных — медиана по уровням {lv}, максимум {s['own_max']}; "
         f"после «не понял» до {s['own_max_after_nu']}; вопрос {_pct(s['question_share'])}, связан "
         f"{_pct(s['linked_share'])}, содержание {_pct(s['content_share_normal'])}; проверка {_pct(s['check_share'])}, "
-        f"личный {_pct(s['personal_share'])}; цели {'достигнуты' if s['goals_met'] else 'НЕ достигнуты: ' + ', '.join(failed)}."
+        f"личный {_pct(s['personal_share'])}; чисел макс. {s.get('max_numbers')}, названий в кавычках "
+        f"{s.get('titles_quoted')} из {s.get('titles_seen')}; цели {'достигнуты' if s['goals_met'] else 'НЕ достигнуты: ' + ', '.join(failed)}."
         f" Потрачено ≈ ${run['spent']:.3f}.")
 
 
@@ -922,7 +1014,7 @@ def probe_tutor_dialog(ctx, ask=input) -> bool:
     est = estimate(repeats)
     runs_plan = plan_runs()
     print(f"Проба tutor-dialog: {len(runs_plan)} сценариев с уровнями × {repeats}, ≈ {est['requests']} реплик учителя "
-          f"(с поправщиком и судьёй), плюс {len(RUSSIAN_PHRASES)} фраз Realtime с русским словом.")
+          f"(с поправщиком и судьёй), плюс {len(SYNTH_PHRASES) * RUSSIAN_REPEATS} фраз Realtime с названием в кавычках.")
     print(f"Оценка (сверху): ≈ ${est['total']:.2f}; прогон остановится, если потрачено ${ctx.args.budget:.2f}.")
     if not ctx.args.yes:
         ans = ask("Запустить? [y/N] ").strip().lower()
@@ -938,7 +1030,7 @@ def probe_tutor_dialog(ctx, ask=input) -> bool:
     jp = judge_prompt()
     budget = Budget(ctx.args.budget)
     started = datetime.now().isoformat(timespec="seconds")
-    log("Русское слово в синтезе (Realtime, голос приложения)")
+    log("Название в кавычках в синтезе (Realtime, голос приложения)")
     russian = russian_check(ctx, budget)
     scenarios = []
     for rep in range(1, repeats + 1):
@@ -993,54 +1085,54 @@ _KIND_RU = {"normal": "обычная", "after_nu": "после «не поня�
 
 
 def _g(s: dict, key: str) -> str:
-    return "✓" if s["goals"].get(key) else "✗"
+    """Отметка цели: сначала цели S02i, затем прежние (справочно)."""
+    g = s.get("goals_02i") or {}
+    if key in g:
+        return "✓" if g[key] else "✗"
+    return ("✓" if s["goals"][key] else "✗ (справочно)") if key in s.get("goals", {}) else ""
 
 
 def render(runs: list[dict]) -> str:
-    L = ["# S02h — уровень ученика: диалоги по сценариям", "",
-         "Прогоны S02e–S02g — в `docs/research/02e-dialogs.md`, `02f-dialogs.md`, `02g-dialogs.md`. Бриф — "
-         "`docs/stages/02h-brief.md`, п. 4: длина по уровню ученика (D56) — цель служебной строкой, как в приложении; "
-         "после выбора — рассказ; курсив не доходит до голоса (D57).", "",
+    L = ["# S02i — мелкая доводка учителя: диалоги по сценариям", "",
+         "Прогоны S02e–S02h — в `docs/research/02e-dialogs.md` … `02h-dialogs.md`. Бриф — `docs/stages/02i-brief.md`, "
+         "п. 5: при «не понял» в запросе только строка «не понял» с указанием, без цели длины (D58); названия книг в "
+         "кавычках (D60); не больше двух чисел в реплике (D61).", "",
          "Проба `python tools/probe/probe.py tutor-dialog`. Промпт — файл приложения "
          "`android_app/app/src/main/resources/tutor_prompt.txt` (D46), запрос — как в "
          f"`ResponsesTutor`: `{MODEL}`, `reasoning.effort: {EFFORT}`, поток, `web_search` ({SEARCH_CONTEXT}), "
          "`max_output_tokens`, `store: false`. Как в приложении: поправщик одновременно с учителем (его поправка "
-         "звучит первой), счёт «не понял» — служебной строкой, реплика кончается первым вопросом (D48). Реплики "
-         "ученика заданы заранее; каждый сценарий — отдельный разговор. Уровень сценария не меняется (окно — 20 реплик, "
-         "в сценарии их 3–4): S1–S7 на уровне 1, S4 и S7 ещё на 3 и 5, S1 на 5 — ответ с поиском на верхнем уровне.", "",
+         "звучит первой), реплика кончается первым вопросом (D48); служебная строка — «не понял» при счёте ≥ 1, иначе "
+         "цель длины уровня (D58). Реплики ученика заданы заранее; каждый сценарий — отдельный разговор на своём "
+         "уровне: " + ", ".join(f"{sid} на {lv}" for sid, lv in LEVEL_RUNS) + ".", "",
          "Цель длины по уровню (свои слова, без поправки): "
          + "; ".join(f"{k} — {v[0]}–{v[1]} фраз, {v[2]}–{v[3]} слов" for k, v in LEVEL_TARGETS.items()) + ".", "",
          "Меры:",
-         "- **own_words** — свои слова учителя, без поправки (как `own_words` в журнале приложения); «слов» — всё, "
-         "что прозвучит, с поправкой;",
-         "- **фраза** — самое длинное предложение реплики без поправки;",
-         "- **вид реплики:** после «не понял» — счёт «не понял» ≥ 1 (S3 шаги 2–4, S6 шаги 2–4); уточнение — вопрос "
-         "судья отнёс к уточняющим; остальные — обычные;",
-         f"- **судья** — `{JUDGE_MODEL}`, отдельный короткий промпт (`tools/probe/judge_prompt.txt`, в конце прогона): "
-         "тип вопроса (проверка понимания, личный, уточнение, другой), связан ли вопрос со сказанным, есть ли "
-         "содержание (факт, деталь, пример). Судья видит реплику ученика и свой текст учителя без поправки.", "",
-         "Время первой группы — от отправки запроса до момента, когда потоковая нарезка отдала бы первую группу в "
-         "синтез (с ожиданием поправки, без распознавания и синтеза).", "",
+         "- **own_words** — свои слова учителя, без поправки; **после «не понял»** — реплики при счёте ≥ 1 "
+         "(S3 шаги 2–4, S6 шаги 2–4);",
+         "- **чисел** — в своём тексте учителя: группа цифр («3:30», «1,000») — одно число, число словами "
+         "(«twenty-five», «one hundred and five») — тоже; «one» само по себе не считается;",
+         "- **названия** — книги Jack London в реплике: в двойных кавычках или нет; курсив — в тексте модели "
+         "до чистки;",
+         f"- **судья** — `{JUDGE_MODEL}` (`tools/probe/judge_prompt.txt`): тип вопроса, связь, содержание (справочно).",
+         "",
          "## Сводка по прогонам", "",
-         "| Прогон | Метка | Промпт | Реплик | own_words обычных: медиана L1 / L3 / L5 | после «не понял» макс. | "
-         "Фраза: медиана / макс. | Вопрос в конце | Связан | Содержание | Проверка / личный | "
-         "Поправки | Ложные | RU S3 | S5 шаг 1 | S5 после выбора — рассказ | S5 без поиска | Разметка (модель / голос) | "
-         "Токенов макс. (с поиском) | Обрезано | Цели |",
-         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+         "| Прогон | Метка | Промпт | Реплик | после «не понял» макс. (L1 / L5) | RU S3 на шаге 4 (L1 / L5) | "
+         "S6 без RU до счёта 3 (L1 / L5) | чисел макс. (реплик > 2) | названий в кавычках | курсив модели | "
+         "own_words обычных L5, медиана | Вопрос в конце | Поиск | Обрезано | $ | Цели |",
+         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in runs:
         s = r["summary"]
         bl = {int(k): v for k, v in (s.get("by_level") or {}).items()}
-        med = " / ".join(str((bl.get(lv) or {}).get("own_median_normal", "—")) for lv in (1, 3, 5))
+        nu = {int(k): v for k, v in (s.get("own_after_nu_by_level") or {}).items()}
+        s3 = {int(k): v for k, v in (s.get("s3_russian_by_level") or {}).items()}
+        s6 = {int(k): v for k, v in (s.get("s6_no_russian_by_level") or {}).items()}
         L.append(f"| {r['n']} | {_cell(r.get('label'))} | `{r['prompt_hash']}` | {s['replies']} | "
-                 f"{med} | {s.get('own_max_after_nu')} | "
-                 f"{s['median_sentence_words_max']} / {s['max_sentence_words']} | "
-                 f"{_pct(s['question_share'])} | {_pct(s.get('linked_share'))} | {_pct(s.get('content_share_normal'))} | "
-                 f"{_pct(s.get('check_share'))} / {_pct(s.get('personal_share'))} | "
-                 f"{s['corrections_ok']}/{s['corrections_total']} | {s.get('false_correction_steps', '—')} | "
-                 f"{_okn(s.get('s3_russian_ok'))} | {_okn(s.get('s5_topic_ok'))} | {_okn(s.get('s5_no_new_choice'))} | "
-                 f"{_okn(s.get('s5_no_search_ok'))} | {s.get('markup_model', '—')} / {s.get('markup_spoken', '—')} | "
-                 f"{s.get('max_output_tokens_seen')} ({s.get('max_output_tokens_search') or '—'}) | "
-                 f"{s['truncated']} | {'**да**' if s['goals_met'] else 'нет'} |")
+                 f"{s.get('own_max_after_nu')} ({nu.get(1, '—')} / {nu.get(5, '—')}) | "
+                 f"{_okn(s3.get(1))} / {_okn(s3.get(5))} | {_okn(s6.get(1))} / {_okn(s6.get(5))} | "
+                 f"{s.get('max_numbers')} ({s.get('numbers_over')}) | {s.get('titles_quoted')} из {s.get('titles_seen')} | "
+                 f"{s.get('titles_italic_model')} | {(bl.get(5) or {}).get('own_median_normal', '—')} | "
+                 f"{_pct(s['question_share'])} | {s['searches']} | {s['truncated']} | {r['spent']:.3f} | "
+                 f"{'**да**' if s['goals_met'] else 'нет'} |")
     L.append("")
     for r in reversed(runs):
         L += render_run(r)
@@ -1055,6 +1147,22 @@ def render_run(r: dict) -> list[str]:
          f"Промпт `{r['prompt_hash']}`, судья `{r.get('judge_prompt_hash', '—')}`, дата в промпте: {r['date_in_prompt']}; "
          f"`max_output_tokens` {r['max_output_tokens']}; повторов {r['repeats']}; потрачено ≈ ${r['spent']:.3f} "
          f"(бюджет ${r['budget']:.2f}" + (", **исчерпан**" if r["budget_exhausted"] else "") + ").", "",
+         "### Цели S02i", "", "| Мера | Значение | Цель |", "|---|---|---|",
+         *[f"| после «не понял», own_words максимум: уровень {lv} | {v} | ≤ {GOAL_AFTER_NU_MAX} |"
+           for lv, v in sorted((int(k), v) for k, v in (s.get("own_after_nu_by_level") or {}).items())],
+         f"| после «не понял», максимум по всем | {s['own_max_after_nu']} | ≤ {GOAL_AFTER_NU_MAX} {_g(s, 'after_nu')} |",
+         *[f"| S3 уровень {lv}: русское слово ровно на шаге 4 | {_okn(v)} | все {_g(s, 's3_russian_step4')} |"
+           for lv, v in sorted((int(k), v) for k, v in (s.get("s3_russian_by_level") or {}).items())],
+         *[f"| S6 уровень {lv}: русского до счёта 3 нет | {_okn(v)} | все {_g(s, 's6_no_russian_before_3')} |"
+           for lv, v in sorted((int(k), v) for k, v in (s.get("s6_no_russian_by_level") or {}).items())],
+         f"| чисел в реплике: максимум (медиана); реплик больше {GOAL_NUMBERS_MAX} | {s.get('max_numbers')} "
+         f"({s.get('numbers_median')}); {s.get('numbers_over')} | ≤ {GOAL_NUMBERS_MAX}, все {_g(s, 'numbers')} |",
+         f"| названия книг: в кавычках / упомянуто; курсив в тексте модели | {s.get('titles_quoted')} / "
+         f"{s.get('titles_seen')}; {s.get('titles_italic_model')} | все в кавычках, курсива 0 {_g(s, 'titles_quoted')} |",
+         f"| уровень 5: own_words обычных, медиана | {(bl.get(5) or {}).get('own_median_normal', '—')} | "
+         f"≥ {GOAL_L5_MEDIAN_MIN} {_g(s, 'l5_median')} |",
+         f"| обрезано пределом длины | {s['truncated']} | 0 {_g(s, 'truncated')} |", "",
+         "### Прочие меры (справочно)", "",
          "| Мера | Значение | Цель |", "|---|---|---|",
          f"| реплик учителя: обычных / после «не понял» / уточнений | {s['replies']}: {s['normal']} / {s['after_nu']} / "
          f"{s['clarify']} | |",
@@ -1096,7 +1204,7 @@ def render_run(r: dict) -> list[str]:
          f"{_s(s['median_first_group_search'])} (худшее {_s(s['max_first_group'])}) | |",
          f"| ошибок запроса / разметки судьи | {s['errors']} / {s['judge_errors']} | 0 |",
          f"| проверки сценариев | {s['checks_ok']} из {s['checks_total']} | |", ""]
-    L += ["### Русское слово в синтезе (Realtime, голос приложения)", "",
+    L += ["### Фразы в синтезе (Realtime, голос приложения)", "",
           "| Фраза | Расшифровка синтеза | Сверка |", "|---|---|---|"]
     for x in r["russian_synthesis"]:
         L.append(f"| {_cell(x['text'])} | {_cell(x.get('transcript') or x.get('error'))} | {x['verdict']} |")
@@ -1105,9 +1213,9 @@ def render_run(r: dict) -> list[str]:
         meta = next(m for m in SCENARIOS if m["id"] == sc["id"])
         lvh = f" — уровень {sc['level']}" if sc.get("level") else ""
         L += [f"### {sc['id']}{lvh} #{sc['rep']} — {meta['title']}", "", f"Ожидание: {meta['expect']}.", "",
-              "| # | Ученик | Учитель (что прозвучит) | own_words | Фраза | Вид | Вопрос (судья) | Связан | Содержание | "
-              "Поиск | RU | Поправщик | Первая группа, с |",
-              "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+              "| # | Ученик | Учитель (что прозвучит) | own_words | Фраза | Чисел | Вид | Вопрос (судья) | Связан | "
+              "Содержание | Поиск | RU | Поправщик | Первая группа, с |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
         for st in sc["steps"]:
             teacher = _cell(st["teacher"]) if not st["error"] else f"**ошибка:** {_cell(st['error'])}"
             if st["incomplete"]:
@@ -1121,7 +1229,7 @@ def render_run(r: dict) -> list[str]:
             j = st.get("judge") or {}
             jt = _TYPE_RU.get(j.get("type"), "?") if j.get("type") else ("ошибка" if j else "—")
             L.append(f"| {st['step']} | {_cell(st['student'])} | {teacher} | {st.get('own_words', '—')} | "
-                     f"{st['max_sentence_words']} | {_KIND_RU.get(st.get('kind'), '—')} | {jt} | "
+                     f"{st['max_sentence_words']} | {st.get('numbers', '—')} | {_KIND_RU.get(st.get('kind'), '—')} | {jt} | "
                      f"{'—' if j.get('linked') is None else _yes(j['linked'])} | "
                      f"{'—' if j.get('content') is None else _yes(j['content'])} | {'да' if st['searched'] else '—'} | "
                      f"{'да' if st['russian'] else '—'} | {cinfo} | {_s(st['t_first_group'])} |")
