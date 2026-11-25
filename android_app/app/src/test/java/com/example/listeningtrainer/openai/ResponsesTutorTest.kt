@@ -103,26 +103,28 @@ class ResponsesTutorTest {
     }
 
     @Test
-    fun `system prompt - one resource file by the method (D41-D43, D46, D47, S02f), date filled in`() {
+    fun `system prompt - one resource file by the method (D41-D43, D46, D47, S02f, S02g), date filled in`() {
         val prompt = ResponsesTutor.systemPrompt(java.util.GregorianCalendar(2026, 10, 23).time)
         // Тот же файл читает tools/probe/probe.py: ни одной копии в коде.
         val file = java.io.File("src/main/resources/tutor_prompt.txt").readText().trim()
         assertEquals(file.replace(ResponsesTutor.DATE_MARK, "Monday, November 23, 2026"), prompt)
         assertFalse(prompt.contains(ResponsesTutor.DATE_MARK))
         for (rule in listOf(
-            "Each sentence has 6 to 8 words at most", "30 words at most", "End almost every reply with exactly one simple question", "Never ask the same thing twice",
-            "first ask a short question with two choices", "Give one main detail only",
-            "Start at level A1",
-            "Never search in a reply where you ask a clarifying question", "Your question is the last thing in your reply",
-            "Use web_search ONLY for fresh facts", "Do NOT guess",
-            // S02f: поправляет поправщик, русское слово — по счёту приложения, большая тема — сначала выбор.
+            // S02g: реплика содержательна (D51), один вопрос в конце из сказанного (D52), уточнение — фраза о теме и выбор.
+            "25 to 40 words", "10 words at most", "say something real about the student's topic",
+            "End with exactly one question", "No questions in the middle of your reply", "Never ask the same thing twice",
+            "It grows from what you just said", "Take turns between two kinds of questions", "up to 5 or 6 sentences",
+            "say only 1 or 2 short sentences", "first ask a question with two choices",
+            "one short sentence about the topic, then the question with two choices", "no numbers, no dates and no names",
+            "Start at level A1", "Never search in this reply",
+            "Use web_search ONLY for fresh facts", "Do NOT search for general knowledge", "Do NOT guess",
+            // S02f: поправляет поправщик, русское слово — по счёту приложения.
             "Never correct the student's grammar", "The app does it before your reply",
             "The note says 3 or more: say one key word in Russian", "Use Russian only when the note says 3 or more",
             NotUnderstood.note(2)!!.substringBefore(" 2 times"),
-            "Your first reply is only one short question with two choices", "No facts, no dates, no names, no search",
         )) assertTrue(rule, prompt.contains(rule))
         // Прежние уровни A2/B1/B2 отменены.
-        for (old in listOf("A2", "B1", "B2", "2023")) assertFalse(old, prompt.contains(old))
+        for (old in listOf("A2", "B1", "B2", "2023", "6 to 8 words", "30 words at most")) assertFalse(old, prompt.contains(old))
     }
 
     @Test
