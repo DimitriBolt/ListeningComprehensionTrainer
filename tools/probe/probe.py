@@ -2584,8 +2584,8 @@ def main(argv: list[str] | None = None) -> int:
             import tutor_dialog
             if tutor_dialog.probe_tutor_dialog(ctx):
                 print("\nОтправить архитектору (из корня репозитория):\n"
-                      "  git add docs/research/02g-dialogs.md docs/research/02g-dialogs.json && "
-                      'git commit -m "[S02g] Диалоги по сценариям" && git push')
+                      f"  git add {tutor_dialog.DOCS_MD.relative_to(REPO_ROOT)} {tutor_dialog.DOCS_JSON.relative_to(REPO_ROOT)} && "
+                      'git commit -m "[SNN] Диалоги по сценариям" && git push')
             return 0
         else:
             ctx.key  # проверить ключ до начала
