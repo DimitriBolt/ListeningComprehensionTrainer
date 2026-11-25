@@ -1,4 +1,4 @@
-# Пробы S00b, S02c, S02e и S02f
+# Пробы S00b, S02c, S02e–S02g
 
 Скрипт `probe.py` проверяет с вашим ключом всё, что в разведке S00
 (`docs/research/00-models.md`) осталось «не подтверждено» (S00b), и учителя на Responses API
@@ -183,6 +183,25 @@ python tools/probe/probe.py corrector --case-repeats 1   # пробный зап
 «не понял» уходит служебной строкой. Итог — `docs/research/02f-dialogs.md`; прогоны S02e остаются в
 `docs/research/02e-dialogs.md`.
 
+## Проба S02g — учитель содержательнее (`tutor-dialog`, судья)
+
+С S02g (`docs/stages/02g-brief.md`, п. 3) `tutor-dialog` меряет новую норму длины (D51) и вопрос из сказанного (D52).
+Итог — `docs/research/02g-dialogs.md` (+ `.json`); прогоны S02e и S02f остаются в своих файлах.
+
+```bash
+python tools/probe/probe.py tutor-dialog --dialog-repeats 3 --label "что поменяли"   # ≈ $0.10 за прогон
+python tools/probe/probe.py tutor-dialog --rejudge                                    # заново разметить последний прогон
+```
+
+- **Сценарии** S1–S6 и новый S7 (разговор о питомце: «I have a dog.», «His name is Max.», …).
+- **Меры:** `own_words` — свои слова учителя без поправки (как `own_words` в журнале приложения); самая длинная фраза;
+  вид реплики — обычная, после «не понял» (счёт ≥ 1), уточнение (так её разметил судья).
+- **Судья** — `gpt-6-luna`, отдельный запрос без поиска и истории, промпт `tools/probe/judge_prompt.txt`. Он видит реплику
+  ученика и свой текст учителя без поправки и отвечает строкой JSON: тип вопроса (`check`, `personal`, `clarify`,
+  `other`, `none`), связан ли вопрос со сказанным, есть ли содержание. Разметка идёт в конце прогона, параллельно.
+- **`--rejudge`** — после правки промпта судьи разметить последний прогон заново, без запросов учителю (центы).
+- **Цели S02g** проверяются сами и стоят в таблице прогона (✓ / ✗).
+
 ## Тесты (без ключа и без сети)
 
 ```bash
@@ -193,7 +212,7 @@ python -m pytest tools/probe/tests
 звук, файлы результатов. `test_speech_planner.py` — копия `SpeechPlanner` (случаи из `SpeechPlannerTest.kt`),
 чистка сносок, потоковая нарезка (группы те же, что у готового текста, при любой разбивке на куски).
 `test_responses.py` — подкоманда `responses` против подставного сервера с потоком SSE по документации.
-`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` и `NotUnderstood.kt`. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_fake_server.py` гоняет сетевой код против подставного
+`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` (с `own_words`) и `NotUnderstood.kt`; судья, проверка уточнения, цели S02g, `--rejudge`. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_fake_server.py` гоняет сетевой код против подставного
 локального сервера: он ловит ошибки в нашем коде, но не подтверждает, что настоящий API
 отвечает так же.
 
