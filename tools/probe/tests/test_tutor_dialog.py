@@ -227,12 +227,17 @@ def test_full_run_writes_docs_and_keeps_old_runs(tmp_path):
     data = json.loads((tmp_path / "02e.json").read_text(encoding="utf-8"))
     assert [r["label"] for r in data["runs"]] == ["первый", "второй"] and [r["n"] for r in data["runs"]] == [1, 2]
     run = data["runs"][-1]
-    assert len(run["scenarios"]) == len(td.SCENARIOS)
-    assert sum(len(s["steps"]) for s in run["scenarios"]) == sum(len(s["turns"]) for s in td.SCENARIOS)
+    plan = td.plan_runs()
+    assert [(sc["id"], sc["level"]) for sc in run["scenarios"]] == [(sc["id"], lv) for sc, lv in plan]
+    assert sum(len(s["steps"]) for s in run["scenarios"]) == sum(len(sc["turns"]) for sc, _ in plan)
     s = run["summary"]
-    assert s["question_share"] > 0.8 and s["max_words"] <= 30 and s["corrections_total"] == 4
+    assert s["question_share"] > 0.8 and s["max_words"] <= 30 and s["corrections_total"] == 5  # S1 (уровни 1 и 5) и S2
+    assert sorted(int(k) for k in s["by_level"]) == [1, 3, 5]
+    # S02h: цель длины уровня — в каждом запросе учителя, как в приложении.
+    assert all("(App note: target length:" in b["input"][-1]["content"] for b in fake.requests)
+    assert any(td.level_note(5) in b["input"][-1]["content"] for b in fake.requests)
     # S02g: судья разметил каждую реплику; он видит свой текст учителя без поправки.
-    n = sum(len(sc["turns"]) for sc in td.SCENARIOS)
+    n = sum(len(sc["turns"]) for sc, _ in plan)
     assert len(fake.judge_requests) == 2 * n and s["judge_errors"] == 0
     assert all("I think you meant" not in b["input"][0]["content"] for b in fake.judge_requests)
     assert all(st["kind"] in ("normal", "after_nu", "clarify") for sc in run["scenarios"] for st in sc["steps"])
@@ -262,7 +267,7 @@ def test_cancel_asks_first(tmp_path):
 
 def test_estimate_within_budget():
     est = td.estimate(2)
-    assert est["requests"] == 2 * sum(len(s["turns"]) for s in td.SCENARIOS) and est["total"] < 1.0
+    assert est["requests"] == 2 * sum(len(sc["turns"]) for sc, _ in td.plan_runs()) and est["total"] < 1.0
 
 
 # ---- S02f: счёт «не понял» (копия NotUnderstood.kt, те же примеры, что NotUnderstoodTest.kt) -----
@@ -333,21 +338,56 @@ def _step(n, own, kind="normal", jtype="check", **kw):
     return {**base, **kw}
 
 
-def test_summary_goals_s02g():
-    s4 = {"id": "S4", "rep": 1, "checks": [], "steps": [_step(1, 28), _step(2, 30, jtype="personal"), _step(3, 33),
-                                                     _step(4, 45, jtype="personal")]}
-    s3 = {"id": "S3", "rep": 1, "checks": [], "steps": [_step(1, 30), _step(2, 12, "after_nu"), _step(3, 9, "after_nu")]}
-    s = td.summarize([s4, s3])
-    assert (s["normal"], s["after_nu"], s["own_median_normal"], s["own_max_after_nu"]) == (5, 2, 30, 12)
-    assert s["s4_longer"] == [True] and s["check_share"] == 0.6 and s["personal_share"] == 0.4
+def test_summary_goals_s02g_s02h():
+    s4 = {"id": "S4", "rep": 1, "level": 1, "checks": [], "steps": [
+        _step(1, 28), _step(2, 30, jtype="personal"), _step(3, 33), _step(4, 45, jtype="personal")]}
+    s3 = {"id": "S3", "rep": 1, "level": 1, "checks": [],
+          "steps": [_step(1, 30), _step(2, 12, "after_nu"), _step(3, 9, "after_nu")]}
+    s4l5 = {"id": "S4", "rep": 1, "level": 5, "checks": [], "steps": [_step(1, 66), _step(2, 70, jtype="personal")]}
+    s = td.summarize([s4, s3, s4l5])
+    assert (s["normal"], s["after_nu"], s["own_max_after_nu"]) == (7, 2, 12)
+    assert s["by_level"][1]["own_median_normal"] == 30 and s["by_level"][5]["own_median_normal"] == 68
+    assert s["s4_longer"] == [True]  # только уровень 1
     assert s["alternation_share"] == 1.0
-    for k in ("own_median_normal", "own_max", "after_nu", "sentence", "s4_longer", "question_share", "linked",
-              "content", "types", "truncated"):
+    for k in ("own_median_L1", "own_median_L5", "after_nu", "sentence", "question_share", "linked", "content",
+              "types", "truncated", "markup"):
         assert s["goals"][k], k
-    short = td.summarize([{"id": "S4", "rep": 1, "checks": [], "steps": [_step(1, 10), _step(4, 8)]}])
-    assert not short["goals"]["own_median_normal"] and not short["goals"]["s4_longer"]
+    # Уровень 5 с длиной уровня 1 — мимо цели.
+    short = td.summarize([{"id": "S4", "rep": 1, "level": 5, "checks": [], "steps": [_step(1, 30), _step(4, 35)]}])
+    assert not short["goals"]["own_median_L5"]
     long_nu = td.summarize([{"id": "S3", "rep": 1, "checks": [], "steps": [_step(2, 25, "after_nu")]}])
     assert not long_nu["goals"]["after_nu"]
+    long_sentence = td.summarize([{"id": "S4", "rep": 1, "checks": [], "steps": [_step(1, 30, max_sentence_words=15)]}])
+    assert not long_sentence["goals"]["sentence"]
+    # Разметка в звучащем тексте и S5: новый выбор после выбора ученика.
+    marked = td.summarize([{"id": "S5", "rep": 1, "level": 1, "checks": [], "steps": [
+        _step(1, 15, jtype="clarify"), _step(2, 20, jtype="clarify", markup_spoken=1)]}])
+    assert not marked["goals"]["markup"] and marked["s5_no_new_choice"] == [False]
+    assert not marked["goals"]["s5_no_new_choice"]
+    ok5 = td.summarize([{"id": "S5", "rep": 1, "level": 1, "checks": [], "steps": [
+        _step(1, 15, jtype="clarify"), _step(2, 30, jtype="check")]}])
+    assert ok5["s5_no_new_choice"] == [True] and ok5["goals"]["s5_no_new_choice"]
+
+
+# ---- S02h: уровень (копия ModelConfig.LEVEL_TARGETS и StudentLevel.note), разметка ----------
+
+def test_level_targets_like_model_config():
+    rows = re.findall(r"LengthTarget\((\d+), (\d+), (\d+), (\d+)\)", MODEL_CONFIG)
+    assert {i: tuple(map(int, r)) for i, r in enumerate(rows, 1)} == td.LEVEL_TARGETS
+    # Те же строки, что в StudentLevelTest.kt.
+    assert td.level_note(1) == "(App note: target length: 3 to 4 sentences, 25 to 40 words.)"
+    assert td.level_note(3) == "(App note: target length: 5 to 6 sentences, 45 to 60 words.)"
+    assert td.level_note(5) == "(App note: target length: 7 to 8 sentences, 65 to 80 words.)"
+    # Как ResponsesTutor: цель длины, затем «не понял».
+    assert td.request_text("What?", 5, 1) == "What?\n" + td.level_note(5) + "\n" + td.note(1)
+    assert td.request_text("Hi", None, 0) == "Hi"
+
+
+def test_markup_count():
+    assert td.markup("His book *The Call of the Wild* is set in Alaska.") == 2
+    assert td.markup("I read _Moby Dick_ and my_var.") == 2
+    assert td.markup("A **bold** word, snake_case.") == 0
+    assert td.markup(td.clean_for_speech("His book *The Call of the Wild* is _set_.")) == 0
 
 
 def test_s7_and_s5_no_search_in_scenarios():
@@ -363,4 +403,4 @@ def test_rejudge_last_run(tmp_path):
     assert td.probe_tutor_dialog(make_ctx(tmp_path, fake, ("--rejudge",)))
     data = json.loads((tmp_path / "02e.json").read_text(encoding="utf-8"))
     assert len(data["runs"]) == 1 and len(fake.requests) == n_teacher  # учителю — ни одного запроса
-    assert len(fake.judge_requests) == 2 * sum(len(sc["turns"]) for sc in td.SCENARIOS)
+    assert len(fake.judge_requests) == 2 * sum(len(sc["turns"]) for sc, _ in td.plan_runs())
