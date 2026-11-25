@@ -88,6 +88,35 @@ class SpeechTextTest {
         assertTrue(emitted.none { '*' in it.text })
         assertTrue(streaming.divergences.isEmpty())
     }
+
+    // ---- S02i: названия в кавычках (D60) --------------------------------------------------
+
+    @Test
+    fun `titles in quotes - groups, stream, synthesis check, screen and measures`() {
+        val text = "His favorite book is \"The Call of the Wild\". It is about a big dog. Do you like dogs?"
+        // Экран и нарезка: кавычки остаются (на экране видны).
+        assertEquals(text, SpeechText.clean(text))
+        val groups = SpeechPlanner().plan(SpeechText.clean(text)).map { it.text }
+        assertEquals(listOf("His favorite book is", "\"The Call of the Wild\".", "It is about a big dog.", "Do you like dogs?"), groups)
+        // Поток режет так же, как весь текст; экран в конце — с кавычками.
+        val streaming = StreamingSpeechPlanner()
+        val emitted = text.chunked(3).flatMap { streaming.feed(it) } + streaming.finish()
+        assertEquals(groups, emitted.map { it.text })
+        assertTrue(streaming.divergences.isEmpty())
+        assertEquals(text, streaming.screenText())
+        assertTrue(SpeechText.forScreen(text.take(30)).contains("\"The Call"))
+        // Сверка синтеза: кавычки не звучат, расшифровка без них — совпадение, не расхождение.
+        for ((g, heard) in groups.zip(listOf("His favorite book is", "The Call of the Wild.", "It is about a big dog.", "Do you like dogs?"))) {
+            assertTrue(g, TranscriptCheck.compare(g, heard).ok)
+        }
+        assertEquals(TranscriptCheck.Verdict.VERBATIM, TranscriptCheck.compare("\"The Call of the Wild\".", "The Call of the Wild"))
+        // Мера реплики: точка после кавычки — конец фразы; вопрос — последний.
+        val m = ReplyText.metrics(text)
+        assertEquals(3, m.sentences)
+        assertEquals(19, m.words)
+        assertTrue(m.question)
+        assertEquals(text.length, ReplyText.firstQuestionEnd("$text More."))
+    }
 }
 
 /** Ответы учителя из приложения `docs/research/02c-results.md` (тестовый ресурс). */

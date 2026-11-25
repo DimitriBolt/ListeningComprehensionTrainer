@@ -70,12 +70,12 @@ class ResponsesTutor(
     private var requests = 0
 
     override suspend fun reply(studentText: String, levelNote: String?, onEvent: suspend (TutorEvent) -> Unit) {
-        // Служебные строки идут только в этот запрос, в историю реплика ученика пишется как есть:
-        // цель длины по уровню (D56), затем счёт «не понял» подряд (S02f, D43) — по истории. Строка «не
-        // понял» последней: после неё реплика короче при любом уровне (так в промпте).
+        // Служебная строка идёт только в этот запрос, в историю реплика ученика пишется как есть. Одна из
+        // двух (D58): счёт «не понял» подряд (S02f, D43, D55) — по истории; при счёте 0 — цель длины по
+        // уровню (D56). Вместе они спорили: на уровне 5 первое «не понял» получило 58 слов.
         val count = NotUnderstood.streak(history.filter { it.role == ROLE_USER }.map { it.text } + studentText)
         if (count > 0) log.event(SOURCE, "student did not understand $count in a row: note added to the request")
-        ask(studentText, onEvent, listOfNotNull(levelNote, NotUnderstood.note(count)))
+        ask(studentText, onEvent, listOfNotNull(NotUnderstood.note(count) ?: levelNote))
     }
 
     override suspend fun farewell(onEvent: suspend (TutorEvent) -> Unit) = ask(INACTIVITY_PROMPT, onEvent)

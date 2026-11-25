@@ -104,7 +104,7 @@ class ResponsesTutorTest {
     }
 
     @Test
-    fun `system prompt - one resource file by the method (D41-D43, D46, D47, S02f, S02g, S02h), date filled in`() {
+    fun `system prompt - one resource file by the method (D41-D43, D46, D47, S02f-S02i), date filled in`() {
         val prompt = ResponsesTutor.systemPrompt(java.util.GregorianCalendar(2026, 10, 23).time)
         // Тот же файл читает tools/probe/probe.py: ни одной копии в коде.
         val file = java.io.File("src/main/resources/tutor_prompt.txt").readText().trim()
@@ -112,25 +112,31 @@ class ResponsesTutorTest {
         assertFalse(prompt.contains(ResponsesTutor.DATE_MARK))
         for (rule in listOf(
             // S02g: реплика содержательна (D51), один вопрос в конце из сказанного (D52), уточнение — фраза о теме и выбор.
-            "25 to 40 words", "8 to 10 words, never more than 10", "15 words at most", "Build the reply in this order", "something real and new about the topic",
+            "25 to 40 words", "8 to 10 words, never more than 10", "Build the reply in this order", "something real and new about the topic",
             "Your question, about something from step 2. It is the very last sentence", "No questions in the middle of your reply",
             "Never ask the same thing twice", "It grows from what you just said", "Take turns between two kinds of questions",
             "About half of your questions are checks", "Your replies go in turn",
-            "say only 1 or 2 short sentences", "first ask a question with two choices",
+            "first ask a question with two choices",
             "one short sentence about the topic, then the question with two choices", "no numbers, no dates and no names",
             "Start at level A1", "Never search in this reply",
             "Use web_search ONLY for fresh facts", "Do NOT search for general knowledge", "Do NOT guess",
             // S02h: длина — из служебной строки уровня (D56); после выбора — рассказ; выбор простыми словами; без курсива (D57).
             StudentLevel.note(ModelConfig.LEVEL_TARGETS[2]), "Your reply has exactly that many sentences and words",
-            "never longer sentences", "The length comes only from the app note", "forget the target length",
+            "never longer sentences", "The length comes only from the app note",
             "whatever the target length", "NEVER offer a new choice", "simple, very common words", "no italics, no markdown",
             // S02f: поправляет поправщик, русское слово — по счёту приложения.
             "Never correct the student's grammar", "The app does it before your reply",
-            "The note says 3 or more: say one key word in Russian", "Use Russian only when the note says 3 or more",
-            NotUnderstood.note(2)!!.substringBefore(" 2 times"),
+            // S02i: строка «не понял» вместо строки длины и сама говорит, что делать (D58); названия в кавычках (D60);
+            // не больше двух чисел (D61).
+            "the app sends a different note instead", "do what that note says", "Do exactly what the note says",
+            "only when the app note tells you to say one key word in Russian", "Without that note, not one Russian letter",
+            NotUnderstood.note(2)!!.substringBefore(", simpler"), "Titles of books, films and songs go in plain double quotes",
+            "His favorite book is \"The Call of the Wild\". Never italics.", "At most two numbers in one reply",
+            "the one main number, not a list",
         )) assertTrue(rule, prompt.contains(rule))
         // Прежние уровни A2/B1/B2 отменены.
-        for (old in listOf("A2", "B1", "B2", "2023", "6 to 8 words", "30 words at most", "up to 5 or 6 sentences", "LEVEL AND LENGTH")) assertFalse(old, prompt.contains(old))
+        for (old in listOf("A2", "B1", "B2", "2023", "6 to 8 words", "30 words at most", "up to 5 or 6 sentences", "LEVEL AND LENGTH",
+            "forget the target length", "The note says 3 or more", "Write book and film titles as plain words")) assertFalse(old, prompt.contains(old))
     }
 
     @Test
@@ -369,7 +375,7 @@ class ResponsesTutorTest {
         assertEquals("I like to cook.", lastUser(0))
         assertEquals("What?\n${NotUnderstood.note(1)}", lastUser(1))
         assertEquals("I don't understand.\n${NotUnderstood.note(2)}", lastUser(2))
-        assertEquals("Sorry, I don't understand.\n(App note: the student did not understand you 3 times in a row.)", lastUser(3))
+        assertEquals("Sorry, I don't understand.\n${NotUnderstood.note(3)}", lastUser(3))
         // В истории — реплики как есть, без служебной строки.
         assertEquals(listOf("I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand."),
             t.turns.filter { it.role == "user" }.map { it.text })
@@ -380,20 +386,23 @@ class ResponsesTutorTest {
     // ---- S02h ---------------------------------------------------------------------------
 
     @Test
-    fun `level note - in this request only, before the not understood note, history keeps the student's words`() = runTest {
+    fun `level note - in this request only, with not understood only that note goes (D58)`() = runTest {
         val transport = FakeTransport().apply {
-            repeat(2) { streams += sse(delta("What do you cook?"), completed) }
+            repeat(4) { streams += sse(delta("What do you cook?"), completed) }
         }
         val t = tutor(transport)
         val level = "(App note: target length: 7 to 8 sentences, 65 to 80 words.)"
-        t.reply("I like to cook.", level) {}
-        t.reply("What?", level) {}
+        for (said in listOf("I like to cook.", "What?", "Sorry, I don't understand.", "Pasta.")) t.reply(said, level) {}
 
         fun lastUser(i: Int) = transport.bodies[i]["input"]!!.jsonArray.last().jsonObject["content"]!!.jsonPrimitive.content
         assertEquals("I like to cook.\n$level", lastUser(0))
-        // Обе строки вместе: цель длины, затем «не понял» — она последняя и главнее (промпт).
-        assertEquals("What?\n$level\n${NotUnderstood.note(1)}", lastUser(1))
-        assertEquals(listOf("I like to cook.", "What?"), t.turns.filter { it.role == "user" }.map { it.text })
+        // Строки не спорят: при «не понял» строки длины нет, только строка «не понял» с указанием.
+        assertEquals("What?\n${NotUnderstood.note(1)}", lastUser(1))
+        assertEquals("Sorry, I don't understand.\n${NotUnderstood.note(2)}", lastUser(2))
+        // Понял — снова цель длины.
+        assertEquals("Pasta.\n$level", lastUser(3))
+        assertEquals(listOf("I like to cook.", "What?", "Sorry, I don't understand.", "Pasta."),
+            t.turns.filter { it.role == "user" }.map { it.text })
         // В истории второго запроса прошлая реплика — без строки.
         assertEquals("I like to cook.", transport.bodies[1]["input"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content)
     }

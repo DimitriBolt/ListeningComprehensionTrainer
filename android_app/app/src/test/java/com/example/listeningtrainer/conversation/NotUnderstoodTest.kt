@@ -40,7 +40,24 @@ class NotUnderstoodTest {
     @Test
     fun `note`() {
         assertNull(NotUnderstood.note(0))
-        assertEquals("(App note: the student did not understand you 1 time in a row.)", NotUnderstood.note(1))
-        assertEquals("(App note: the student did not understand you 3 times in a row.)", NotUnderstood.note(3))
+        // D58: строка сама говорит, что делать. Те же строки — в tools/probe/tests/test_tutor_dialog.py.
+        assertEquals(NOTE_1, NotUnderstood.note(1))
+        assertEquals(NOTE_2, NotUnderstood.note(2))
+        assertEquals(NOTE_3, NotUnderstood.note(3))
+        assertEquals(NOTE_3.replace("3 times", "4 times"), NotUnderstood.note(4))
+        // До счёта 3 — ни одной русской буквы в самой строке, кроме запрета; с 3 — пример русского слова.
+        for (n in 1..2) assertFalse(NotUnderstood.note(n)!!.contains("Russian word"))
+        assertTrue(NotUnderstood.note(3)!!.contains("one key word in Russian"))
+    }
+
+    companion object {
+        const val NOTE_1 = "(App note: the student did not understand you 1 time in a row. Say the same thing again, simpler and " +
+            "with other words. Keep it short: 1 or 2 short sentences, 15 words at most, then your question. Only English: not one " +
+            "Russian letter.)"
+        const val NOTE_2 = "(App note: the student did not understand you 2 times in a row. Say the same thing again, simpler and " +
+            "with other words. Keep it short: 1 or 2 short sentences, 15 words at most, then your question. Only English: not one " +
+            "Russian letter.)"
+        const val NOTE_3 = "(App note: the student did not understand you 3 times in a row. Say one key word in Russian, like this: " +
+            "\"Noon\" is \"полдень\". Then go on in English. Keep it short: 1 or 2 short sentences, 15 words at most, then your question.)"
     }
 }

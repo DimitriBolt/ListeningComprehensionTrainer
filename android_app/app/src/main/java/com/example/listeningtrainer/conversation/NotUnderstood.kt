@@ -50,7 +50,21 @@ object NotUnderstood {
     /** Сколько реплик подряд с конца [studentTexts] (последняя — текущая) — явное «не понял». */
     fun streak(studentTexts: List<String>): Int = studentTexts.asReversed().takeWhile { isMarker(it) }.size
 
-    /** Служебная строка к реплике ученика; `null` — счёт 0, строки нет. Формат описан в промпте учителя. */
-    fun note(count: Int): String? =
-        if (count <= 0) null else "(App note: the student did not understand you $count ${if (count == 1) "time" else "times"} in a row.)"
+    /** С какого счёта разрешено одно русское слово (D43, D55): после двух упрощений. */
+    const val RUSSIAN_FROM = 3
+
+    /**
+     * Служебная строка к реплике ученика; `null` — счёт 0, строки нет. Строка сама говорит модели, что
+     * делать (D58): выбирать между ней и строкой длины модели не нужно — строки длины при ней нет.
+     * Копия — `note` в `tools/probe/tutor_dialog.py`.
+     */
+    fun note(count: Int): String? {
+        if (count <= 0) return null
+        val head = "(App note: the student did not understand you $count ${if (count == 1) "time" else "times"} in a row."
+        return if (count < RUSSIAN_FROM) "$head $SIMPLER Only English: not one Russian letter.)"
+        else "$head Say one key word in Russian, like this: \"Noon\" is \"полдень\". Then go on in English. $SHORT)"
+    }
+
+    private const val SHORT = "Keep it short: 1 or 2 short sentences, 15 words at most, then your question."
+    private const val SIMPLER = "Say the same thing again, simpler and with other words. $SHORT"
 }

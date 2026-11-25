@@ -325,10 +325,19 @@ def streak(student_texts: list[str]) -> int:
     return n
 
 
+RUSSIAN_FROM = 3
+_NU_SHORT = "Keep it short: 1 or 2 short sentences, 15 words at most, then your question."
+
+
 def note(count: int) -> str | None:
+    """Копия NotUnderstood.note (S02i, D58): строка сама говорит модели, что делать."""
     if count <= 0:
         return None
-    return f"(App note: the student did not understand you {count} {'time' if count == 1 else 'times'} in a row.)"
+    head = f"(App note: the student did not understand you {count} {'time' if count == 1 else 'times'} in a row."
+    if count < RUSSIAN_FROM:
+        return f"{head} Say the same thing again, simpler and with other words. {_NU_SHORT} Only English: not one Russian letter.)"
+    return f'{head} Say one key word in Russian, like this: "Noon" is "полдень". Then go on in English. {_NU_SHORT})'
+
 
 
 def level_note(level: int) -> str:
@@ -338,8 +347,9 @@ def level_note(level: int) -> str:
 
 
 def request_text(student: str, level: int | None, count: int) -> str:
-    """Реплика ученика в запросе — как ResponsesTutor.reply: цель длины, затем счёт «не понял»."""
-    return "\n".join([student] + [x for x in (level_note(level) if level else None, note(count)) if x])
+    """Реплика ученика в запросе — как ResponsesTutor.reply (D58): строка «не понял», а при счёте 0 — цель длины."""
+    extra = note(count) or (level_note(level) if level else None)
+    return "\n".join([student] + ([extra] if extra else []))
 
 
 _MARKUP = re.compile(r"(?<!\*)\*(?!\*)|(?<![^\W_]|_)_|_(?![^\W_]|_)")

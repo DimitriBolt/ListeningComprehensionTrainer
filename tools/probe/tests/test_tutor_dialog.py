@@ -147,7 +147,7 @@ class FakeTutor:
         if "temperature in" in student:
             text = 'I think you meant "What is the temperature in Tucson?", right? At night or at noon?'
             ev = wrap("r1", text_events(text))
-        elif "noon" in student.lower():
+        elif "noon" in student.split("\n")[0].lower():  # с S02i строка «не понял» тоже содержит «Noon»
             text = "It is 68 degrees" + " ([w.com](https://w.com/a?utm_source=openai))" + ". Is that warm or cold?"
             ev = wrap("r2", search_events(["weather Tucson"]) + text_events(text))
         elif self.cut and student.split("\n")[0] == "What?":  # с S02f к реплике добавлен счёт «не понял»
@@ -233,8 +233,10 @@ def test_full_run_writes_docs_and_keeps_old_runs(tmp_path):
     s = run["summary"]
     assert s["question_share"] > 0.8 and s["max_words"] <= 30 and s["corrections_total"] == 5  # S1 (уровни 1 и 5) и S2
     assert sorted(int(k) for k in s["by_level"]) == [1, 3, 5]
-    # S02h: цель длины уровня — в каждом запросе учителя, как в приложении.
-    assert all("(App note: target length:" in b["input"][-1]["content"] for b in fake.requests)
+    # S02h, S02i (D58): в каждом запросе учителя — цель длины уровня или, при «не понял», только строка «не понял».
+    for b in fake.requests:
+        last = b["input"][-1]["content"]
+        assert ("(App note: target length:" in last) != ("did not understand you" in last), last
     assert any(td.level_note(5) in b["input"][-1]["content"] for b in fake.requests)
     # S02g: судья разметил каждую реплику; он видит свой текст учителя без поправки.
     n = sum(len(sc["turns"]) for sc, _ in plan)
@@ -286,10 +288,16 @@ def test_not_understood_like_kotlin():
     assert td.streak(["I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand."]) == 3
     assert td.streak(["What?", "What?", "Pasta.", "Sorry?"]) == 1
     assert td.note(0) is None
-    assert td.note(1) == "(App note: the student did not understand you 1 time in a row.)"
-    assert td.note(3) == "(App note: the student did not understand you 3 times in a row.)"
-    # Строка в промпте учителя — того же вида.
-    assert td.note(2) in probe.TUTOR_PROMPT_FILE.read_text(encoding="utf-8")
+    # Те же строки, что NOTE_1, NOTE_2, NOTE_3 в NotUnderstoodTest.kt (S02i, D58).
+    kt = (probe.REPO_ROOT / "android_app" / "app" / "src" / "test" / "java" / "com" / "example" / "listeningtrainer"
+          / "conversation" / "NotUnderstoodTest.kt").read_text(encoding="utf-8")
+    for n in (1, 2, 3):
+        m = re.search(rf'const val NOTE_{n} = ((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)', kt)
+        lit = "".join(re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1))).replace('\\"', '"')
+        assert td.note(n) == lit, n
+    assert td.note(4) == td.note(3).replace("3 times", "4 times")
+    # Начало строки — в промпте учителя (пример того же вида).
+    assert td.note(2).split(", simpler")[0] in probe.TUTOR_PROMPT_FILE.read_text(encoding="utf-8")
 
 
 def test_request_note_goes_only_to_the_request(tmp_path):
@@ -378,8 +386,9 @@ def test_level_targets_like_model_config():
     assert td.level_note(1) == "(App note: target length: 3 to 4 sentences, 25 to 40 words.)"
     assert td.level_note(3) == "(App note: target length: 5 to 6 sentences, 45 to 60 words.)"
     assert td.level_note(5) == "(App note: target length: 7 to 8 sentences, 65 to 80 words.)"
-    # Как ResponsesTutor: цель длины, затем «не понял».
-    assert td.request_text("What?", 5, 1) == "What?\n" + td.level_note(5) + "\n" + td.note(1)
+    # Как ResponsesTutor (D58): при «не понял» — только её строка, иначе цель длины.
+    assert td.request_text("What?", 5, 1) == "What?\n" + td.note(1)
+    assert td.request_text("Pasta.", 5, 0) == "Pasta.\n" + td.level_note(5)
     assert td.request_text("Hi", None, 0) == "Hi"
 
 
