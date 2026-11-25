@@ -4,6 +4,7 @@ import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.FailureKind
 import com.example.listeningtrainer.conversation.ServiceException
 import com.example.listeningtrainer.conversation.NotUnderstood
+import com.example.listeningtrainer.conversation.StudentLevel
 import com.example.listeningtrainer.conversation.TutorEvent
 import com.example.listeningtrainer.conversation.TutorSource
 import com.example.listeningtrainer.eventlog.EventLog
@@ -103,7 +104,7 @@ class ResponsesTutorTest {
     }
 
     @Test
-    fun `system prompt - one resource file by the method (D41-D43, D46, D47, S02f, S02g), date filled in`() {
+    fun `system prompt - one resource file by the method (D41-D43, D46, D47, S02f, S02g, S02h), date filled in`() {
         val prompt = ResponsesTutor.systemPrompt(java.util.GregorianCalendar(2026, 10, 23).time)
         // Тот же файл читает tools/probe/probe.py: ни одной копии в коде.
         val file = java.io.File("src/main/resources/tutor_prompt.txt").readText().trim()
@@ -114,18 +115,22 @@ class ResponsesTutorTest {
             "25 to 40 words", "10 words at most", "Build the reply in this order", "something real and new about the topic",
             "Your question, about something from step 2. It is the very last sentence", "No questions in the middle of your reply",
             "Never ask the same thing twice", "It grows from what you just said", "Take turns between two kinds of questions",
-            "About half of your questions are checks", "Your replies go in turn", "up to 5 or 6 sentences",
+            "About half of your questions are checks", "Your replies go in turn",
             "say only 1 or 2 short sentences", "first ask a question with two choices",
             "one short sentence about the topic, then the question with two choices", "no numbers, no dates and no names",
             "Start at level A1", "Never search in this reply",
             "Use web_search ONLY for fresh facts", "Do NOT search for general knowledge", "Do NOT guess",
+            // S02h: длина — из служебной строки уровня (D56); после выбора — рассказ; выбор простыми словами; без курсива (D57).
+            StudentLevel.note(ModelConfig.LEVEL_TARGETS[2]), "Your reply has exactly that many sentences and words",
+            "never longer sentences", "The length comes only from the app note", "forget the target length",
+            "whatever the target length", "NEVER offer a new choice", "simple, very common words", "no italics, no markdown",
             // S02f: поправляет поправщик, русское слово — по счёту приложения.
             "Never correct the student's grammar", "The app does it before your reply",
             "The note says 3 or more: say one key word in Russian", "Use Russian only when the note says 3 or more",
             NotUnderstood.note(2)!!.substringBefore(" 2 times"),
         )) assertTrue(rule, prompt.contains(rule))
         // Прежние уровни A2/B1/B2 отменены.
-        for (old in listOf("A2", "B1", "B2", "2023", "6 to 8 words", "30 words at most")) assertFalse(old, prompt.contains(old))
+        for (old in listOf("A2", "B1", "B2", "2023", "6 to 8 words", "30 words at most", "up to 5 or 6 sentences", "LEVEL AND LENGTH")) assertFalse(old, prompt.contains(old))
     }
 
     @Test
