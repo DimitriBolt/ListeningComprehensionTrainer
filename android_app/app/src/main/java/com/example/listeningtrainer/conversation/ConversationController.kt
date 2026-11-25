@@ -784,7 +784,8 @@ class ConversationController(
         private fun describe(o: CorrectorOutcome): Pair<String, String?> = when (o) {
             is CorrectorOutcome.Failed -> "failed (${o.detail}) in ${o.ms} ms; cost unknown" to null
             is CorrectorOutcome.Answer -> {
-                val cost = "cost \$${"%.4f".format(java.util.Locale.US, o.answer.costUsd)}"
+                // Поправщик стоит ≈ $0.00003: с 4 знаками в журнале было бы $0.0000.
+                val cost = "cost \$${"%.5f".format(java.util.Locale.US, o.answer.costUsd)}"
                 when (val v = Correction.check(student, o.answer.text)) {
                     is Correction.Verdict.Fix -> "correction in ${o.ms} ms; $cost" to v.text
                     Correction.Verdict.None -> "ok in ${o.ms} ms; $cost" to null

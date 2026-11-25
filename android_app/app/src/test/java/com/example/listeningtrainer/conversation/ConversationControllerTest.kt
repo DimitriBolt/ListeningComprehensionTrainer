@@ -1364,7 +1364,7 @@ class ConversationControllerTest {
         assertEquals(listOf("I have dog."), rig.corrector!!.calls)
         assertEquals(listOf("$fixPhrase Hello there. How are you?"), rig.tutor.replaced)
         assertEquals("$fixPhrase Hello there. How are you?", rig.controller.ui.value.teacherText)
-        assertTrue(rig.log.lines.contains("[Network] corrector: correction in 500 ms; cost \$0.0001"))
+        assertTrue(rig.log.lines.contains("[Network] corrector: correction in 500 ms; cost \$0.00010"))
         val reply = rig.log.lines.single { it.startsWith("[Controller] reply: ") }
         assertTrue(reply, reply.endsWith(", correction yes (corrector)"))
         assertFalse(rig.log.lines.any { "dog" in it })
@@ -1377,7 +1377,7 @@ class ConversationControllerTest {
             rig.controller.startTurn()
             advanceUntilIdle()
             assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
-            assertTrue(rig.log.lines.contains("[Network] corrector: ok in 500 ms; cost \$0.0001"))
+            assertTrue(rig.log.lines.contains("[Network] corrector: ok in 500 ms; cost \$0.00010"))
             assertTrue(rig.tutor.replaced.isEmpty())
             assertTrue(rig.log.lines.single { it.startsWith("[Controller] reply: ") }.endsWith(", correction no"))
         }
@@ -1389,7 +1389,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
         assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
-        assertTrue(rig.log.lines.contains("[Network] corrector: rejected (similarity 0.33) in 500 ms; cost \$0.0001"))
+        assertTrue(rig.log.lines.contains("[Network] corrector: rejected (similarity 0.33) in 500 ms; cost \$0.00010"))
     }
 
     @Test
@@ -1401,7 +1401,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
         assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
         assertEquals(2100L + 200, rig.output.startTimes.first()) // решение в 2100, синтез 200 мс
-        assertTrue(rig.log.lines.contains("[Network] corrector: late correction in 2000 ms; cost \$0.0001"))
+        assertTrue(rig.log.lines.contains("[Network] corrector: late correction in 2000 ms; cost \$0.00010"))
         assertTrue(rig.tutor.replaced.isEmpty())
     }
 
