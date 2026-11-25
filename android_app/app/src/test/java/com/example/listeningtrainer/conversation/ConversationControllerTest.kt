@@ -334,7 +334,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         assertTrue(rig.log.lines.contains("[Controller] transcript: 15 chars, counted as silence: no"))
-        assertTrue(rig.log.lines.contains("[Controller] reply: 22 chars, 1 groups; words 3, sentences 1, question no, russian no, correction no"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 22 chars, 1 groups; words 3, own_words 3, sentences 1, question no, russian no, correction no"))
         assertFalse(rig.log.lines.any { "secret" in it || "Hidden" in it || "teacher answer" in it })
     }
 
@@ -489,7 +489,7 @@ class ConversationControllerTest {
         assertEquals(listOf("It is warm today.", "Do you like the sun?"), rig.output.played)
         assertEquals("It is warm today. Do you like the sun?", rig.controller.ui.value.teacherText)
         assertTrue(rig.log.lines.contains("[Controller] reply cut by the length limit: unfinished sentence not spoken"))
-        assertTrue(rig.log.lines.contains("[Controller] reply: 38 chars, 2 groups; words 9, sentences 2, question yes, russian no, correction no"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 38 chars, 2 groups; words 9, own_words 9, sentences 2, question yes, russian no, correction no"))
         assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
     }
 
@@ -501,7 +501,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         val line = rig.log.lines.single { it.startsWith("[Controller] reply: ") }
-        assertTrue(line, line.endsWith("; words 14, sentences 3, question yes, russian yes, correction yes (teacher)"))
+        assertTrue(line, line.endsWith("; words 14, own_words 6, sentences 3, question yes, russian yes, correction yes (teacher)"))
         assertFalse(line, "Noon" in line || "полдень" in line)
     }
 
@@ -524,7 +524,7 @@ class ConversationControllerTest {
         )
         assertTrue(rig.output.startTimes.first() < 4300)
         assertEquals("One, two, three, four, five, six.", rig.controller.ui.value.teacherText)
-        assertTrue(rig.log.lines.contains("[Controller] reply: 33 chars, 6 groups; words 6, sentences 1, question no, russian no, correction no"))
+        assertTrue(rig.log.lines.contains("[Controller] reply: 33 chars, 6 groups; words 6, own_words 6, sentences 1, question no, russian no, correction no"))
     }
 
     @Test
@@ -1367,6 +1367,7 @@ class ConversationControllerTest {
         assertTrue(rig.log.lines.contains("[Network] corrector: correction in 500 ms; cost \$0.00010"))
         val reply = rig.log.lines.single { it.startsWith("[Controller] reply: ") }
         assertTrue(reply, reply.endsWith(", correction yes (corrector)"))
+        assertTrue(reply, ", own_words 5, " in reply) // свои слова учителя — без поправки (S02g)
         assertFalse(rig.log.lines.any { "dog" in it })
     }
 

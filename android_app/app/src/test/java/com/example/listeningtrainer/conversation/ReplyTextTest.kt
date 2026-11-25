@@ -11,15 +11,18 @@ class ReplyTextTest {
 
     @Test
     fun `metrics - words, sentences, question at the end, russian`() {
-        assertEquals(ReplyText.Metrics(9, 2, question = true, russian = false), ReplyText.metrics("It is 15 degrees. Is that warm or cold?"))
+        assertEquals(ReplyText.Metrics(9, 9, 2, question = true, russian = false), ReplyText.metrics("It is 15 degrees. Is that warm or cold?"))
         // Поправка ученика с вопросом внутри кавычек — одно предложение, конец — вопрос.
         val m = ReplyText.metrics("I think you meant \"What is the temperature in Tucson?\", right? At night or at noon?")
-        assertEquals(ReplyText.Metrics(16, 2, question = true, russian = false), m)
-        assertEquals(ReplyText.Metrics(4, 2, question = false, russian = true), ReplyText.metrics("\"Noon\" is \"полдень\". Okay."))
-        assertEquals(ReplyText.Metrics(0, 0, question = false, russian = false), ReplyText.metrics("  "))
+        assertEquals(ReplyText.Metrics(16, 5, 2, question = true, russian = false), m)
+        assertEquals(ReplyText.Metrics(4, 4, 2, question = false, russian = true), ReplyText.metrics("\"Noon\" is \"полдень\". Okay."))
+        assertEquals(ReplyText.Metrics(0, 0, 0, question = false, russian = false), ReplyText.metrics("  "))
         assertTrue(ReplyText.metrics("Do you like **tea**?**").question)
-        assertEquals("words 3, sentences 1, question yes, russian no", ReplyText.metrics("Do you agree?").toString())
+        assertEquals("words 3, own_words 3, sentences 1, question yes, russian no", ReplyText.metrics("Do you agree?").toString())
         assertEquals(3, ReplyText.metrics("I don't know.").words)
+        // Свои слова учителя — без поправки (S02g); поправка без «right?» тоже снимается.
+        assertEquals(3, ReplyText.metrics("I think you meant \"I went home\" Did you rest?").ownWords)
+        assertEquals(8, ReplyText.metrics("I think you meant it. Do you agree?").ownWords) // не поправка: кавычек нет
     }
 
     @Test

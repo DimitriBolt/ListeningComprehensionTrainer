@@ -6,10 +6,13 @@ package com.example.listeningtrainer.conversation
  */
 object ReplyText {
 
-    /** Мера реплики для журнала: без самого текста. */
-    data class Metrics(val words: Int, val sentences: Int, val question: Boolean, val russian: Boolean) {
+    /**
+     * Мера реплики для журнала: без самого текста. [words] — все слова, вместе с поправкой; [ownWords] — слова
+     * учителя без поправки «I think you meant "…", right?» (S02g: норма длины D51 — про свой текст учителя).
+     */
+    data class Metrics(val words: Int, val ownWords: Int, val sentences: Int, val question: Boolean, val russian: Boolean) {
         override fun toString() =
-            "words $words, sentences $sentences, question ${yesNo(question)}, russian ${yesNo(russian)}"
+            "words $words, own_words $ownWords, sentences $sentences, question ${yesNo(question)}, russian ${yesNo(russian)}"
 
         private fun yesNo(v: Boolean) = if (v) "yes" else "no"
     }
@@ -25,7 +28,8 @@ object ReplyText {
         val t = text.trim()
         val words = WORD.findAll(t).count()
         val sentences = if (words == 0) 0 else t.split(Regex("""(?<=[.!?]["'”»)\]*]{0,3})\s+""")).count { s -> WORD.containsMatchIn(s) }
-        return Metrics(words, sentences, t.replace(TRAILING_CLOSERS, "").endsWith("?"), hasRussian(t))
+        val own = t.substring(afterCorrection("$t ") ?: 0)
+        return Metrics(words, WORD.findAll(own).count(), sentences, t.replace(TRAILING_CLOSERS, "").endsWith("?"), hasRussian(t))
     }
 
     fun hasRussian(text: String) = CYRILLIC.containsMatchIn(text)
