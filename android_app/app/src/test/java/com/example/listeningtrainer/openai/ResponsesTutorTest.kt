@@ -132,7 +132,7 @@ class ResponsesTutorTest {
             "only when the app note tells you to say one key word in Russian", "Without that note, not one Russian letter",
             NotUnderstood.note(2)!!.substringBefore(", simpler"), "Titles of books, films and songs go in plain double quotes",
             "His favorite book is \"The Call of the Wild\". Never italics.", "At most two numbers in one reply",
-            "the one main number, not a list",
+            "the one main number, not a list", "Do not say today's date unless the student asks for it",
         )) assertTrue(rule, prompt.contains(rule))
         // Прежние уровни A2/B1/B2 отменены.
         for (old in listOf("A2", "B1", "B2", "2023", "6 to 8 words", "30 words at most", "up to 5 or 6 sentences", "LEVEL AND LENGTH",
