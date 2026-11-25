@@ -112,7 +112,7 @@ class ResponsesTutorTest {
         assertFalse(prompt.contains(ResponsesTutor.DATE_MARK))
         for (rule in listOf(
             // S02g: реплика содержательна (D51), один вопрос в конце из сказанного (D52), уточнение — фраза о теме и выбор.
-            "25 to 40 words", "10 words at most", "Build the reply in this order", "something real and new about the topic",
+            "25 to 40 words", "8 to 10 words, never more than 10", "15 words at most", "Build the reply in this order", "something real and new about the topic",
             "Your question, about something from step 2. It is the very last sentence", "No questions in the middle of your reply",
             "Never ask the same thing twice", "It grows from what you just said", "Take turns between two kinds of questions",
             "About half of your questions are checks", "Your replies go in turn",
