@@ -1533,6 +1533,19 @@ class ConversationControllerTest {
         assertEquals(level.note(5), rig.tutor.levelNotes.single())
     }
 
+    // ---- S02i: досрочное понижение (D59) -------------------------------------------------------
+
+    @Test
+    fun `level - the fourth not understood on the 8th turn moves the level down at once`() = runTest {
+        val level = StudentLevel(MemoryLevelStore(StudentLevel.State(level = 3, turns = 7, notUnderstood = 3)))
+        val rig = Rig(this, "Sorry, I don't understand.", level = level)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertTrue(rig.log.lines.contains("[Controller] level down 3 → 2"))
+        assertTrue(rig.log.lines.contains("[Controller] level 2 (window 0 of 20, not understood 0)"))
+        assertEquals(StudentLevel.State(2, 0, 0), level.state.value)
+    }
+
     @Test
     fun `level - without a level there is no note`() = runTest {
         val rig = Rig(this, "I am fine")

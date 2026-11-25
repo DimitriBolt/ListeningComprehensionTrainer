@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * хранение — через [Store] (на телефоне — SharedPreferences), поэтому уровень и окно переживают
  * «New conversation», «Back» и перезапуск приложения. Новая установка начинается с уровня 1.
  *
- * Окно — реплики ученика, дошедшие до учителя (молчание сюда не попадает). Когда в окне набралось
- * [window] реплик: «не понял» ([NotUnderstood.isMarker]) не больше [upMax] — уровень выше, не меньше
- * [downMin] — ниже, иначе тот же. Окно после этого начинается заново (и на границах 1 и 5 тоже).
+ * Окно — реплики ученика, дошедшие до учителя (молчание сюда не попадает). «Не понял»
+ * ([NotUnderstood.isMarker]) набралось [downMin] — уровень сразу ниже, не дожидаясь полного окна (D59).
+ * Когда в окне набралось [window] реплик: «не понял» не больше [upMax] — уровень выше, иначе тот же.
+ * После решения окно начинается заново (и на границах 1 и 5 тоже).
  * Уровень от 1 до [targets].size.
  *
  * Модель длину сама не наращивает (S02g), поэтому цель уходит в запрос служебной строкой [note], как
@@ -55,14 +56,14 @@ class StudentLevel(
         val s = _state.value
         val turns = s.turns + 1
         val nu = s.notUnderstood + if (NotUnderstood.isMarker(studentText)) 1 else 0
-        if (turns < window) {
+        if (nu < downMin && turns < window) {
             val state = State(s.level, turns, nu)
             set(state)
             return Step(state)
         }
         val next = when {
-            nu <= upMax -> s.level + 1
             nu >= downMin -> s.level - 1
+            nu <= upMax -> s.level + 1
             else -> s.level
         }.coerceIn(1, maxLevel)
         val state = State(next)

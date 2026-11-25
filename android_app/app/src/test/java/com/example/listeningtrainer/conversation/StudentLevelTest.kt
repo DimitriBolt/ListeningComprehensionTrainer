@@ -51,13 +51,19 @@ class StudentLevelTest {
     }
 
     @Test
-    fun `four or more not understood - level down`() {
+    fun `fourth not understood - level down at once, the window starts again (D59)`() {
         val level = StudentLevel(MemoryLevelStore(StudentLevel.State(level = 3)))
-        turns(level, understood = 15, notUnderstood = 3)
-        assertNull(level.onStudentTurn("I don't understand.").from) // 19-я — окно ещё не полно
-        val step = level.onStudentTurn("Sorry?")
+        // Реплики 1–4 поняты, 5–7 — «не понял» (3 в окне), 8-я — четвёртое «не понял».
+        turns(level, understood = 4, notUnderstood = 0)
+        turns(level, understood = 0, notUnderstood = 3)
+        assertEquals(StudentLevel.State(3, 7, 3), level.state.value)
+        val step = level.onStudentTurn("I don't understand.")
         assertEquals(StudentLevel.State(2, 0, 0), step.state)
         assertEquals(3, step.from)
+        // «Не понял» не обязательно подряд: четыре в любом месте окна.
+        val mixed = StudentLevel(MemoryLevelStore(StudentLevel.State(level = 5)))
+        repeat(3) { mixed.onStudentTurn("What?"); mixed.onStudentTurn("I like apples.") }
+        assertEquals(4, mixed.onStudentTurn("Sorry?").state.level)
     }
 
     @Test
@@ -66,9 +72,14 @@ class StudentLevelTest {
         turns(top, understood = 20, notUnderstood = 0)
         assertEquals(StudentLevel.State(5, 0, 0), top.state.value)
 
+        // Уровень 1: четвёртое «не понял» — уровень тот же, окно заново, перехода нет.
         val bottom = StudentLevel(MemoryLevelStore(StudentLevel.State(level = 1)))
-        turns(bottom, understood = 0, notUnderstood = 20)
-        assertEquals(StudentLevel.State(1, 0, 0), bottom.state.value)
+        turns(bottom, understood = 2, notUnderstood = 3)
+        val step = bottom.onStudentTurn("What?")
+        assertEquals(StudentLevel.State(1, 0, 0), step.state)
+        assertNull(step.from)
+        turns(bottom, understood = 0, notUnderstood = 3)
+        assertEquals(StudentLevel.State(1, 3, 3), bottom.state.value)
     }
 
     @Test
