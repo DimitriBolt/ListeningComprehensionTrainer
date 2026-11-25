@@ -46,7 +46,10 @@ def test_metrics_like_reply_text_kt():
     m = td.reply_metrics('I think you meant "What is the temperature in Tucson?", right? At night or at noon?')
     assert (m["words"], m["sentences"], m["question"], m["russian"]) == (16, 2, True, False)
     assert m["correction"] == "What is the temperature in Tucson?" and m["words_outside_correction"] == 5
-    assert m["max_sentence_words"] == 5
+    assert m["max_sentence_words"] == 5 and m["own_words"] == 5
+    # own_words — как ReplyText.Metrics.ownWords (те же примеры, что в ReplyTextTest.kt).
+    assert td.reply_metrics('I think you meant "I went home" Did you rest?')["own_words"] == 3
+    assert td.reply_metrics("I think you meant it. Do you agree?")["own_words"] == 8
     m = td.reply_metrics("It is 15 degrees. Is that warm or cold?")
     assert (m["words"], m["sentences"], m["question"], m["correction"]) == (9, 2, True, None)
     m = td.reply_metrics('"Noon" is "полдень". Okay.')
@@ -100,11 +103,17 @@ def test_checks():
               "russian_words": 2 if i == 4 else 0} for i in range(1, 5)]
     assert [c["ok"] for c in td.check_scenario(s3, steps)] == [False, True, True, False]
     s5 = next(s for s in td.SCENARIOS if s["id"] == "S5")
-    step = {"step": 1, "correction": None, "searched": False, "question": True, "russian": False, "russian_words": 0}
-    ok = [c["ok"] for c in td.check_scenario(s5, [dict(step, teacher="Old times or new times?")])]
-    assert ok == [True, True]
-    lecture = dict(step, teacher="Native people lived there first. Who lived there first?")
-    assert [c["ok"] for c in td.check_scenario(s5, [lecture])] == [True, False]
+    step = {"step": 1, "correction": None, "searched": False, "question": True, "russian": False, "russian_words": 0,
+            "student": s5["turns"][0]}
+    # S02g: одна фраза о теме (без цифр, дат, имён) и вопрос с выбором; нет поиска ни на одном шаге.
+    for t in ["Old times or new times?", "Arizona has a long and interesting history. Do you want old times or new times?"]:
+        assert [c["ok"] for c in td.check_scenario(s5, [dict(step, teacher=t)])] == [True, True, True], t
+    lecture = dict(step, teacher="Native people lived there first. In 1912 Arizona became a state. Old or new?")
+    assert [c["ok"] for c in td.check_scenario(s5, [lecture])] == [True, False, True]
+    names = dict(step, teacher="The Hohokam people lived there. Do you want old times or new times?")
+    assert td.check_scenario(s5, [names])[1]["note"] == "имена: Hohokam"
+    searched = [dict(step, teacher="Old times or new times?"), dict(step, step=2, searched=True, teacher="Ok. Yes?")]
+    assert [c["ok"] for c in td.check_scenario(s5, searched)] == [True, True, False]
 
 
 # ---- прогон против подставного сервера ---------------------------------------------------
@@ -115,11 +124,19 @@ class FakeTutor:
     def __init__(self, cut=False):
         self.requests = []
         self.corrector_requests = []
+        self.judge_requests = []
         self.cut = cut
 
     def __call__(self, request):
         body = json.loads(request.content)
         student = body["input"][-1]["content"]
+        if not body.get("stream") and body["instructions"].startswith("You rate"):  # судья (S02g)
+            self.judge_requests.append(body)
+            kind = "clarify" if " or " in student else "check"
+            return httpx.Response(200, json={"status": "completed", "output": [
+                {"type": "message", "content": [{"type": "output_text",
+                                                 "text": json.dumps({"type": kind, "linked": True, "content": True})}]}],
+                "usage": {"input_tokens": 500, "output_tokens": 20}})
         if not body.get("stream"):  # поправщик (S02f): ответ без потока
             self.corrector_requests.append(body)
             fix = "What is the temperature in Tucson?" if "temperature in" in student else "OK"
@@ -214,6 +231,13 @@ def test_full_run_writes_docs_and_keeps_old_runs(tmp_path):
     assert sum(len(s["steps"]) for s in run["scenarios"]) == sum(len(s["turns"]) for s in td.SCENARIOS)
     s = run["summary"]
     assert s["question_share"] > 0.8 and s["max_words"] <= 30 and s["corrections_total"] == 4
+    # S02g: судья разметил каждую реплику; он видит свой текст учителя без поправки.
+    n = sum(len(sc["turns"]) for sc in td.SCENARIOS)
+    assert len(fake.judge_requests) == 2 * n and s["judge_errors"] == 0
+    assert all("I think you meant" not in b["input"][0]["content"] for b in fake.judge_requests)
+    assert all(st["kind"] in ("normal", "after_nu", "clarify") for sc in run["scenarios"] for st in sc["steps"])
+    assert run["judge_prompt"] == td.judge_prompt() and s["linked_share"] == 1.0
+    assert "own_words" in (tmp_path / "02e.md").read_text(encoding="utf-8")
     assert run["prompt"] == probe.TUTOR_PROMPT_FILE.read_text(encoding="utf-8").strip()
     md = (tmp_path / "02e.md").read_text(encoding="utf-8")
     assert "## Сводка по прогонам" in md and "## Прогон 1" in md and "## Прогон 2" in md
@@ -271,3 +295,72 @@ def test_request_note_goes_only_to_the_request(tmp_path):
     last = fake.requests[-1]["input"]
     assert last[-1]["content"] == "Sorry, I don't understand.\n" + td.note(3)
     assert [m["content"] for m in last if m["role"] == "user"][:-1] == s3["turns"][:3]
+
+
+# ---- S02g: судья, уточнение, цели -------------------------------------------------------
+
+def test_parse_judge():
+    assert td.parse_judge('{"type": "check", "linked": true, "content": false}') == \
+        {"type": "check", "linked": True, "content": False}
+    assert td.parse_judge('```json\n{"type":"Personal","linked":true,"content":true}\n```')["type"] == "personal"
+    for bad in [None, "", "check", '{"type": "quiz", "linked": true, "content": true}',
+                '{"type": "check", "linked": "yes", "content": true}', "{broken"]:
+        assert td.parse_judge(bad) is None, bad
+
+
+def test_judge_sees_own_text_only():
+    b = td.judge_body("J", "I have dog.", 'I think you meant "I have a dog", right? Dogs are friends. Do you walk?')
+    assert b["input"][0]["content"] == "Student: I have dog.\nTeacher: Dogs are friends. Do you walk?"
+    assert "tools" not in b and b["store"] is False and b["model"] == td.JUDGE_MODEL
+
+
+def test_clarify_problems():
+    st = "Tell me about the history of Arizona."
+    assert td.clarify_problems("Arizona has a long history. Do you want old times or new times?", st) == []
+    assert td.clarify_problems("Do you want old times or new times?", st) == []
+    assert "в вопросе нет выбора" in td.clarify_problems("It is old. What do you want?", st)
+    assert "фраз до вопроса: 2" in td.clarify_problems("It is old. It is big. Old or new?", st)
+    assert "цифры или даты" in td.clarify_problems("It became a state in 1912. Old or new?", st)
+    assert "цифры или даты" in td.clarify_problems("It joined in February. Old or new?", st)
+    assert td.clarify_problems("It has a long history.", st) == ["нет вопроса в конце"]
+
+
+def _step(n, own, kind="normal", jtype="check", **kw):
+    base = {"step": n, "error": None, "words": own, "own_words": own, "max_sentence_words": 8, "question": True,
+            "searched": False, "incomplete": None, "t_first_group": 0.8, "not_understood": 1 if kind == "after_nu" else 0,
+            "kind": kind, "judge": {"type": jtype, "linked": True, "content": True}, "corrector": None,
+            "correction_source": None, "output_tokens": 80}
+    return {**base, **kw}
+
+
+def test_summary_goals_s02g():
+    s4 = {"id": "S4", "rep": 1, "checks": [], "steps": [_step(1, 28), _step(2, 30, jtype="personal"), _step(3, 33),
+                                                     _step(4, 45, jtype="personal")]}
+    s3 = {"id": "S3", "rep": 1, "checks": [], "steps": [_step(1, 30), _step(2, 12, "after_nu"), _step(3, 9, "after_nu")]}
+    s = td.summarize([s4, s3])
+    assert (s["normal"], s["after_nu"], s["own_median_normal"], s["own_max_after_nu"]) == (5, 2, 30, 12)
+    assert s["s4_longer"] == [True] and s["check_share"] == 0.6 and s["personal_share"] == 0.4
+    assert s["alternation_share"] == 1.0
+    for k in ("own_median_normal", "own_max", "after_nu", "sentence", "s4_longer", "question_share", "linked",
+              "content", "types", "truncated"):
+        assert s["goals"][k], k
+    short = td.summarize([{"id": "S4", "rep": 1, "checks": [], "steps": [_step(1, 10), _step(4, 8)]}])
+    assert not short["goals"]["own_median_normal"] and not short["goals"]["s4_longer"]
+    long_nu = td.summarize([{"id": "S3", "rep": 1, "checks": [], "steps": [_step(2, 25, "after_nu")]}])
+    assert not long_nu["goals"]["after_nu"]
+
+
+def test_s7_and_s5_no_search_in_scenarios():
+    s7 = next(s for s in td.SCENARIOS if s["id"] == "S7")
+    assert s7["turns"] == ["I have a dog.", "His name is Max.", "He is five.", "He likes to run."]
+    assert next(s for s in td.SCENARIOS if s["id"] == "S5")["no_search"]
+
+
+def test_rejudge_last_run(tmp_path):
+    fake = FakeTutor()
+    assert td.probe_tutor_dialog(make_ctx(tmp_path, fake, ("--dialog-repeats", "1")))
+    n_teacher = len(fake.requests)
+    assert td.probe_tutor_dialog(make_ctx(tmp_path, fake, ("--rejudge",)))
+    data = json.loads((tmp_path / "02e.json").read_text(encoding="utf-8"))
+    assert len(data["runs"]) == 1 and len(fake.requests) == n_teacher  # учителю — ни одного запроса
+    assert len(fake.judge_requests) == 2 * sum(len(sc["turns"]) for sc in td.SCENARIOS)

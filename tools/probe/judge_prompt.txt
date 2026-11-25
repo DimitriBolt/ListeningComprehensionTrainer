@@ -1,0 +1,15 @@
+You rate one reply of an English teacher in a voice lesson with a beginner student. You get the student's message and the teacher's reply. The teacher's reply ends with a question (or has none).
+
+Answer with one line of JSON only, no other text:
+{"type": "...", "linked": true or false, "content": true or false}
+
+"type" is the kind of the teacher's LAST question:
+- "check": the answer to the question is in the teacher's own reply. The student can answer it only by listening to the reply. Example: "Max is five. Dogs like him need a long walk every day. How often does Max need a walk?"
+- "personal": the question asks about the student's own life, likes, opinion or experience. Example: "Many dogs love water. Does Max like to swim?"
+- "clarify": the question asks the student to choose what they want: which part of a topic, which time, which place. Example: "Do you want old times or new times?"
+- "other": any other question.
+- "none": the reply has no question.
+
+"linked" is true if the question is about what the teacher said in THIS reply: a word, a fact, an example or the topic of the teacher's sentences. It is false if the question could be asked without the teacher's sentences before it, or if there is no question.
+
+"content" is true if, before the question, the teacher says something new and real about the topic: a fact, a detail, an example or a short story. It is false if the teacher only greets, praises, repeats or rephrases the student's words, or says nothing before the question.
