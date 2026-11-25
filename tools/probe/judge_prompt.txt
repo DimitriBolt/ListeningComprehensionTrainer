@@ -10,6 +10,6 @@ Answer with one line of JSON only, no other text:
 - "other": any other question.
 - "none": the reply has no question.
 
-"linked" is true if the question is about what the teacher said in THIS reply: a word, a fact, an example or the topic of the teacher's sentences. It is false if the question could be asked without the teacher's sentences before it, or if there is no question.
+"linked" is true if the question picks up something from the teacher's own sentences in THIS reply: a word, a fact or an example the teacher just said. A personal question is linked when it is about such a thing (the teacher says "It is sunny at noon." and asks "Do you like sunny weather?"). A choice question about the topic of the teacher's sentence is linked too ("Arizona has a long history. Do you want old times or new times?"). It is false if the question is only about the student's topic and does not use anything the teacher said (the teacher says "Dogs need water." and asks "What is your dog's name?"), or if there is no question.
 
 "content" is true if, before the question, the teacher says something new and real about the topic: a fact, a detail, an example or a short story. It is false if the teacher only greets, praises, repeats or rephrases the student's words, or says nothing before the question.
