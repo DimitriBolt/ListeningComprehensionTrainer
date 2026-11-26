@@ -1,4 +1,4 @@
-# Пробы S00b, S02c, S02e–S02i
+# Пробы S00b, S02c, S02e–S02i, S03b
 
 Скрипт `probe.py` проверяет с вашим ключом всё, что в разведке S00
 (`docs/research/00-models.md`) осталось «не подтверждено» (S00b), и учителя на Responses API
@@ -239,6 +239,30 @@ python tools/probe/probe.py tutor-dialog --dialog-repeats 3 --dialog-budget 0.20
 - **Синтез** (Realtime, голос приложения) читает группы с названием в кавычках (`TITLE_PHRASES`): кавычки не звучат,
   сверка проходит.
 
+## Проба S03b — конец реплики в шуме (`endpoint`)
+
+Сравнивает детекторы конца реплики на **ваших записях** (режим «🎙 Endpoint recordings (debug)» в debug-сборке,
+`tools/pull-recordings.sh`). Бриф — `docs/stages/03b-brief.md`, п. 3; код — `endpoint.py`.
+
+```bash
+python tools/probe/probe.py endpoint                     # покажет оценку цены (≈ $0.5 на 48 записей) и спросит «y»
+python tools/probe/probe.py endpoint --offline           # только детекторы на устройстве и разметка из кэша, без денег
+python tools/probe/probe.py endpoint --recordings ПУТЬ   # другой каталог (по умолчанию diagnostics/recordings)
+```
+
+- **Записи:** берётся последний дубль каждой пары «условие, реплика». Время пульсов и кнопки переводится во время
+  звука по концу записи (`levelWallMs`).
+- **Разметка:** `whisper-1` (метки слов) задаёт окно; конец речи уточняется по энергии в полосе 300–3400 Гц
+  (`refine_end`): метки whisper бывают сдвинуты целиком. Графики для ручной сверки — `out/endpoint/plots/*.png`.
+- **Детекторы на устройстве (без сети):** порог громкости (эмуляция нынешнего 59 дБ / 3 с, с маской D34 и без, другие
+  пороги), Silero VAD v6 (ONNX, модель скачивается колесом `silero-vad` в `out/endpoint/models/`), WebRTC VAD.
+- **Серверные:** сессия транскрипции `gpt-transcribe` с `server_vad` (500–1500 мс) и `semantic_vad` (low / medium /
+  high / auto), звук потоком в темпе реального времени, по 12 сессий сразу; `gpt-live-transcribe` (потоковый текст,
+  `commit` от детектора на устройстве); нынешний путь — m4a в `gpt-transcribe`.
+- **Кэш:** все ответы API — в `out/endpoint/cache/`; повторный прогон (например, после правки мер) бесплатен.
+- **Бюджет:** `--endpoint-budget` (по умолчанию $1), прогон остановится, если потрачено больше.
+- **Итог:** `docs/research/03b-endpoint.md` (+ `.json`) — только числа и тексты сценария, без звука.
+
 ## Тесты (без ключа и без сети)
 
 ```bash
@@ -249,7 +273,7 @@ python -m pytest tools/probe/tests
 звук, файлы результатов. `test_speech_planner.py` — копия `SpeechPlanner` (случаи из `SpeechPlannerTest.kt`),
 чистка сносок, потоковая нарезка (группы те же, что у готового текста, при любой разбивке на куски).
 `test_responses.py` — подкоманда `responses` против подставного сервера с потоком SSE по документации.
-`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` (с `own_words`) и `NotUnderstood.kt`; судья, проверка уточнения, цели S02g, `--rejudge`. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_fake_server.py` гоняет сетевой код против подставного
+`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` (с `own_words`) и `NotUnderstood.kt`; судья, проверка уточнения, цели S02g, `--rejudge`. `test_endpoint.py` — проба S03b: эмуляция порога, конечный автомат Silero/WebRTC, уточнение конца речи, события сессии, меры и правило выбора. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_fake_server.py` гоняет сетевой код против подставного
 локального сервера: он ловит ошибки в нашем коде, но не подтверждает, что настоящий API
 отвечает так же.
 

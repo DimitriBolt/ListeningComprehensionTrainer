@@ -2497,8 +2497,20 @@ OPTIONS = [
     (("--tail",), dict(type=float, default=8.0, metavar="С",
                        help="секунд тишины после звука (по умолчанию 8: semantic_vad low ждёт до 8 с)"),
      ("vadservice",)),
+    (("--recordings",), dict(default=None, metavar="КАТАЛОГ",
+                             help="записи режима «Endpoint recordings» (по умолчанию diagnostics/recordings)"),
+     ("endpoint",)),
+    (("--endpoint-budget",), dict(type=float, default=1.0, metavar="$", dest="endpoint_budget",
+                                  help="остановить прогон, когда потрачено столько, $ (по умолчанию 1.0)"),
+     ("endpoint",)),
+    (("--parallel",), dict(type=int, default=12, metavar="N",
+                           help="сколько потоковых сессий сразу (по умолчанию 12)"),
+     ("endpoint",)),
+    (("--offline",), dict(action="store_true",
+                          help="без серверных вариантов: только разметка (из кэша) и детекторы на устройстве"),
+     ("endpoint",)),
     (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"),
-     ("all", "responses", "tutor-dialog", "corrector")),
+     ("all", "responses", "tutor-dialog", "corrector", "endpoint")),
 ]
 
 COMMANDS = {
@@ -2512,6 +2524,7 @@ COMMANDS = {
     "responses": "S02c: учитель на Responses API — web_search при reasoning none, поток, погода, цена",
     "tutor-dialog": "S02e–S02g: учитель-собеседник — диалоги по сценариям, длина реплик, вопросы (судья), поправки, русское слово",
     "corrector": "S02f: поправка ошибки ученика — правило в промпте учителя или отдельный запрос «поправщик»",
+    "endpoint": "S03b: конец реплики в шуме — порог, Silero, WebRTC, server_vad, semantic_vad на записях пользователя",
 }
 
 
@@ -2578,6 +2591,14 @@ def main(argv: list[str] | None = None) -> int:
                 print("\nОтправить архитектору (из корня репозитория):\n"
                       "  git add docs/research/02f-corrector.md docs/research/02f-corrector.json && "
                       'git commit -m "[S02f] Проба поправщика" && git push')
+            return 0
+        elif args.cmd == "endpoint":
+            sys.modules.setdefault("probe", sys.modules[__name__])
+            import endpoint
+            if endpoint.probe_endpoint(ctx):
+                print("\nОтправить архитектору (из корня репозитория):\n"
+                      "  git add docs/research/03b-endpoint.md docs/research/03b-endpoint.json && "
+                      'git commit -m "[S03b] Проба конца реплики" && git push')
             return 0
         elif args.cmd == "tutor-dialog":
             sys.modules.setdefault("probe", sys.modules[__name__])  # tutor_dialog делает import probe: тот же модуль
