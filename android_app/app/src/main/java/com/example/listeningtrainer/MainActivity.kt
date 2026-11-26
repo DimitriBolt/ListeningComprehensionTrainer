@@ -373,63 +373,74 @@ fun EndpointRecordingScreen() {
         }
         Spacer(modifier = Modifier.height(16.dp))
         val condition = ui.condition
-        if (condition == null) {
-            Text("Choose the condition", style = MaterialTheme.typography.headlineSmall)
-            Spacer(modifier = Modifier.height(16.dp))
-            EndpointScenario.Condition.values().forEachIndexed { i, c ->
-                Button(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(56.dp),
-                    onClick = { TrainerService.endpoint(context, "condition", i) },
-                ) { Text(c.label) }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                "Keep the phone where it is in normal practice (in your pocket or in your hand). Wear the headphones.",
-                style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
-            )
-            return@Column
-        }
-        val line = ui.line
-        Text(condition.label, style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Line ${line.number} of ${EndpointScenario.lines.size}" + if (ui.takes > 0) " · recorded ${ui.takes}×" else "",
-            style = MaterialTheme.typography.labelMedium, color = Color.Gray,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        ) {
-            Text(line.shownText, modifier = Modifier.padding(24.dp), fontSize = 26.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(line.instruction, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(ui.message, style = MaterialTheme.typography.bodySmall, color = if (ui.recording) Color.Red else Color.Gray)
-        if (ui.recording) Text("Level: ${ui.levelDb.toInt()} dB", style = MaterialTheme.typography.bodySmall)
-        Spacer(modifier = Modifier.height(20.dp))
-        Button(
-            modifier = Modifier.fillMaxWidth().height(72.dp),
-            enabled = !ui.saving,
-            colors = ButtonDefaults.buttonColors(containerColor = if (ui.recording) Color.Red else MaterialTheme.colorScheme.primary),
-            onClick = { TrainerService.endpoint(context, if (ui.recording) "finish" else "start") },
-        ) { Text(if (ui.recording) "Stop Recording" else "Record line ${line.number} 🎙️") }
-        Text(
-            "Headset middle button: start / finish",
-            style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.padding(top = 8.dp),
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(enabled = !busy && ui.lineIndex > 0, onClick = { TrainerService.endpoint(context, "line", ui.lineIndex - 1) }) { Text("← Previous") }
-            TextButton(
-                enabled = !busy && ui.lineIndex < EndpointScenario.lines.lastIndex,
-                onClick = { TrainerService.endpoint(context, "line", ui.lineIndex + 1) },
-            ) { Text("Next →") }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Recorded: " + EndpointScenario.lines.joinToString(" ") { if (it.number in ui.recorded) "✓${it.number}" else "·${it.number}" },
-            style = MaterialTheme.typography.labelSmall, color = Color.Gray,
-        )
+        // Без раннего return из лямбды Column: компилятор Compose 1.5 на нём падает при показе экрана.
+        if (condition == null) EndpointConditionChooser() else EndpointLinePanel(ui, condition, busy)
     }
+}
+
+/** Выбор условия записи. */
+@Composable
+private fun EndpointConditionChooser() {
+    val context = LocalContext.current
+    Text("Choose the condition", style = MaterialTheme.typography.headlineSmall)
+    Spacer(modifier = Modifier.height(16.dp))
+    EndpointScenario.Condition.values().forEachIndexed { i, c ->
+        Button(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(56.dp),
+            onClick = { TrainerService.endpoint(context, "condition", i) },
+        ) { Text(c.label) }
+    }
+    Spacer(modifier = Modifier.height(16.dp))
+    Text(
+        "Keep the phone where it is in normal practice (in your pocket or in your hand). Wear the headphones.",
+        style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
+    )
+}
+
+/** Реплика сценария: текст, указание, запись, переход между репликами. */
+@Composable
+private fun EndpointLinePanel(ui: com.example.listeningtrainer.endpoint.EndpointUi, condition: EndpointScenario.Condition, busy: Boolean) {
+    val context = LocalContext.current
+    val line = ui.line
+    Text(condition.label, style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Line ${line.number} of ${EndpointScenario.lines.size}" + if (ui.takes > 0) " · recorded ${ui.takes}×" else "",
+        style = MaterialTheme.typography.labelMedium, color = Color.Gray,
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Text(line.shownText, modifier = Modifier.padding(24.dp), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+    Text(line.instruction, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+    Spacer(modifier = Modifier.height(12.dp))
+    Text(ui.message, style = MaterialTheme.typography.bodySmall, color = if (ui.recording) Color.Red else Color.Gray)
+    if (ui.recording) Text("Level: ${ui.levelDb.toInt()} dB", style = MaterialTheme.typography.bodySmall)
+    Spacer(modifier = Modifier.height(20.dp))
+    Button(
+        modifier = Modifier.fillMaxWidth().height(72.dp),
+        enabled = !ui.saving,
+        colors = ButtonDefaults.buttonColors(containerColor = if (ui.recording) Color.Red else MaterialTheme.colorScheme.primary),
+        onClick = { TrainerService.endpoint(context, if (ui.recording) "finish" else "start") },
+    ) { Text(if (ui.recording) "Stop Recording" else "Record line ${line.number} 🎙️") }
+    Text(
+        "Headset middle button: start / finish",
+        style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.padding(top = 8.dp),
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        TextButton(enabled = !busy && ui.lineIndex > 0, onClick = { TrainerService.endpoint(context, "line", ui.lineIndex - 1) }) { Text("← Previous") }
+        TextButton(
+            enabled = !busy && ui.lineIndex < EndpointScenario.lines.lastIndex,
+            onClick = { TrainerService.endpoint(context, "line", ui.lineIndex + 1) },
+        ) { Text("Next →") }
+    }
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        "Recorded: " + EndpointScenario.lines.joinToString(" ") { if (it.number in ui.recorded) "✓${it.number}" else "·${it.number}" },
+        style = MaterialTheme.typography.labelSmall, color = Color.Gray,
+    )
 }
