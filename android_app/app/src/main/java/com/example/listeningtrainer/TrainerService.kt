@@ -36,6 +36,11 @@ import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.openai.RealtimeSynthesizer
 import com.example.listeningtrainer.openai.FileTranscriber
 import com.example.listeningtrainer.openai.ResponsesCorrector
+import com.example.listeningtrainer.endpoint.EndpointRecorder
+import com.example.listeningtrainer.endpoint.EndpointScenario
+import com.example.listeningtrainer.endpoint.EndpointUi
+import com.example.listeningtrainer.endpoint.RecordingStore
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -64,6 +69,8 @@ class TrainerService : Service() {
     private lateinit var controller: ConversationController
     private lateinit var audioSession: AudioSession
     private lateinit var headsetButtons: HeadsetButtons
+    /** Режим записи для пробы S03b — только в debug-сборке. */
+    private var endpoint: EndpointRecorder? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -87,6 +94,7 @@ class TrainerService : Service() {
                 }
         }
 
+        val output = AudioTrackOutput(this, AppLog, pulseGate)
         controller = ConversationController(
             scope = scope,
             input = input,
@@ -96,15 +104,35 @@ class TrainerService : Service() {
             planner = SpeechPlanner(),
             synthesizer = RealtimeSynthesizer(apiKey, AppLog),
             fallbackSynthesizer = AndroidTtsSynthesizer(this, AppLog),
-            output = AudioTrackOutput(this, AppLog, pulseGate),
+            output = output,
             log = AppLog,
             speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
             corrector = ResponsesCorrector(apiKey),
             studentLevel = (application as TrainerApplication).studentLevel,
         )
+        // Режим записи для пробы S03b (только debug): свой микрофон без маски D34 и без сжатия; моменты пульсов —
+        // от проигрывателя сигналов.
+        if (EndpointRecorder.available(BuildConfig.DEBUG)) {
+            val tmp = File(filesDir, "recordings_tmp").apply { mkdirs() }
+            val rawRecorder = AudioRecorder(File(tmp, "current.wav"), File(tmp, "current.m4a"), AppLog, pulseGate = null, compress = false)
+            endpoint = EndpointRecorder(
+                scope = scope,
+                input = rawRecorder,
+                output = output,
+                store = RecordingStore(File(filesDir, RECORDINGS_DIR)),
+                log = AppLog,
+                device = "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}",
+            ).also { rec ->
+                pulseGate.onPulse = rec::onPulseStarted
+                scope.launch { rec.ui.collect { _endpointUi.value = it } }
+            }
+        }
         // Средняя кнопка гарнитуры (D29): медиа-сеанс активен всё время жизни сервиса, как и аудиофокус.
-        headsetButtons = HeadsetButtons(this, AppLog) { keyCode, pressMs -> controller.headsetButton(keyCode, pressMs) }
-            .also { it.start() }
+        // Пока открыт режим записи для пробы — кнопка его.
+        headsetButtons = HeadsetButtons(this, AppLog) { keyCode, pressMs ->
+            val rec = endpoint
+            if (rec != null && rec.active) rec.headsetButton(keyCode, pressMs) else controller.headsetButton(keyCode, pressMs)
+        }.also { it.start() }
         // Сессия Realtime и запасной движок — заранее, чтобы подключение не попало во время ответа.
         controller.prepare()
         scope.launch { controller.ui.collect { _ui.value = it } }
@@ -133,6 +161,7 @@ class TrainerService : Service() {
             ACTION_STOP -> controller.stop(EndReason.STOP_BUTTON)
             ACTION_SET_AUTO -> controller.setAutoMode(intent.getBooleanExtra(EXTRA_ENABLED, false))
             ACTION_NEW_CONVERSATION -> controller.newConversation()
+            ACTION_ENDPOINT -> endpointCommand(intent)
             ACTION_EXIT -> {
                 controller.stop(EndReason.BACK)
                 stopSelf()
@@ -142,8 +171,31 @@ class TrainerService : Service() {
         return START_NOT_STICKY
     }
 
+    /** Команда экрана режима записи (S03b). В release режима нет — команда пропускается. */
+    private fun endpointCommand(intent: Intent) {
+        val rec = endpoint ?: return
+        when (intent.getStringExtra(EXTRA_CMD)) {
+            "open" -> {
+                val state = controller.ui.value.state
+                if (IdleShutdown.isCircleRunning(state)) {
+                    AppLog.event(SOURCE, "endpoint recording mode not opened: conversation is running")
+                } else {
+                    rec.open()
+                }
+            }
+            "condition" -> EndpointScenario.Condition.values().getOrNull(intent.getIntExtra(EXTRA_VALUE, -1))?.let(rec::chooseCondition)
+            "line" -> rec.selectLine(intent.getIntExtra(EXTRA_VALUE, -1))
+            "start" -> rec.start("screen")
+            "finish" -> rec.finish("screen")
+            "conditions" -> rec.backToConditions()
+            "close" -> rec.close()
+        }
+    }
+
     override fun onDestroy() {
         AppLog.event(SOURCE, "onDestroy")
+        endpoint?.close()
+        _endpointUi.value = EndpointUi()
         controller.release() // если круг ещё шёл — «конец» с причиной «service destroyed»
         headsetButtons.release()
         audioSession.stop()
@@ -215,6 +267,21 @@ class TrainerService : Service() {
         private const val ACTION_EXIT = "com.example.listeningtrainer.EXIT"
         private const val ACTION_NEW_CONVERSATION = "com.example.listeningtrainer.NEW_CONVERSATION"
         private const val EXTRA_ENABLED = "enabled"
+        private const val ACTION_ENDPOINT = "com.example.listeningtrainer.ENDPOINT"
+        private const val EXTRA_CMD = "cmd"
+        private const val EXTRA_VALUE = "value"
+        /** Каталог записей для пробы в `filesDir` — его скачивает `tools/pull-recordings.sh`. */
+        const val RECORDINGS_DIR = "recordings"
+
+        private val _endpointUi = MutableStateFlow(EndpointUi())
+        /** Экран режима записи для пробы (S03b, только debug). */
+        val endpointUi: StateFlow<EndpointUi> = _endpointUi.asStateFlow()
+
+        /** Команда режима записи: open, condition (номер), line (индекс), start, finish, conditions, close. */
+        fun endpoint(context: Context, cmd: String, value: Int = -1) {
+            if (cmd != "open" && !running) return
+            send(context, ACTION_ENDPOINT) { putExtra(EXTRA_CMD, cmd); putExtra(EXTRA_VALUE, value) }
+        }
 
         /** Виден ли экран приложения (MainActivity onStart/onStop) — для закрытия по простою. */
         val screenVisible = MutableStateFlow(false)

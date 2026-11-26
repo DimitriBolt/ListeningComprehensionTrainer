@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import com.example.listeningtrainer.endpoint.EndpointRecorder
+import com.example.listeningtrainer.endpoint.EndpointScenario
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,7 +93,10 @@ fun TrainerApp(viewModel: TrainerViewModel = viewModel()) {
     // Если разговор уже идёт (открыли из уведомления), сразу показываем его.
     var currentScreen by rememberSaveable { mutableStateOf(if (TrainerService.isRunning) "practice" else "setup") }
     LaunchedEffect(currentScreen) { AppLog.event("UI", "screen: $currentScreen") }
-    if (currentScreen == "setup") {
+    val endpointUi by TrainerService.endpointUi.collectAsState()
+    if (endpointUi.active) {
+        EndpointRecordingScreen()
+    } else if (currentScreen == "setup") {
         KeySetupScreen(viewModel = viewModel, onStartPractice = { currentScreen = "practice" })
     } else {
         PracticeScreen(viewModel = viewModel, onBack = { currentScreen = "setup" })
@@ -311,6 +316,13 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
                 permissionStatus = ""
                 TrainerService.newConversation(context)
             }) { Text("New conversation") }
+            // Режим записи для пробы конца реплики (S03b) — только в debug-сборке.
+            if (EndpointRecorder.available(BuildConfig.DEBUG)) {
+                TextButton(onClick = {
+                    permissionStatus = ""
+                    withMicPermission { TrainerService.endpoint(context, "open") }
+                }) { Text("🎙 Endpoint recordings (debug)") }
+            }
         }
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -338,4 +350,86 @@ private fun StudentLevelLabel() {
         color = Color.Gray,
         modifier = modifier.padding(4.dp),
     )
+}
+
+/**
+ * Режим записи для пробы конца реплики (S03b, только debug): выбор условия, реплики сценария по одной.
+ * Запись — средняя кнопка гарнитуры (или кнопка здесь); экран только показывает и шлёт команды в сервис.
+ */
+@Composable
+fun EndpointRecordingScreen() {
+    val context = LocalContext.current
+    val ui by TrainerService.endpointUi.collectAsState()
+    val busy = ui.recording || ui.saving
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(enabled = !busy, onClick = {
+                if (ui.condition == null) TrainerService.endpoint(context, "close") else TrainerService.endpoint(context, "conditions")
+            }) { Text(if (ui.condition == null) "← Close" else "← Conditions") }
+            Text("Endpoint recordings (debug)", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        val condition = ui.condition
+        if (condition == null) {
+            Text("Choose the condition", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(16.dp))
+            EndpointScenario.Condition.values().forEachIndexed { i, c ->
+                Button(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(56.dp),
+                    onClick = { TrainerService.endpoint(context, "condition", i) },
+                ) { Text(c.label) }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Keep the phone where it is in normal practice (in your pocket or in your hand). Wear the headphones.",
+                style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
+            )
+            return@Column
+        }
+        val line = ui.line
+        Text(condition.label, style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Line ${line.number} of ${EndpointScenario.lines.size}" + if (ui.takes > 0) " · recorded ${ui.takes}×" else "",
+            style = MaterialTheme.typography.labelMedium, color = Color.Gray,
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Text(line.shownText, modifier = Modifier.padding(24.dp), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(line.instruction, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(ui.message, style = MaterialTheme.typography.bodySmall, color = if (ui.recording) Color.Red else Color.Gray)
+        if (ui.recording) Text("Level: ${ui.levelDb.toInt()} dB", style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.height(20.dp))
+        Button(
+            modifier = Modifier.fillMaxWidth().height(72.dp),
+            enabled = !ui.saving,
+            colors = ButtonDefaults.buttonColors(containerColor = if (ui.recording) Color.Red else MaterialTheme.colorScheme.primary),
+            onClick = { TrainerService.endpoint(context, if (ui.recording) "finish" else "start") },
+        ) { Text(if (ui.recording) "Stop Recording" else "Record line ${line.number} 🎙️") }
+        Text(
+            "Headset middle button: start / finish",
+            style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.padding(top = 8.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(enabled = !busy && ui.lineIndex > 0, onClick = { TrainerService.endpoint(context, "line", ui.lineIndex - 1) }) { Text("← Previous") }
+            TextButton(
+                enabled = !busy && ui.lineIndex < EndpointScenario.lines.lastIndex,
+                onClick = { TrainerService.endpoint(context, "line", ui.lineIndex + 1) },
+            ) { Text("Next →") }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Recorded: " + EndpointScenario.lines.joinToString(" ") { if (it.number in ui.recorded) "✓${it.number}" else "·${it.number}" },
+            style = MaterialTheme.typography.labelSmall, color = Color.Gray,
+        )
+    }
 }

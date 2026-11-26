@@ -26,8 +26,13 @@ class PulseEchoGate(private val maskMs: Long) {
     @Volatile
     private var pulseAtMs: Long? = null
 
+    /** Кому ещё сообщать о начале пульса (режим записи для пробы S03b пишет моменты в JSON). */
+    @Volatile
+    var onPulse: ((Long) -> Unit)? = null
+
     fun pulseStarted(nowMs: Long) {
         pulseAtMs = nowMs
+        onPulse?.invoke(nowMs)
     }
 
     /** Кусок записи `[windowEndMs - windowMs, windowEndMs]` пересекается с последним пульсом. */

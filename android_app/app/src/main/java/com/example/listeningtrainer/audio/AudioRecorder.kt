@@ -37,6 +37,8 @@ class AudioRecorder(
     private val m4aFile: File,
     private val log: EventLog,
     private val pulseGate: PulseEchoGate? = null,
+    /** Сжимать ли звук в m4a во время записи (запись для пробы S03b — без сжатия, нужен только WAV). */
+    private val compress: Boolean = ModelConfig.TRANSCRIBE_UPLOAD_COMPRESSED,
 ) : AudioInput {
 
     @Volatile
@@ -60,7 +62,7 @@ class AudioRecorder(
             outputStream.write(ByteArray(WAV_HEADER_SIZE))
 
             // Сжатие — во время записи (S02b): после «Stop Recording» ждать почти нечего.
-            var encoder: AacEncoder? = if (!ModelConfig.TRANSCRIBE_UPLOAD_COMPRESSED) null else try {
+            var encoder: AacEncoder? = if (!compress) null else try {
                 AacEncoder(m4aFile, SAMPLE_RATE, ModelConfig.RECORD_AAC_BIT_RATE)
             } catch (e: Exception) {
                 log.error(SOURCE, "m4a encoder did not start, uploading wav", e)
