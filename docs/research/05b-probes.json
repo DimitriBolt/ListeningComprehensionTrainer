@@ -1,0 +1,284 @@
+{
+ "corrector": {
+  "rows": [
+   {
+    "student": "yesterday I got up early and I make coffee then I go to the park with my dog it was very nice weather and we walk for one hour after that I come back home and cook breakfast for my wife",
+    "long": true,
+    "has_error": true,
+    "words": 41,
+    "answer": "yesterday I got up early and I made coffee then I went to the park with my dog it was very nice weather and we walked for one hour after that I came back home and cooked breakfast for my wife",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"I made coffee\", right?",
+    "fix_words": 3,
+    "whole_words": 41,
+    "seconds": 1.23
+   },
+   {
+    "student": "I want to tell you about my trip to the mountains last summer we drove four hours to Flagstaff and we stay in a small hotel near the forest every morning we walked on the trails and in the evening we eat pizza",
+    "long": true,
+    "has_error": true,
+    "words": 43,
+    "answer": "I want to tell you about my trip to the mountains last summer we drove four hours to Flagstaff and we stayed in a small hotel near the forest every morning we walked on the trails and in the evening we ate pizza",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"we stayed in a small\", right?",
+    "fix_words": 5,
+    "whole_words": 43,
+    "seconds": 0.81
+   },
+   {
+    "student": "my favorite food is pizza I like pizza with mushrooms and cheese my wife likes pizza with pineapple but I think it is strange on Fridays we usually order pizza and watch a movie together at home",
+    "long": true,
+    "has_error": false,
+    "words": 37,
+    "answer": "My favorite food is pizza. I like pizza with mushrooms and cheese. My wife likes pizza with pineapple, but I think it is strange. On Fridays we usually order pizza and watch a movie together at home.",
+    "status": "completed",
+    "verdict": "none",
+    "spoken": null,
+    "fix_words": 0,
+    "whole_words": 0,
+    "seconds": 1.21
+   },
+   {
+    "student": "I work as an engineer in a big company I write programs for computers every day I have many meetings and sometimes it is boring but I like my colleagues they are very friendly and help me a lot",
+    "long": true,
+    "has_error": false,
+    "words": 39,
+    "answer": "I work as an engineer in a big company I write programs for computers every day I have many meetings and sometimes it is boring but I like my colleagues they are very friendly and help me a lot",
+    "status": "completed",
+    "verdict": "none",
+    "spoken": null,
+    "fix_words": 0,
+    "whole_words": 0,
+    "seconds": 1.06
+   },
+   {
+    "student": "last weekend my son and me went to the lake we wanted to catch fish but the water was very cold and the fish don't want to eat so we catched nothing but we had a good time and we saw two eagles",
+    "long": true,
+    "has_error": true,
+    "words": 43,
+    "answer": "last weekend my son and I went to the lake we wanted to catch fish but the water was very cold and the fish didn't want to eat so we caught nothing but we had a good time and we saw two eagles",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"my son and I went\", right?",
+    "fix_words": 5,
+    "whole_words": 43,
+    "seconds": 1.06
+   },
+   {
+    "student": "in the morning I usually drink coffee and read the news on my phone then I take a shower and drive to my office it takes about twenty minutes when there is no traffic",
+    "long": true,
+    "has_error": false,
+    "words": 34,
+    "answer": "In the morning I usually drink coffee and read the news on my phone then I take a shower and drive to my office it takes about twenty minutes when there is no traffic",
+    "status": "completed",
+    "verdict": "none",
+    "spoken": null,
+    "fix_words": 0,
+    "whole_words": 0,
+    "seconds": 1.0
+   },
+   {
+    "student": "What is temperature in Tucson?",
+    "long": false,
+    "has_error": true,
+    "expected": "What is the temperature in Tucson?",
+    "words": 5,
+    "answer": "What is the temperature in Tucson?",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"What is the temperature in Tucson?\", right?",
+    "fix_words": 6,
+    "whole_words": 6,
+    "seconds": 0.63
+   },
+   {
+    "student": "I want to buy new car.",
+    "long": false,
+    "has_error": true,
+    "expected": "I want to buy a new car.",
+    "words": 6,
+    "answer": "I want to buy a new car.",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"I want to buy a new car\", right?",
+    "fix_words": 7,
+    "whole_words": 7,
+    "seconds": 0.83
+   },
+   {
+    "student": "I live in Moscow until 2000, then I moved to Tucson.",
+    "long": false,
+    "has_error": true,
+    "expected": "I lived in Moscow until 2000, then I moved to Tucson.",
+    "words": 11,
+    "answer": "I lived in Moscow until 2000, then I moved to Tucson.",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"I lived in Moscow until 2000, then I moved to Tucson\", right?",
+    "fix_words": 11,
+    "whole_words": 11,
+    "seconds": 0.86
+   },
+   {
+    "student": "She don't like coffee.",
+    "long": false,
+    "has_error": true,
+    "expected": "She doesn't like coffee.",
+    "words": 4,
+    "answer": "She doesn't like coffee.",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"She doesn't like coffee\", right?",
+    "fix_words": 4,
+    "whole_words": 4,
+    "seconds": 0.68
+   },
+   {
+    "student": "There is many people in the park.",
+    "long": false,
+    "has_error": true,
+    "expected": "There are many people in the park.",
+    "words": 7,
+    "answer": "There are many people in the park.",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"There are many people in the park\", right?",
+    "fix_words": 7,
+    "whole_words": 7,
+    "seconds": 0.58
+   },
+   {
+    "student": "Why you are sad?",
+    "long": false,
+    "has_error": true,
+    "expected": "Why are you sad?",
+    "words": 4,
+    "answer": "Why are you sad?",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"Why are you sad?\", right?",
+    "fix_words": 4,
+    "whole_words": 4,
+    "seconds": 0.62
+   },
+   {
+    "student": "I am going in the shop.",
+    "long": false,
+    "has_error": true,
+    "expected": "I am going to the shop.",
+    "words": 6,
+    "answer": "I am going to the shop.",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"I am going to the shop\", right?",
+    "fix_words": 6,
+    "whole_words": 6,
+    "seconds": 0.6
+   },
+   {
+    "student": "It depends of the weather.",
+    "long": false,
+    "has_error": true,
+    "expected": "It depends on the weather.",
+    "words": 5,
+    "answer": "It depends on the weather.",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"It depends on the weather\", right?",
+    "fix_words": 5,
+    "whole_words": 5,
+    "seconds": 0.69
+   },
+   {
+    "student": "Many peoples like this city.",
+    "long": false,
+    "has_error": true,
+    "expected": "Many people like this city.",
+    "words": 5,
+    "answer": "Many people like this city.",
+    "status": "completed",
+    "verdict": "fix",
+    "spoken": "I think you meant \"Many people like this city\", right?",
+    "fix_words": 5,
+    "whole_words": 5,
+    "seconds": 0.65
+   },
+   {
+    "student": "At noon.",
+    "long": false,
+    "has_error": false,
+    "expected": "At noon.",
+    "words": 2,
+    "answer": "OK",
+    "status": "completed",
+    "verdict": "none",
+    "spoken": null,
+    "fix_words": 0,
+    "whole_words": 0,
+    "seconds": 0.6
+   },
+   {
+    "student": "Green.",
+    "long": false,
+    "has_error": false,
+    "expected": "Green.",
+    "words": 1,
+    "answer": "OK",
+    "status": "completed",
+    "verdict": "none",
+    "spoken": null,
+    "fix_words": 0,
+    "whole_words": 0,
+    "seconds": 0.62
+   },
+   {
+    "student": "Yes, it is hot.",
+    "long": false,
+    "has_error": false,
+    "expected": "Yes, it is hot.",
+    "words": 4,
+    "answer": "OK",
+    "status": "completed",
+    "verdict": "none",
+    "spoken": null,
+    "fix_words": 0,
+    "whole_words": 0,
+    "seconds": 0.64
+   }
+  ],
+  "long_fix_max_words": 5,
+  "long_whole_max_words": 43,
+  "short_changed": 0,
+  "date": "2026-11-27T14:58:05"
+ },
+ "spend_runs": [
+  {
+   "date": "2026-11-27T14:56:48",
+   "parts": [
+    "corrector"
+   ],
+   "spend": {
+    "synth": 0.0,
+    "live": 0.0,
+    "file": 0.0,
+    "corrector": 0.00076
+   },
+   "elapsed_s": 21.5
+  },
+  {
+   "date": "2026-11-27T14:58:05",
+   "parts": [
+    "corrector"
+   ],
+   "spend": {
+    "synth": 0.0,
+    "live": 0.0,
+    "file": 0.0,
+    "corrector": 0.00076
+   },
+   "elapsed_s": 14.4
+  }
+ ]
+}

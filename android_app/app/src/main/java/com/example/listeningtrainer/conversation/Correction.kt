@@ -77,6 +77,14 @@ object Correction {
         return excerpt(student, a)
     }
 
+    /** Начало участка поправки — с такого слова, если оно есть среди слов до изменения (S05b). */
+    private val SUBJECTS = setOf("i", "we", "you", "he", "she", "they", "it", "my", "our", "his", "her", "their")
+    /** Служебные слова: в конце участка поправки не стоят (S05b). */
+    private val FUNCTION_WORDS = SUBJECTS + setOf(
+        "a", "an", "the", "to", "and", "or", "but", "so", "then", "of", "in", "on", "at", "for", "with",
+        "is", "are", "was", "were",
+    )
+
     /** Слово для сравнения: без регистра и знаков («Doesn't,» → «doesnt»). */
     private fun key(token: String): String = token.lowercase().filter { it.isLetterOrDigit() }
 
@@ -140,6 +148,11 @@ object Correction {
         while (core + before + after > ModelConfig.CORRECTION_MAX_WORDS && before + after > 0) {
             if (after >= before) after-- else before--
         }
+        // Понятнее сам по себе (проба S05b): слова до участка — с местоимения, если оно там есть («early and I made» →
+        // «I made»); служебные слова в конце после участка не нужны («coffee then I» → «coffee»).
+        val lead = (change.j1 - before until change.j1).firstOrNull { key(ft[it]) in SUBJECTS }
+        if (lead != null) before = change.j1 - lead
+        while (after > 0 && key(ft[change.j2 + after - 1]) in FUNCTION_WORDS) after--
         val words = ft.subList(change.j1 - before, change.j2 + after)
         if (words.isEmpty()) return Verdict.None
         return Verdict.Fix(words.joinToString(" ").trimEnd(',', ';', ':', '-', ' '))

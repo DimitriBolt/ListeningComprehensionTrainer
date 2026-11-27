@@ -144,6 +144,11 @@ def _kt_const(name: str) -> int:
     return int(re.search(rf"const val {name}\s*=\s*(\d+)", kt).group(1))
 
 
+_SUBJECTS = {"i", "we", "you", "he", "she", "they", "it", "my", "our", "his", "her", "their"}
+_FUNCTION_WORDS = _SUBJECTS | {"a", "an", "the", "to", "and", "or", "but", "so", "then", "of", "in", "on", "at", "for",
+                               "with", "is", "are", "was", "were"}
+
+
 def _key(token: str) -> str:
     return "".join(c for c in token.lower() if c.isalnum())
 
@@ -204,6 +209,11 @@ def excerpt(student: str, fix: str) -> tuple[str, object]:
             after -= 1
         else:
             before -= 1
+    lead = next((k for k in range(j1 - before, j1) if _key(ft[k]) in _SUBJECTS), None)
+    if lead is not None:
+        before = j1 - lead
+    while after > 0 and _key(ft[j2 + after - 1]) in _FUNCTION_WORDS:
+        after -= 1
     words = ft[j1 - before:j2 + after]
     if not words:
         return "none", None

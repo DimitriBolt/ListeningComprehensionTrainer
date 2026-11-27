@@ -141,7 +141,7 @@ def test_containment_long_utterance_window():
     """S05 (D80): одно исправленное предложение длинной реплики — сходство по лучшему окну; копия Correction.kt."""
     student = ("yesterday I got up early and I make coffee then I go to the park with my dog "
                "it was very nice weather and we walk for one hour after that I come back home and cook breakfast")
-    assert c.check(student, "Then I went to the park with my dog.") == ("fix", "Then I went to the park")  # S05b: участок (D87)
+    assert c.check(student, "Then I went to the park with my dog.") == ("fix", "I went to the park")  # S05b: участок с местоимения (D87)
     assert c.check(student, "That sounds lovely! What did you cook?")[0] == "rejected"
     assert c.containment("I live in Tucson.", "Where you live?") == 1 / 3
 
@@ -155,21 +155,21 @@ LONG = ("last weekend my son and me went to the lake we wanted to catch fish but
 def test_excerpt_like_kotlin():
     st = ("yesterday I got up early and I make coffee then I go to the park with my dog "
           "it was very nice weather and we walk for one hour after that I come back home and cook breakfast")
-    assert c.check(st, "Then I went to the park with my dog.") == ("fix", "Then I went to the park")
+    assert c.check(st, "Then I went to the park with my dog.") == ("fix", "I went to the park")
     whole = st.replace("make", "made").replace(" go ", " went ")
-    assert c.check(st, whole) == ("fix", "early and I made coffee then I")
+    assert c.check(st, whole) == ("fix", "I made coffee")
     short = "Yesterday I go to the shop and buy some apples."
     fix = "Yesterday I went to the shop and bought some apples."
     assert c.check(short, fix) == ("fix", fix)
     assert c.check("me and my son went to the lake last weekend and we wanted to catch some fish there",
                     "My son and I went to the lake last weekend and we wanted to catch some fish there") == \
-        ("fix", "My son and I went to the")
-    assert c.check(LONG, LONG.replace("son and me", "son and I")) == ("fix", "my son and I went to the")
+        ("fix", "My son and I went")
+    assert c.check(LONG, LONG.replace("son and me", "son and I")) == ("fix", "my son and I went")
     assert c.check("we had a very good time at the lake and on the way home my son sleep",
-                    "we had a very good time at the lake and on the way home my son slept") == ("fix", "home my son slept")
+                    "we had a very good time at the lake and on the way home my son slept") == ("fix", "my son slept")
     assert c.check(LONG, LONG.replace("son and me", "son and I").replace("catched", "caught")) == \
-        ("fix", "my son and I went to the")
-    assert c.check(LONG, LONG.replace("catched", "caught")) == ("fix", "eat so we caught nothing but we")
+        ("fix", "my son and I went")
+    assert c.check(LONG, LONG.replace("catched", "caught")) == ("fix", "we caught nothing")
     s = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen"
     kind, text = c.excerpt(s, s.replace("five six seven eight nine ten eleven twelve thirteen fourteen", "a b c d e f g h i j"))
     assert kind == "fix" and len(text.split()) == 12 and "a b c d e f g h i j" in text

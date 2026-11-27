@@ -60,13 +60,13 @@ class CorrectionTest {
             "it was very nice weather and we walk for one hour after that I come back home and cook breakfast"
         // S05b (D87): из предложения — участок с ошибкой и слова вокруг.
         assertEquals(
-            Correction.Verdict.Fix("Then I went to the park"),
+            Correction.Verdict.Fix("I went to the park"),
             Correction.check(student, "Then I went to the park with my dog."),
         )
         assertTrue(Correction.check(student, "That sounds lovely! What did you cook?") is Correction.Verdict.Rejected)
         // Поправщик вернул всю реплику целиком — тоже поправка, но только первый участок (одна поправка, D47).
         val whole = student.replace("make", "made").replace(" go ", " went ")
-        assertEquals(Correction.Verdict.Fix("early and I made coffee then I"), Correction.check(student, whole))
+        assertEquals(Correction.Verdict.Fix("I made coffee"), Correction.check(student, whole))
     }
 
     // ---- S05b (D87): участок с ошибкой у длинной реплики ----------------------------------------------------------
@@ -85,28 +85,28 @@ class CorrectionTest {
     fun `change at the start`() {
         val student = "me and my son went to the lake last weekend and we wanted to catch some fish there"
         val fix = "My son and I went to the lake last weekend and we wanted to catch some fish there"
-        assertEquals(Correction.Verdict.Fix("My son and I went to the"), Correction.check(student, fix))
+        assertEquals(Correction.Verdict.Fix("My son and I went"), Correction.check(student, fix))
     }
 
     @Test
     fun `change in the middle - three words around`() {
         val fix = long.replace("son and me", "son and I")
-        assertEquals(Correction.Verdict.Fix("my son and I went to the"), Correction.check(long, fix))
+        assertEquals(Correction.Verdict.Fix("my son and I went"), Correction.check(long, fix))
     }
 
     @Test
     fun `change at the end`() {
         val student = "we had a very good time at the lake and on the way home my son sleep"
         val fix = "we had a very good time at the lake and on the way home my son slept"
-        assertEquals(Correction.Verdict.Fix("home my son slept"), Correction.check(student, fix))
+        assertEquals(Correction.Verdict.Fix("my son slept"), Correction.check(student, fix))
     }
 
     @Test
     fun `two changes - only the first one`() {
         val fix = long.replace("son and me", "son and I").replace("catched", "caught")
-        assertEquals(Correction.Verdict.Fix("my son and I went to the"), Correction.check(long, fix))
+        assertEquals(Correction.Verdict.Fix("my son and I went"), Correction.check(long, fix))
         val v = Correction.check(long, long.replace("catched", "caught"))
-        assertEquals(Correction.Verdict.Fix("eat so we caught nothing but we"), v)
+        assertEquals(Correction.Verdict.Fix("we caught nothing"), v)
     }
 
     @Test
@@ -126,6 +126,13 @@ class CorrectionTest {
         // 16 слов подряд — поправки нет.
         val longFix = "a b c d e f g h i j k l m n o p seventeen"
         assertEquals(Correction.Verdict.SpanTooLong(16), Correction.excerpt(student, longFix))
+    }
+
+    @Test
+    fun `excerpt starts at a pronoun before the change and does not end on a function word`() {
+        val st = "yesterday I got up early and I make coffee then I go to the park with my dog it was very nice weather"
+        // «early and I made coffee then I» → «I made coffee».
+        assertEquals(Correction.Verdict.Fix("I made coffee"), Correction.check(st, st.replace("make", "made")))
     }
 
     @Test
