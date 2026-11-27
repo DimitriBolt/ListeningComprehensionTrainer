@@ -808,6 +808,8 @@ class ConversationController(
         prompt: String,
         debugFile: Deferred<Result<String>>?,
     ): String {
+        val speechMs = audio.turn.speechMs
+        if (speechMs < ModelConfig.SHORT_TURN_SPEECH_MS) return studentTextShort(live, audio, prompt, debugFile, speechMs)
         val liveResult = scope.async { live.result() }
         // `commit` ушёл в конце записи, до сжатия: время сжатия уже прошло.
         val backupAfter = if (ModelConfig.LIVE_FIRST_TURN_FILE_AT_ONCE && live.firstInSession) {
@@ -861,6 +863,57 @@ class ConversationController(
                     return fromFile.getOrThrow()
                 }
             }
+        } catch (e: CancellationException) {
+            if (debugFile == null) file.cancel()
+            liveResult.cancel()
+            throw e
+        }
+    }
+
+    /**
+     * Короткая реплика (S05b, D83): файл уходит сразу (в debug он уже идёт для сверки), и его текст главный. Его ждут до
+     * предела потока ([ModelConfig.LIVE_TEXT_TIMEOUT_MS] от `commit`). Файл не дал текста (не успел, сбой, пусто) — текст
+     * потока. Поток тоже без текста — как раньше: ждать файл до конца (его сбой — ошибка распознавания); оба пусто — молчание.
+     */
+    private suspend fun studentTextShort(
+        live: LiveTurn,
+        audio: RecordedAudio,
+        prompt: String,
+        debugFile: Deferred<Result<String>>?,
+        speechMs: Long,
+    ): String {
+        log.event(NETWORK, "transcription: short turn ($speechMs ms of speech) → file preferred")
+        val liveResult = scope.async { live.result() }
+        val file = debugFile ?: scope.async { runCatching { transcriber.transcribe(audio, prompt) } }
+        try {
+            val deadline = (ModelConfig.LIVE_TEXT_TIMEOUT_MS - audio.encodeMs).coerceAtLeast(0)
+            val fromFile = withTimeoutOrNull(deadline) { file.await() }
+            fromFile?.getOrNull()?.takeIf { it.isNotBlank() }?.let { text ->
+                lastSttPath = STT_FILE_SHORT
+                // Итог потока — в журнал, когда придёт; в debug — сверка, как раньше.
+                scope.launch {
+                    val liveTextLate = liveText(liveResult.await(), fileUsed = true)
+                    if (debugFile != null && liveTextLate != null) compareWithFile(liveTextLate, debugFile)
+                }
+                return text
+            }
+            val why = when {
+                fromFile == null -> "not ready in $deadline ms"
+                fromFile.isFailure -> "failed (${fromFile.exceptionOrNull()?.message ?: "error"})"
+                else -> "empty"
+            }
+            log.event(NETWORK, "transcription: short turn: file $why → live")
+            liveText(liveResult.await())?.let { text ->
+                if (text.isNotBlank() || fromFile != null) {
+                    lastSttPath = STT_LIVE
+                    if (fromFile == null) {
+                        if (debugFile != null) compareWithFile(text, debugFile) else file.cancel()
+                    }
+                    return text
+                }
+            }
+            lastSttPath = STT_FILE
+            return file.await().getOrThrow()
         } catch (e: CancellationException) {
             if (debugFile == null) file.cancel()
             liveResult.cancel()
@@ -1563,7 +1616,8 @@ class ConversationController(
      * длина ответа без сносок (при обрыве — сколько успело прийти). `first_audio` — запуск звука первой группы ответа (не фразы);
      * `audible` — голос ответа слышен (после щита, если он есть); `filler_audio` — слышна фраза на время поиска
      * (D44: цель — первый звук учителя, фраза или ответ). `-` — не было. `stt_path` (S03d) — откуда текст
-     * ученика: `live` — поток, `file` — файл (потока нет или он дал сбой).
+     * ученика: `live` — поток, `file` — файл (потока нет или он дал сбой), `file-short` — короткая реплика, текст файла
+     * главный (S05b, D83).
      */
     private fun logTimings(recordedAt: Long, transcribedAt: Long, t: ReplyTiming, shieldMs: Long) {
         fun rel(at: Long?) = at?.let { (it - recordedAt).toString() } ?: "-"
@@ -1605,5 +1659,7 @@ class ConversationController(
         const val SEARCH_FILLER = "Let me check."
         const val STT_LIVE = "live"
         const val STT_FILE = "file"
+        /** Короткая реплика: победил файл по правилу D83 (S05b). */
+        const val STT_FILE_SHORT = "file-short"
     }
 }

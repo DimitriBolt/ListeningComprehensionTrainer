@@ -40,6 +40,8 @@ class ConversationControllerTest {
         /** Чем кончилась очередная запись с речью (S04); пусто — тишиной без судьи (как до S04). */
         val endings = ArrayDeque<TurnEnd>()
         var endWaitMs = 0L
+        /** Речь в записи по Silero (S05b, D83: короче 1500 мс — короткая реплика); пусто — 2400 мс. */
+        val speechMs = ArrayDeque<Long>()
         /** Запись-продолжение (S04): через сколько мс ученик заговорил снова; `null` или пусто — молчит. */
         val resumes = ArrayDeque<Long?>()
         var continuations = 0
@@ -62,7 +64,7 @@ class ConversationControllerTest {
         private fun audio(heard: Boolean) = RecordedAudio(
             File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f,
             endedBy = if (heard) endings.removeFirstOrNull() ?: TurnEnd.SILENCE else TurnEnd.BUTTON,
-            turn = if (heard) TurnStats(speechMs = 1_216, frames = 94, avgFrameMs = 0.84, maxFrameMs = 2.5, endWaitMs = endWaitMs) else TurnStats(),
+            turn = if (heard) TurnStats(speechMs = speechMs.removeFirstOrNull() ?: 2_400, frames = 94, avgFrameMs = 0.84, maxFrameMs = 2.5, endWaitMs = endWaitMs) else TurnStats(),
             encodeMs = encodeMs,
         )
 
@@ -145,11 +147,13 @@ class ConversationControllerTest {
         val statesAtCall = mutableListOf<ConversationState>()
         var calls = 0
         val prompts = mutableListOf<String>()
+        /** Сколько «идёт» распознавание файлом. */
+        var delayMs = 300L
         override suspend fun transcribe(audio: RecordedAudio, prompt: String): String {
             calls++
             prompts += prompt
             statesAtCall += ui().state
-            delay(300)
+            delay(delayMs)
             return when (val a = queue.removeFirstOrNull() ?: "") {
                 is Throwable -> throw a
                 else -> a as String
@@ -955,7 +959,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertTrue(rig.log.lines.contains("[Controller] recording: 3000 ms, speech 1216 ms (silero), ended by silence, peak 65 dB, vad frames 94, avg 0.8 ms, max 2.5 ms, pulses: 0"))
+        assertTrue(rig.log.lines.contains("[Controller] recording: 3000 ms, speech 2400 ms (silero), ended by silence, peak 65 dB, vad frames 94, avg 0.8 ms, max 2.5 ms, pulses: 0"))
         assertTrue(rig.log.lines.contains("[Controller] transcript: 9 chars, counted as silence: no"))
     }
 
@@ -1855,6 +1859,107 @@ class ConversationControllerTest {
         assertTrue(lines.contains("[Network] transcription: file first (live still waiting)"))
         // Итог потока всё равно в журнале, когда он пришёл.
         assertTrue(lines.any { it.startsWith("[Network] live transcription: session open") && it.endsWith("(late: file used)") })
+    }
+
+    // ---- короткая реплика: текст файла главный (S05b, D83) --------------------------------------------------
+
+    @Test
+    fun `short turn - the file goes at once, its text wins even when the stream is earlier`() = runTest {
+        val live = FakeLive().apply { results += "Slowware."; delayMs = 200L }
+        val rig = Rig(this, "Slower.", live = live)
+        rig.input.speechMs += 600L
+        rig.input.speech.addAll(listOf(true, false)) // после команды — снова слушание, ученик молчит
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(1, rig.transcriber.calls)
+        assertTrue(rig.log.lines.contains("[Network] transcription: short turn (600 ms of speech) → file preferred"))
+        // «Slower.» из файла — команда (без ответа есть нечего повторять), поток «Slowware.» не ушёл учителю.
+        assertTrue(rig.tutor.replies.isEmpty())
+        assertTrue(rig.log.lines.contains("[Turn] command slower: nothing to repeat yet → listening"))
+        assertTrue(rig.log.lines.any { it.startsWith("[Network] live transcription: session open") && it.endsWith("(late: file used)") })
+    }
+
+    @Test
+    fun `short turn - file later than the stream, still within the stream limit - file text, stt_path file-short`() = runTest {
+        val live = FakeLive().apply { results += "Add noon."; delayMs = 200L }
+        val rig = Rig(this, "At noon.", live = live)
+        rig.input.speechMs += 700L
+        rig.transcriber.delayMs = 1_800L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("At noon.", rig.tutor.replies.single())
+        assertEquals("stt=1800", rig.timing.single().split(' ')[1])
+        assertTrue(rig.timing.single().contains("stt_path=file-short"))
+    }
+
+    @Test
+    fun `short turn - file earlier than the stream`() = runTest {
+        val live = FakeLive().apply { results += "Add noon."; delayMs = 900L }
+        val rig = Rig(this, "At noon.", live = live)
+        rig.input.speechMs += 700L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("At noon.", rig.tutor.replies.single())
+        assertEquals("stt=300", rig.timing.single().split(' ')[1])
+        assertTrue(rig.timing.single().contains("stt_path=file-short"))
+    }
+
+    @Test
+    fun `short turn - the file fails, the stream text is used`() = runTest {
+        val live = FakeLive().apply { results += "At noon."; delayMs = 200L }
+        val rig = Rig(this, ServiceException(FailureKind.NO_NETWORK, "network"), live = live)
+        rig.input.speechMs += 700L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("At noon.", rig.tutor.replies.single())
+        assertTrue(rig.timing.single().contains("stt_path=live"))
+        assertTrue(rig.log.lines.contains("[Network] transcription: short turn: file failed (network) → live"))
+    }
+
+    @Test
+    fun `short turn - the file is slower than the stream limit, the stream text is used`() = runTest {
+        val live = FakeLive().apply { results += "At noon."; delayMs = 200L }
+        val rig = Rig(this, "file text", live = live)
+        rig.input.speechMs += 700L
+        rig.transcriber.delayMs = 4_000L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("At noon.", rig.tutor.replies.single())
+        assertEquals("stt=2500", rig.timing.single().split(' ')[1])
+        assertTrue(rig.timing.single().contains("stt_path=live"))
+        assertTrue(rig.log.lines.contains("[Network] transcription: short turn: file not ready in 2500 ms → live"))
+    }
+
+    @Test
+    fun `short turn in debug - both texts still go to the comparison`() = runTest {
+        val live = FakeLive().apply { results += "Add noon."; delayMs = 200L }
+        val rig = Rig(this, "At noon.", live = live, compare = true)
+        rig.input.speechMs += 700L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("At noon.", rig.tutor.replies.single())
+        assertEquals(1, rig.transcriber.calls)
+        assertEquals("Add noon." to "At noon.", rig.compared.single().let { it.first to it.second })
+    }
+
+    @Test
+    fun `long turn - unchanged, the stream text and no file`() = runTest {
+        val live = FakeLive().apply { results += "I like coffee very much"; delayMs = 200L }
+        val rig = Rig(this, "file text", live = live)
+        rig.input.speechMs += 1_500L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("I like coffee very much", rig.tutor.replies.single())
+        assertEquals(0, rig.transcriber.calls)
+        assertTrue(rig.timing.single().contains("stt_path=live"))
+        assertTrue(rig.log.lines.none { "short turn" in it })
     }
 
     @Test
