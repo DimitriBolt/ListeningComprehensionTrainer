@@ -92,6 +92,13 @@ class ConversationControllerTest {
             pending?.complete(Unit)
         }
 
+        /** Куски коротких звуков (S05b, D85). */
+        var clips = 0
+        override suspend fun soundClip(pcm: ShortArray): RecordedAudio {
+            clips++
+            return RecordedAudio(File("short_sound.wav"), durationMs = pcm.size * 1000L / 16_000, heardSpeech = true, peakDb = 60f)
+        }
+
         /** Слушание, пока звучит учитель (S05): сколько раз открыто и сколько раз брошено без перебивания. */
         var listens = 0
         var listensCancelled = 0
@@ -134,10 +141,13 @@ class ConversationControllerTest {
         var speakUntil: Long = Long.MAX_VALUE
         var speechP = 0.95f
         var silenceP = 0.05f
+        /** Ещё отрезки речи (S05b): от и до, часы теста. */
+        val more = mutableListOf<Pair<Long, Long>>()
         override fun reset() {}
         override fun probability(frame: ShortArray): Float {
             val t = clock()
             val from = speakFrom
+            if (more.any { (a, b) -> t >= a && t < b }) return speechP
             return if (from != null && t >= from && t < speakUntil) speechP else silenceP
         }
     }
@@ -2221,6 +2231,86 @@ class ConversationControllerTest {
         assertTrue(rig.tutor.withdrawn.isEmpty())
         assertEquals(2, level.state.value.turns)
         assertTrue(rig.log.lines.none { "continuation" in it })
+    }
+
+    // ---- короткий звук посреди ответа — в распознавание (S05b, D85) ------------------------------------------
+
+    private fun TestScope.shortSoundRig(vararg transcripts: Any, sttMs: Long = 300L, setup: (Rig) -> Unit): Rig {
+        val rig = Rig(this, *transcripts, bargeIn = true)
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.transcriber.delayMs = sttMs
+        rig.input.speech.addAll(listOf(true, true, false)) // после «Stop» — слушание, ученик молчит
+        rig.controller.startTurn()
+        runCurrent()
+        setup(rig)
+        advanceUntilIdle()
+        return rig
+    }
+
+    @Test
+    fun `short sound is a command - the teacher stops and obeys`() = runTest {
+        val rig = shortSoundRig("I went shopping", "Stop.") { it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150 }
+        val all = SpeechPlanner().plan(longReply).map { it.text }
+        val info = "played ${rig.output.played}\n" + rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.output.played.size < all.size)
+        assertTrue(info, rig.output.stops >= 1)
+        assertTrue(info, rig.log.lines.any { Regex("""\[Turn] short sound during teacher \(160 ms, p 0.95\) → stt 300 ms: command stop""").matches(it) })
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Turn] short sound → command stop: stopped, spoken ") })
+        assertTrue(info, rig.log.lines.contains("[Turn] command stop (0 groups)"))
+        assertTrue(info, rig.log.lines.none { it.startsWith("[Turn] barge-in") })
+        // учителю — только первая реплика; в истории — прозвучавшая часть с пометкой
+        assertEquals(listOf("I went shopping"), rig.tutor.replies)
+        assertTrue(rig.tutor.interrupted.single().second.endsWith(BargeIn.INTERRUPTED_MARK))
+        assertEquals(1, rig.input.clips)
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Turn] short sounds during teacher: 1 recognized (commands 1, skipped 0); stt cost $") })
+        // после «Stop» — «говори» и слушание
+        assertEquals(2, rig.output.cues.count { it == Cue.LISTEN })
+        // подсказка распознаванию куска — с командами
+        assertTrue(rig.transcriber.prompts[1].contains(TranscriptionPrompt.COMMANDS_HINT))
+    }
+
+    @Test
+    fun `short sound is not a command - the teacher goes on, nothing in the history`() = runTest {
+        val rig = shortSoundRig("I went shopping", "Mhm.") { it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150 }
+        val info = rig.log.lines.joinToString("\n")
+        assertEquals(info, SpeechPlanner().plan(longReply).map { it.text }, rig.output.played)
+        assertTrue(info, rig.log.lines.any { it.endsWith("→ stt 300 ms: not a command (1 words)") })
+        assertEquals(listOf("I went shopping"), rig.tutor.replies)
+        assertTrue(rig.tutor.interrupted.isEmpty())
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `empty text of a short sound - nothing`() = runTest {
+        val rig = shortSoundRig("I went shopping", "") { it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150 }
+        assertTrue(rig.log.lines.any { it.endsWith("→ stt 300 ms: empty") })
+        assertEquals(SpeechPlanner().plan(longReply).map { it.text }, rig.output.played)
+    }
+
+    @Test
+    fun `full barge-in while a short sound is being recognized - the barge-in wins, the candidate is dropped`() = runTest {
+        val rig = shortSoundRig("I went shopping", "Stop.", "What is a market", sttMs = 1_500L) {
+            it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150
+            it.vad.more += 3_400L to 3_900L
+        }
+        val info = rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Turn] barge-in at +") })
+        assertTrue(info, rig.log.lines.any { it.endsWith("command stop, dropped: barge-in") })
+        assertEquals(info, listOf("I went shopping", "What is a market"), rig.tutor.replies)
+    }
+
+    @Test
+    fun `second short sound while the first is being recognized - skipped`() = runTest {
+        val rig = shortSoundRig("I went shopping", "Mhm.", sttMs = 1_500L) {
+            it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150
+            it.vad.more += 3_300L to 3_450L
+        }
+        val info = rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.log.lines.any { it.endsWith("→ skipped (another one is being recognized)") })
+        assertEquals(info, 1, rig.input.clips)
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Turn] short sounds during teacher: 1 recognized (commands 0, skipped 1)") })
+        assertEquals(SpeechPlanner().plan(longReply).map { it.text }, rig.output.played)
     }
 
     @Test

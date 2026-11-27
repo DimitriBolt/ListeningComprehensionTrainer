@@ -69,6 +69,12 @@ data class MicDuringTeacher(
     val longestSpeechMs: Long = 0,
 )
 
+/**
+ * Короткий звук посреди ответа (S05b, D85), не дотянувший до правила перебивания: [pcm] — кусок для распознавания
+ * (буфер до звука, звук и хвост тишины), [speechMs] — речи в нём (`p ≥ 0,5`), [maxP] — наибольшая `p`.
+ */
+class SoundCandidate(val pcm: ShortArray, val speechMs: Long, val maxP: Float)
+
 /** Решение «перебил»: где (мс звука от начала слушания), средняя `p` и длина речи подряд, по которой решено. */
 data class BargeInHit(val atMs: Long, val meanP: Float, val speechMs: Long)
 
@@ -85,6 +91,10 @@ interface MicWatch {
  * Перебивание по правилу (S05, бриф п. 1): кадры Silero ([SpeechProbability]) подряд с `p ≥` [minProb] набрали
  * [minSpeechMs] — ученик перебил. Кадры, пока звучит сигнал ([muted]), не считаются: счёт подряд обнуляется. Время — по
  * звуку (номер кадра), как у [VadTurnDetector]. Кольцевой буфер ([prerollMs]) пишется всегда.
+ *
+ * Вторая ступень (S05b, D85): звук — от первого кадра с `p ≥` [statProb] до [candidateTailMs] подряд без него (или
+ * [candidateMaxMs] звука). Если в нём кадры речи набрали [candidateMinMs] в каком-нибудь окне [candidateWindowMs], а
+ * перебивания не было, — [onCandidate] с куском: [prerollMs] до звука, звук и хвост. Звук при сигнале бросается.
  */
 class BargeInDetector(
     private val vad: SpeechProbability,
@@ -94,6 +104,12 @@ class BargeInDetector(
     private val minSpeechMs: Long = ModelConfig.BARGE_IN_SPEECH_MS,
     prerollMs: Long = ModelConfig.BARGE_IN_PREROLL_MS,
     private val statProb: Float = ModelConfig.VAD_SPEECH_PROB,
+    private val candidateMinMs: Long = ModelConfig.BARGE_IN_CANDIDATE_SPEECH_MS,
+    private val candidateWindowMs: Long = ModelConfig.BARGE_IN_CANDIDATE_WINDOW_MS,
+    private val candidateTailMs: Long = ModelConfig.BARGE_IN_CANDIDATE_TAIL_MS,
+    private val candidateMaxMs: Long = ModelConfig.BARGE_IN_CANDIDATE_MAX_MS,
+    /** Короткий звук (вызывается из потока записи); `null` — без второй ступени. */
+    var onCandidate: ((SoundCandidate) -> Unit)? = null,
 ) : MicWatch {
 
     private val ring = RingBuffer((prerollMs * sampleRate / 1000).toInt().coerceAtLeast(1))
@@ -107,6 +123,15 @@ class BargeInDetector(
     private var longestRun = 0
     private var hitRun = 0
     private var hitSum = 0f
+    /** Кадры до звука (буфер куска кандидата), от старого к новому. */
+    private val recent = ArrayDeque<ShortArray>()
+    private val prerollFrames = ((prerollMs * sampleRate / 1000 + vad.frameSamples - 1) / vad.frameSamples).toInt()
+    /** Идущий звук: кадры (с буфером), речь ли каждый кадр после начала, тишина подряд, наибольшая `p`. */
+    private var sound: MutableList<ShortArray>? = null
+    private val soundSpeech = mutableListOf<Boolean>()
+    private var soundSilence = 0
+    private var soundMaxP = 0f
+
     /** Решение «перебил»; после него кадры не считаются. */
     var hit: BargeInHit? = null
         private set
@@ -119,6 +144,14 @@ class BargeInDetector(
         ring.clear()
         filled = 0; frames = 0; mutedFrames = 0; maxP = 0f; speechFrames = 0; run = 0; longestRun = 0
         hitRun = 0; hitSum = 0f; hit = null
+        recent.clear(); dropSound()
+    }
+
+    private fun dropSound() {
+        sound = null
+        soundSpeech.clear()
+        soundSilence = 0
+        soundMaxP = 0f
     }
 
     override fun preroll(): ShortArray = ring.snapshot()
@@ -146,8 +179,10 @@ class BargeInDetector(
         if (muted()) {
             mutedFrames++
             run = 0; hitRun = 0; hitSum = 0f
+            recent.clear(); dropSound() // звук сигнала — не кандидат
             return false
         }
+        trackSound(p)
         if (p > maxP) maxP = p
         if (p >= statProb) {
             speechFrames++
@@ -168,6 +203,50 @@ class BargeInDetector(
             hitSum = 0f
         }
         return false
+    }
+
+    /** Вторая ступень (D85): звук кадр за кадром; кончился — оценить и, может быть, отдать кандидата. */
+    private fun trackSound(p: Float) {
+        val speech = p >= statProb
+        val current = sound
+        if (current == null) {
+            if (speech && onCandidate != null) {
+                sound = recent.toMutableList().also { it += frame.copyOf() }
+                soundSpeech += true
+                soundMaxP = p
+            }
+        } else {
+            current += frame.copyOf()
+            soundSpeech += speech
+            if (p > soundMaxP) soundMaxP = p
+            soundSilence = if (speech) 0 else soundSilence + 1
+            if (ms(soundSilence) >= candidateTailMs || ms(soundSpeech.size) >= candidateMaxMs) finishSound()
+        }
+        recent.addLast(frame.copyOf())
+        while (recent.size > prerollFrames) recent.removeFirst()
+    }
+
+    private fun finishSound() {
+        val frames = sound ?: return
+        val window = maxOf(1, (candidateWindowMs * sampleRate / 1000 / this.frame.size).toInt())
+        var inWindow = 0
+        var best = 0
+        for (i in soundSpeech.indices) {
+            if (soundSpeech[i]) inWindow++
+            if (i >= window && soundSpeech[i - window]) inWindow--
+            if (inWindow > best) best = inWindow
+        }
+        val speechMs = ms(soundSpeech.count { it })
+        val maxP = soundMaxP
+        dropSound()
+        if (ms(best) < candidateMinMs) return
+        val pcm = ShortArray(frames.sumOf { it.size })
+        var at = 0
+        for (f in frames) {
+            System.arraycopy(f, 0, pcm, at, f.size)
+            at += f.size
+        }
+        onCandidate?.invoke(SoundCandidate(pcm, speechMs, maxP))
     }
 
     private fun ms(n: Int): Long = n.toLong() * frame.size * 1000 / sampleRate

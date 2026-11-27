@@ -100,4 +100,78 @@ class BargeInTest {
         assertEquals("Many birds sing", BargeIn.unmarked("Many birds sing [interrupted by the student]"))
         assertEquals("Hello.", BargeIn.unmarked("Hello."))
     }
+
+    // ---- вторая ступень: короткий звук (S05b, D85) ---------------------------------------------------------------
+
+    private fun candidates(d: BargeInDetector): MutableList<SoundCandidate> =
+        mutableListOf<SoundCandidate>().also { list -> d.onCandidate = { list += it } }
+
+    @Test
+    fun `short word below the barge-in rule - a candidate with 500 ms before and 300 ms of tail`() {
+        // тишина 1 с, «Stop» 5 кадров (160 мс) p 0.85, тишина
+        val d = BargeInDetector(ScriptVad { i -> if (i in 31..35) 0.85f else 0.1f })
+        val got = candidates(d)
+        d.reset()
+        assertNull(feed(d, 31 + 5 + 9))
+        assertTrue(got.isEmpty()) // хвост 300 мс ещё не набран (9 кадров = 288 мс)
+        assertNull(feed(d, 1))
+        val c = got.single()
+        assertEquals(160, c.speechMs)
+        assertEquals(0.85f, c.maxP, 1e-6f)
+        // 16 кадров буфера (≥ 500 мс), 5 кадров звука, 10 кадров хвоста
+        assertEquals((16 + 5 + 10) * 512, c.pcm.size)
+        assertNull(d.hit) // учитель не перебит
+    }
+
+    @Test
+    fun `two frames are not a candidate - less than 96 ms in the window`() {
+        val d = BargeInDetector(ScriptVad { i -> if (i in 31..32) 0.9f else 0.1f })
+        val got = candidates(d)
+        d.reset()
+        assertNull(feed(d, 60))
+        assertTrue(got.isEmpty())
+    }
+
+    @Test
+    fun `speech scattered over the window counts as one candidate`() {
+        // 0.6 через кадр: 4 кадра речи в 8 кадрах — 128 мс в окне 600 мс
+        val d = BargeInDetector(ScriptVad { i -> if (i in 31..38 && i % 2 == 1) 0.6f else 0.1f })
+        val got = candidates(d)
+        d.reset()
+        assertNull(feed(d, 60))
+        assertEquals(128, got.single().speechMs)
+    }
+
+    @Test
+    fun `long murmur is cut at the limit and still goes as a candidate`() {
+        val d = BargeInDetector(ScriptVad { i -> if (i >= 31) 0.6f else 0.1f })
+        val got = candidates(d)
+        d.reset()
+        assertNull(feed(d, 31 + 47))
+        assertEquals(1, got.size) // 47 кадров = 1504 мс ≥ 1500
+    }
+
+    @Test
+    fun `barge-in - no candidate`() {
+        val d = BargeInDetector(ScriptVad { i -> if (i >= 31) 0.9f else 0.1f })
+        val got = candidates(d)
+        d.reset()
+        assertTrue(feed(d, 60) != null)
+        assertTrue(got.isEmpty())
+    }
+
+    @Test
+    fun `frames while a cue sounds do not make a candidate, a cue in the middle drops the sound`() {
+        var cue = true
+        val d = BargeInDetector(ScriptVad { i -> if (i in 31..35 || i in 61..65) 0.85f else 0.1f }, muted = { cue })
+        val got = candidates(d)
+        d.reset()
+        assertNull(feed(d, 50)) // «Stop» во время сигнала
+        assertTrue(got.isEmpty())
+        cue = false
+        assertNull(feed(d, 13)) // кадры 50..62: начало второго звука без сигнала
+        cue = true
+        assertNull(feed(d, 30)) // сигнал посреди звука — звук брошен
+        assertTrue(got.isEmpty())
+    }
 }

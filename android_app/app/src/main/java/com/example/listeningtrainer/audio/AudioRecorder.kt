@@ -204,6 +204,20 @@ class AudioRecorder(
         isRecording = false
     }
 
+    /** S05b (D85): кусок короткого звука посреди ответа учителя — WAV рядом с записью реплики, для распознавания файлом. */
+    override suspend fun soundClip(pcm: ShortArray): RecordedAudio = withContext(Dispatchers.IO) {
+        val file = File(pairs[0].first.parentFile, "short_sound.wav")
+        val bytes = ByteArray(WAV_HEADER_SIZE + pcm.size * 2)
+        for (i in pcm.indices) {
+            val v = pcm[i].toInt()
+            bytes[WAV_HEADER_SIZE + i * 2] = (v and 0xFF).toByte()
+            bytes[WAV_HEADER_SIZE + i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
+        }
+        file.writeBytes(bytes)
+        writeWavHeader(file, pcm.size * 2L)
+        RecordedAudio(file, durationMs = pcm.size * 1000L / SAMPLE_RATE, heardSpeech = true, peakDb = 0f)
+    }
+
     /** Файл для распознавания: дожатый m4a, при сбое — WAV. Формат, размер и время дожимания — в журнал. */
     private fun uploadFile(encoder: AacEncoder?, durationMs: Long, wavFile: File, m4aFile: File): File {
         val seconds = maxOf(1L, durationMs) / 1000.0

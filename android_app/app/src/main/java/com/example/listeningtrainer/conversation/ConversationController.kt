@@ -586,7 +586,7 @@ class ConversationController(
      */
     private suspend fun beforeTeacherSound() {
         val listen = currentListen
-        if (listen?.hit == true) awaitCancellation()
+        if (listen?.halted == true) awaitCancellation()
         val watch = currentWatch
         if (watch != null && !watch.claimSound()) awaitCancellation()
         listen?.start(after = watch?.recording)
@@ -669,12 +669,23 @@ class ConversationController(
                     reply.onAwait { it }
                     watch?.resumed?.onAwait { ResumedAt(it) }
                     listen?.bargedIn?.onAwait { it }
+                    listen?.commandHeard?.onAwait { it }
                 }
                 when {
                     first is ResumedAt -> {
                         correction?.cancelled()
                         reply.cancel()
                         resumedOutcome(first.afterMs, correction = correction != null)
+                    }
+                    first is VoiceCommand -> {
+                        // Короткий звук посреди ответа — команда (S05b, D85): учитель уже замолк, как при перебивании.
+                        reply.cancel()
+                        reply.join()
+                        listen!!.stop()
+                        if (watch != null) levelStep?.let { countTurn(it) }
+                        tutor.interrupted(studentText, BargeIn.marked(progress.spokenText()))
+                        log.event(TURN, "short sound → command ${first.label}: stopped, spoken ${progress.started} of ${progress.total()} groups")
+                        TurnOutcome.Command(first)
                     }
                     first is BargeInHit || listen?.hit == true -> {
                         // Ученик перебил (S05): учитель уже замолк, остальное ответа отменяется.
@@ -747,12 +758,29 @@ class ConversationController(
         private val prompt: () -> String,
         private val goOn: GoOn? = null,
     ) {
-        private val detector = BargeInDetector(vad, muted = output::cueSounding)
+        private val detector = BargeInDetector(vad, muted = output::cueSounding).also { it.onCandidate = ::onCandidate }
         val bargedIn = CompletableDeferred<BargeInHit>()
+        /** Команда из короткого звука (S05b, D85): учитель уже замолк. */
+        val commandHeard = CompletableDeferred<VoiceCommand>()
+        private val lock = Any()
         /** Перебил: ставится до того, как учитель замолк, — ни одна группа после этого не зазвучит. */
         @Volatile
         var hit = false
             private set
+        /** Учитель замолк: перебил ([hit]) или команда коротким звуком (D85). Ни одна группа больше не зазвучит. */
+        @Volatile
+        var halted = false
+            private set
+        /** Ход ещё идёт: итог распознавания короткого звука после конца хода ничего не делает. */
+        @Volatile
+        private var active = true
+        private val candidateBusy = java.util.concurrent.atomic.AtomicBoolean(false)
+        private val candidates = java.util.concurrent.atomic.AtomicInteger(0)
+        private val skipped = java.util.concurrent.atomic.AtomicInteger(0)
+        @Volatile
+        private var commands = 0
+        @Volatile
+        private var candidateCostUsd = 0.0
         private var recording: Deferred<RecordedAudio>? = null
         var utterance = Utterance()
             private set
@@ -778,7 +806,11 @@ class ConversationController(
 
         /** Из потока записи. */
         private fun onHit(): AudioSink? {
-            hit = true
+            synchronized(lock) {
+                if (halted) return null // учитель уже замолк по команде: запись сейчас бросят
+                hit = true
+                halted = true
+            }
             output.stop() // затухание, ≤ 50 мс
             logMic()
             val at = detector.hit?.atMs ?: detector.stats.listenedMs
@@ -796,6 +828,64 @@ class ConversationController(
             return live
         }
 
+        /**
+         * Короткий звук (S05b, D85), из потока записи: кусок — в распознавание файлом, учитель говорит дальше. Не больше
+         * одного за раз: новый, пока старый распознаётся, пропускается.
+         */
+        private fun onCandidate(c: SoundCandidate) {
+            if (halted || !active) return
+            val head = "short sound during teacher (${c.speechMs} ms, p ${p2(c.maxP)})"
+            if (!candidateBusy.compareAndSet(false, true)) {
+                skipped.incrementAndGet()
+                log.event(TURN, "$head → skipped (another one is being recognized)")
+                return
+            }
+            candidates.incrementAndGet()
+            scope.launch {
+                try {
+                    recognize(c, head)
+                } finally {
+                    candidateBusy.set(false)
+                }
+            }
+        }
+
+        private suspend fun recognize(c: SoundCandidate, head: String) {
+            val started = clock()
+            val audio = input.soundClip(c.pcm) ?: return
+            val text = try {
+                transcriber.transcribe(audio, prompt())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.event(TURN, "$head → stt failed (${e.message ?: e.javaClass.simpleName}) in ${clock() - started} ms")
+                return
+            }
+            candidateCostUsd += audio.durationMs / 60_000.0 * ModelConfig.TRANSCRIBE_PRICE_PER_MIN
+            val stt = "$head → stt ${clock() - started} ms: "
+            val command = VoiceCommand.of(text)
+            when {
+                text.isBlank() -> log.event(TURN, "${stt}empty")
+                command == null -> log.event(TURN, "${stt}not a command (${TranscriptMatch.words(text).size} words)")
+                else -> {
+                    val taken = synchronized(lock) {
+                        if (halted || !active) false else { halted = true; true }
+                    }
+                    val why = when {
+                        taken -> ""
+                        hit -> ", dropped: barge-in"
+                        else -> ", dropped: the teacher has finished"
+                    }
+                    log.event(TURN, "${stt}command ${command.label}$why")
+                    if (taken) {
+                        commands++
+                        output.stop() // затухание, как при перебивании
+                        commandHeard.complete(command)
+                    }
+                }
+            }
+        }
+
         /** Запись реплики после перебивания (её ждёт следующий ход). */
         fun takeRecording(): Deferred<RecordedAudio> = recording!!
 
@@ -807,9 +897,18 @@ class ConversationController(
             logMic()
         }
 
-        /** Ход кончился любым путём: без перебивания запись не нужна. */
+        /** Ход кончился любым путём: без перебивания запись не нужна. Короткие звуки за ответ — строкой в журнал. */
         fun release() {
+            active = false
             if (!hit) recording?.cancel()
+            val n = candidates.get()
+            if (n > 0 || skipped.get() > 0) {
+                log.event(
+                    TURN,
+                    "short sounds during teacher: $n recognized (commands $commands, skipped ${skipped.get()}); " +
+                        "stt cost \$${"%.5f".format(java.util.Locale.US, candidateCostUsd)}",
+                )
+            }
         }
 
         private fun logMic() {
@@ -1101,7 +1200,7 @@ class ConversationController(
                 speakReply(t, shieldMs, correction, progress, ask)
             } catch (e: CancellationException) {
                 // Ученик перебил (S05): замер ответа всё равно в журнал — голос учителя уже звучал.
-                if (logTiming && currentListen?.hit == true) logTimings(recordedAt, transcribedAt, t, shieldMs)
+                if (logTiming && currentListen?.halted == true) logTimings(recordedAt, transcribedAt, t, shieldMs)
                 throw e
             } catch (e: Exception) {
                 return fail(EndReason.SPEECH_ERROR, "Error: ${e.localizedMessage}", e)
@@ -1405,8 +1504,16 @@ class ConversationController(
                 val first = select<Any?> {
                     job.onAwait { null }
                     listen?.bargedIn?.onAwait { it }
+                    listen?.commandHeard?.onAwait { it }
                 }
-                if (first is BargeInHit || listen?.hit == true) {
+                if (first is VoiceCommand) {
+                    // Команда коротким звуком посреди повтора (D85).
+                    job.cancel()
+                    job.join()
+                    listen!!.stop()
+                    log.event(TURN, "short sound → command ${first.label}: stopped, spoken ${progress.started} of ${progress.total()} groups")
+                    first
+                } else if (first is BargeInHit || listen?.hit == true) {
                     val hit = first as? BargeInHit ?: listen!!.bargedIn.await()
                     job.cancel()
                     job.join()
@@ -1416,7 +1523,8 @@ class ConversationController(
                     null
                 }
             }
-            if (barged != null) return Next.Barged(barged)
+            if (barged is VoiceCommand) return runCommand(barged)
+            if (barged is BargeStart) return Next.Barged(barged)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

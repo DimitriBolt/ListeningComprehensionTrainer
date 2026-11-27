@@ -58,6 +58,12 @@ interface AudioInput {
         onLevel: (Float) -> Unit,
     ): RecordedAudio = kotlinx.coroutines.awaitCancellation()
 
+    /**
+     * Звук короткого кандидата посреди ответа учителя (S05b, D85) — в файл для распознавания (WAV 16 кГц). Один файл на
+     * всех: кандидатов одновременно не больше одного. `null` — нельзя (подделки по умолчанию): кандидатов нет.
+     */
+    suspend fun soundClip(pcm: ShortArray): RecordedAudio? = null
+
     /** Ученик сам закончил реплику (кнопка «Stop Recording» или гарнитура): запись завершается и отдаётся. */
     fun finish()
 }
