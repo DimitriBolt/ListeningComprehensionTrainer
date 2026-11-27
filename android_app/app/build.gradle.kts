@@ -35,6 +35,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        // Телефон пользователя — arm64; другие ABI onnxruntime (≈ 13 МБ каждый) в APK не кладём (S03c).
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     buildTypes {
@@ -91,7 +95,17 @@ dependencies {
     // Markdown рендеринг
     implementation("com.github.jeziellago:compose-markdown:0.3.4")
 
+    // Конец реплики: Silero VAD на устройстве (S03c, D64, D66) — onnxruntime напрямую, модель в assets
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
+
     // Модульные тесты чистой логики (без Android)
+    // Тот же Java-API onnxruntime для JVM: обёртка Silero проверяется на компьютере (golden-тест, записи S03b).
+    testImplementation("com.microsoft.onnxruntime:onnxruntime:1.32.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.1")
+}
+
+// В модульных тестах — onnxruntime для компьютера; Android-сборка с теми же классами мешала бы ему.
+configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+    exclude(group = "com.microsoft.onnxruntime", module = "onnxruntime-android")
 }
