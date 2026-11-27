@@ -76,29 +76,44 @@ def word_acc(said: str, heard: str | None) -> float:
     return sum(bl.size for bl in m.get_matching_blocks()) / len(a)
 
 
-def _synth(ctx, voice: str, texts: list[str], spend: dict) -> list[bytes]:
-    """PCM 24 кГц каждой фразы; из кэша `out/05b/synth`, иначе синтез голосом [voice]."""
-    out: list[bytes | None] = []
-    missing = []
+SILENT_PEAK = 1000  # синтез иногда отдаёт тишину (пик ~80 из 32767): такой звук не годится, синтезировать заново
+
+
+def peak(pcm: bytes) -> int:
+    import numpy as np
+    x = np.frombuffer(pcm, dtype=np.int16)
+    return int(np.abs(x.astype(np.int32)).max()) if len(x) else 0
+
+
+def _synth(ctx, voice: str, texts: list[str], spend: dict) -> tuple[list[bytes], set[str]]:
+    """PCM 24 кГц каждой фразы; из кэша `out/05b/synth`, иначе синтез голосом [voice] (тишина — ещё до 2 попыток).
+    Второе — фразы, синтезированные в этот раз (их распознавание из прошлого прогона не годится)."""
+    def path(t):
+        return ctx.out / "05b" / "synth" / f"{voice}_{s05.cmd_normalize(t).replace(' ', '_')}.wav"
+    out: dict[str, bytes] = {}
     for t in texts:
-        p = ctx.out / "05b" / "synth" / f"{voice}_{s05.cmd_normalize(t).replace(' ', '_')}.wav"
-        if p.exists():
-            out.append(probe.wav_to_pcm(p.read_bytes())[0])
-        else:
-            out.append(None)
-            missing.append(t)
-    if missing:
+        if path(t).exists():
+            pcm = probe.wav_to_pcm(path(t).read_bytes())[0]
+            if peak(pcm) >= SILENT_PEAK:
+                out[t] = pcm
+    fresh = {t for t in texts if t not in out}
+    for _attempt in range(3):
+        missing = [t for t in texts if t not in out]
+        if not missing:
+            break
         got = asyncio.run(s05._synth_all(ctx.key, ctx.timeout, voice, missing))
         spend["synth"] += sum(probe.rt_cost(s["usage"]) for s in got)
-        it = iter(got)
-        for i, t in enumerate(texts):
-            if out[i] is None:
-                s = next(it)
-                if s["error"] or not s["pcm"]:
-                    raise ProbeError(f"синтез «{t}» ({voice}): {s['error'] or 'нет звука'}")
+        for t, s in zip(missing, got):
+            if s["error"] or not s["pcm"]:
+                raise ProbeError(f"синтез «{t}» ({voice}): {s['error'] or 'нет звука'}")
+            if peak(s["pcm"]) >= SILENT_PEAK:
                 ctx.save_wav(f"05b/synth/{voice}_{s05.cmd_normalize(t).replace(' ', '_')}.wav", s["pcm"], probe.RT_RATE)
-                out[i] = s["pcm"]
-    return out  # type: ignore[return-value]
+                out[t] = s["pcm"]
+            else:
+                log(f"  синтез «{t}» ({voice}) — тишина, ещё раз")
+    if any(t not in out for t in texts):
+        raise ProbeError(f"синтез {voice}: тишина три раза подряд")
+    return [out[t] for t in texts], fresh
 
 
 def _clip16(pcm24: bytes, before_s: float, after_s: float):
@@ -123,24 +138,40 @@ def _file_all(ctx, clips: list, text_prompt: str, spend: dict) -> list[dict]:
 
 
 def part_commands(ctx, spend: dict) -> dict:
+    """Прошлые строки (тот же звук из кэша, тот же `prompt`) берутся без сети; заново — только для нового звука."""
     phrases, maxw = s05.command_phrases(), s05.command_max_words()
     items = [(u, w) for u, w in COMMANDS] + [(a, None) for a in ANSWERS]
+    prev = {(r["voice"], r["path"], r["hint"], r["said"]): r for r in (load().get("commands") or {}).get("rows", [])}
     rows = []
     for voice in VOICES:
-        pcms = _synth(ctx, voice, [u for u, _ in items], spend)
+        pcms, fresh = _synth(ctx, voice, [u for u, _ in items], spend)
         for path, hint in VARIANTS:
             p = prompt(hint)
+            keep = {u: prev[(voice, path, hint, u)] for u, _ in items
+                    if u not in fresh and (voice, path, hint, u) in prev}
+            if len(keep) == len(items):
+                rows += [{**keep[u], "got": {r: s05.command_of(keep[u]["heard"] or "", phrases, maxw,
+                                                              tolerant=None if r == "list" else r) for r in RULES}}
+                         for u, _ in items]
+                continue
+            todo = [i for i, (u, _) in enumerate(items) if u not in keep]
+            sub_pcms = [pcms[i] for i in todo]
             if path == "live":
-                sessions = asyncio.run(s05._transcribe_all(ctx.key, ctx.timeout, [s05._pcm16_from24(x) for x in pcms], p))
-                heard = [s05._final_text(s) for s in sessions]
+                sessions = asyncio.run(s05._transcribe_all(ctx.key, ctx.timeout, [s05._pcm16_from24(x) for x in sub_pcms], p))
+                got_h = [s05._final_text(s) for s in sessions]
                 spend["live"] += sum(s05._live_seconds(s) for s in sessions) * s05.probe_live_price() / 60
-                errs = [s.get("error") for s in sessions]
-                ms = [None] * len(items)
+                got_e = [s.get("error") for s in sessions]
+                got_ms = [None] * len(todo)
             else:
-                res = _file_all(ctx, [_clip16(x, FILE_PAD_BEFORE_S, FILE_PAD_AFTER_S) for x in pcms], p, spend)
-                heard = [r["text"] for r in res]
-                errs = [r["error"] for r in res]
-                ms = [r["ms"] for r in res]
+                res = _file_all(ctx, [_clip16(x, FILE_PAD_BEFORE_S, FILE_PAD_AFTER_S) for x in sub_pcms], p, spend)
+                got_h = [r["text"] for r in res]
+                got_e = [r["error"] for r in res]
+                got_ms = [r["ms"] for r in res]
+            heard = [keep[u]["heard"] if u in keep else None for u, _ in items]
+            errs = [keep[u]["error"] if u in keep else None for u, _ in items]
+            ms = [keep[u]["ms"] if u in keep else None for u, _ in items]
+            for k, i in enumerate(todo):
+                heard[i], errs[i], ms[i] = got_h[k], got_e[k], got_ms[k]
             for (said, want), h, e, m in zip(items, heard, errs, ms):
                 got = {r: s05.command_of(h or "", phrases, maxw, tolerant=None if r == "list" else r) for r in RULES}
                 rows.append({"voice": voice, "path": path, "hint": hint, "said": said, "want": want, "heard": h,

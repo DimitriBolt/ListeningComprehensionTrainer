@@ -279,6 +279,8943 @@
     "corrector": 0.00076
    },
    "elapsed_s": 14.4
+  },
+  {
+   "date": "2026-11-27T15:04:05",
+   "parts": [
+    "commands"
+   ],
+   "spend": {
+    "synth": 0.09783,
+    "live": 0.27483,
+    "file": 0.04627,
+    "corrector": 0.0
+   },
+   "elapsed_s": 352.0
+  },
+  {
+   "date": "2026-11-27T15:06:11",
+   "parts": [
+    "commands"
+   ],
+   "spend": {
+    "synth": 0.0016,
+    "live": 0.0051,
+    "file": 0.00082,
+    "corrector": 0.0
+   },
+   "elapsed_s": 19.1
   }
- ]
+ ],
+ "commands": {
+  "teacher": "Do you like hot weather or cold weather?",
+  "voices": [
+   "alloy",
+   "ash",
+   "coral"
+  ],
+  "prompt_hint": "An adult beginner English learner is answering an English teacher in a spoken conversation. The student may also say a short command: Stop, Again, Slower. The teacher just said: \"Do you like hot weather or cold weather?\"",
+  "prompt_plain": "An adult beginner English learner is answering an English teacher in a spoken conversation. The teacher just said: \"Do you like hot weather or cold weather?\"",
+  "rows": [
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat:",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat please:",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.333
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spam.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "No.",
+    "want": null,
+    "heard": "No,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again, tomorrow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": false,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "I gain of five.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.75
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat:",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.333
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spam.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "No.",
+    "want": null,
+    "heard": "No,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again, tomorrow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "hint": true,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "Again, a five.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.5
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": 1395,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait.",
+    "error": null,
+    "ms": 744,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop, please.",
+    "error": null,
+    "ms": 636,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": 755,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": 852,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": 1229,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": 1498,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": 1504,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": 1133,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat, please.",
+    "error": null,
+    "ms": 700,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": 697,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": 773,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": 900,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": 1153,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": 807,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": 468,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": 628,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": 711,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes.",
+    "error": null,
+    "ms": 886,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.333
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": 643,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": 764,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": 450,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": 458,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": 577,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": 488,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": 456,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": 409,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": 408,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": 602,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": 487,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": 403,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": 474,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": 751,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": 545,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": 464,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again tomorrow.",
+    "error": null,
+    "ms": 457,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": 520,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": 558,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent.",
+    "error": null,
+    "ms": 500,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven.",
+    "error": null,
+    "ms": 438,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": 523,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": 318,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson.",
+    "error": null,
+    "ms": 451,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": 461,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": 475,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": false,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "A gain of five.",
+    "error": null,
+    "ms": 470,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": 453,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait.",
+    "error": null,
+    "ms": 438,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop, please.",
+    "error": null,
+    "ms": 666,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": 845,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": 397,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": 409,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": 587,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": 396,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": 539,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat, please.",
+    "error": null,
+    "ms": 493,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": 440,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": 468,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": 536,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": 464,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": 566,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": 554,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": 446,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": 927,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes.",
+    "error": null,
+    "ms": 595,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.333
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": 390,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": 542,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": 489,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": 523,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": 416,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": 487,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": 495,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": 545,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": 384,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": 544,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": 412,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": 472,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": 465,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": 570,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": 448,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": 684,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again tomorrow.",
+    "error": null,
+    "ms": 463,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": 464,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": 456,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent.",
+    "error": null,
+    "ms": 483,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven.",
+    "error": null,
+    "ms": 447,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": 462,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": 403,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson.",
+    "error": null,
+    "ms": 447,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": 494,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": 476,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "hint": true,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "A gain of five.",
+    "error": null,
+    "ms": 427,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat:",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat please:",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again, tomorrow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not not yet.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": false,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "A gain of five.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat:",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat please",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again, tomorrow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "live",
+    "hint": true,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "Again, of five.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.5
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": 848,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait.",
+    "error": null,
+    "ms": 725,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop, please.",
+    "error": null,
+    "ms": 659,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": 685,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": 838,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": 854,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": 697,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": 890,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": 597,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat, please.",
+    "error": null,
+    "ms": 778,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": 557,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": 524,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": 499,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": 547,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": 540,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": 532,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": 456,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": 464,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": 572,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": 440,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": 441,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": 460,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": 402,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": 621,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": 550,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": 375,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": 372,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": 412,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": 1681,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": 622,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": 560,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": 398,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": 608,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": 428,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": 391,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again tomorrow.",
+    "error": null,
+    "ms": 404,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": 399,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": 445,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent.",
+    "error": null,
+    "ms": 442,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven.",
+    "error": null,
+    "ms": 479,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": 571,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": 433,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson.",
+    "error": null,
+    "ms": 451,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": 354,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": 430,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": false,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "A gain of five.",
+    "error": null,
+    "ms": 477,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": 464,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait.",
+    "error": null,
+    "ms": 492,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop, please.",
+    "error": null,
+    "ms": 613,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": 446,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": 457,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": 530,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": 401,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": 394,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": 366,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat, please.",
+    "error": null,
+    "ms": 500,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": 476,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": 504,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": 570,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": 442,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": 466,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": 535,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": 452,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": 462,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": 586,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": 486,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": 501,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": 443,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": 617,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": 493,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": 510,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": 388,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": 495,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": 338,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": 542,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": 485,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": 524,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": 432,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": 467,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": 498,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": 496,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again tomorrow.",
+    "error": null,
+    "ms": 505,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": 397,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": 481,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent.",
+    "error": null,
+    "ms": 533,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven.",
+    "error": null,
+    "ms": 371,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": 544,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": 475,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson.",
+    "error": null,
+    "ms": 460,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": 390,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": 418,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "ash",
+    "path": "file",
+    "hint": true,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "A gain of five.",
+    "error": null,
+    "ms": 596,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat: please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is swell.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.667
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Dryving license.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.5
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "No.",
+    "want": null,
+    "heard": "No,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again, tomorrow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Too sun.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": false,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "I'd gain of five.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.75
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat please:",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower. Please.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Drying license.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.5
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "No.",
+    "want": null,
+    "heard": "No,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again, tomorrow.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent,",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Too sun.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "hint": true,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "I'd gain of five.",
+    "error": null,
+    "ms": null,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 0.75
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": 697,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait.",
+    "error": null,
+    "ms": 608,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop, please.",
+    "error": null,
+    "ms": 697,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": 847,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": 655,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": 842,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": 679,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": 777,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": 453,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat, please.",
+    "error": null,
+    "ms": 513,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": 409,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": 480,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": 452,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": 550,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": 613,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": 509,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": 534,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": 504,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": 446,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": 550,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": 454,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": 753,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": 467,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": 369,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": 417,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": 406,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": 373,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": 481,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": 401,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": 529,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": 540,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": 523,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": 461,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": 489,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": 418,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again tomorrow.",
+    "error": null,
+    "ms": 485,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": 511,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": 430,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent.",
+    "error": null,
+    "ms": 451,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven.",
+    "error": null,
+    "ms": 468,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": 459,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": 448,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson.",
+    "error": null,
+    "ms": 377,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": 484,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": 454,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": false,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "A gain of five.",
+    "error": null,
+    "ms": 465,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Stop.",
+    "want": "stop",
+    "heard": "Stop.",
+    "error": null,
+    "ms": 555,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Wait.",
+    "want": "stop",
+    "heard": "Wait.",
+    "error": null,
+    "ms": 571,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Stop, please.",
+    "want": "stop",
+    "heard": "Stop, please.",
+    "error": null,
+    "ms": 604,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Wait a moment.",
+    "want": "stop",
+    "heard": "Wait a moment.",
+    "error": null,
+    "ms": 517,
+    "got": {
+     "strict": "stop",
+     "brief": "stop",
+     "list": "stop"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Again.",
+    "want": "again",
+    "heard": "Again.",
+    "error": null,
+    "ms": 468,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Repeat.",
+    "want": "again",
+    "heard": "Repeat.",
+    "error": null,
+    "ms": 413,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Say again.",
+    "want": "again",
+    "heard": "Say again.",
+    "error": null,
+    "ms": 532,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "One more time.",
+    "want": "again",
+    "heard": "One more time.",
+    "error": null,
+    "ms": 764,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Again, please.",
+    "want": "again",
+    "heard": "Again, please.",
+    "error": null,
+    "ms": 882,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Repeat, please.",
+    "want": "again",
+    "heard": "Repeat, please.",
+    "error": null,
+    "ms": 572,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Say it again.",
+    "want": "again",
+    "heard": "Say it again.",
+    "error": null,
+    "ms": 706,
+    "got": {
+     "strict": "again",
+     "brief": "again",
+     "list": "again"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Slower.",
+    "want": "slower",
+    "heard": "Slower.",
+    "error": null,
+    "ms": 393,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Slow down.",
+    "want": "slower",
+    "heard": "Slow down.",
+    "error": null,
+    "ms": 489,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "More slowly.",
+    "want": "slower",
+    "heard": "More slowly.",
+    "error": null,
+    "ms": 703,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Slower, please.",
+    "want": "slower",
+    "heard": "Slower, please.",
+    "error": null,
+    "ms": 574,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Speak slowly.",
+    "want": "slower",
+    "heard": "Speak slowly.",
+    "error": null,
+    "ms": 480,
+    "got": {
+     "strict": "slower",
+     "brief": "slower",
+     "list": "slower"
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "At noon.",
+    "want": null,
+    "heard": "At noon.",
+    "error": null,
+    "ms": 480,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Green.",
+    "want": null,
+    "heard": "Green.",
+    "error": null,
+    "ms": 403,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Yes, I do.",
+    "want": null,
+    "heard": "Yes, I do.",
+    "error": null,
+    "ms": 492,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Stop the car.",
+    "want": null,
+    "heard": "Stop the car.",
+    "error": null,
+    "ms": 557,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "It is slow.",
+    "want": null,
+    "heard": "It is slow.",
+    "error": null,
+    "ms": 484,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "I stopped.",
+    "want": null,
+    "heard": "I stopped.",
+    "error": null,
+    "ms": 563,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Spot.",
+    "want": null,
+    "heard": "Spot.",
+    "error": null,
+    "ms": 433,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Rain.",
+    "want": null,
+    "heard": "Rain.",
+    "error": null,
+    "ms": 491,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Spain.",
+    "want": null,
+    "heard": "Spain.",
+    "error": null,
+    "ms": 390,
+    "got": {
+     "strict": null,
+     "brief": "again",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Shop.",
+    "want": null,
+    "heard": "Shop.",
+    "error": null,
+    "ms": 438,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Top.",
+    "want": null,
+    "heard": "Top.",
+    "error": null,
+    "ms": 456,
+    "got": {
+     "strict": null,
+     "brief": "stop",
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Driving license.",
+    "want": null,
+    "heard": "Driving license.",
+    "error": null,
+    "ms": 451,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "No.",
+    "want": null,
+    "heard": "No.",
+    "error": null,
+    "ms": 617,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Pizza.",
+    "want": null,
+    "heard": "Pizza.",
+    "error": null,
+    "ms": 443,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "At night.",
+    "want": null,
+    "heard": "At night.",
+    "error": null,
+    "ms": 495,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "My wife.",
+    "want": null,
+    "heard": "My wife.",
+    "error": null,
+    "ms": 415,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "In the morning.",
+    "want": null,
+    "heard": "In the morning.",
+    "error": null,
+    "ms": 786,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Coffee.",
+    "want": null,
+    "heard": "Coffee.",
+    "error": null,
+    "ms": 490,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Slow food.",
+    "want": null,
+    "heard": "Slow food.",
+    "error": null,
+    "ms": 481,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Again tomorrow.",
+    "want": null,
+    "heard": "Again tomorrow.",
+    "error": null,
+    "ms": 472,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "I like it.",
+    "want": null,
+    "heard": "I like it.",
+    "error": null,
+    "ms": 464,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Step by step.",
+    "want": null,
+    "heard": "Step by step.",
+    "error": null,
+    "ms": 484,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Agent.",
+    "want": null,
+    "heard": "Agent.",
+    "error": null,
+    "ms": 430,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Seven.",
+    "want": null,
+    "heard": "Seven.",
+    "error": null,
+    "ms": 463,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "The park.",
+    "want": null,
+    "heard": "The park.",
+    "error": null,
+    "ms": 475,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Fishing.",
+    "want": null,
+    "heard": "Fishing.",
+    "error": null,
+    "ms": 537,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Tucson.",
+    "want": null,
+    "heard": "Tucson.",
+    "error": null,
+    "ms": 418,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Not yet.",
+    "want": null,
+    "heard": "Not yet.",
+    "error": null,
+    "ms": 525,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "Blue.",
+    "want": null,
+    "heard": "Blue.",
+    "error": null,
+    "ms": 417,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "hint": true,
+    "said": "A gain of five.",
+    "want": null,
+    "heard": "A gain of five.",
+    "error": null,
+    "ms": 523,
+    "got": {
+     "strict": null,
+     "brief": null,
+     "list": null
+    },
+    "acc": 1.0
+   }
+  ],
+  "summary": [
+   {
+    "path": "live",
+    "hint": false,
+    "commands_total": 48,
+    "answers_total": 90,
+    "answers_acc": 0.956,
+    "answers_exact": 82,
+    "empty": 0,
+    "commands_ok_strict": 48,
+    "false_strict": 0,
+    "commands_ok_brief": 48,
+    "false_brief": 11,
+    "commands_ok_list": 48,
+    "false_list": 0
+   },
+   {
+    "path": "live",
+    "hint": true,
+    "commands_total": 48,
+    "answers_total": 90,
+    "answers_acc": 0.951,
+    "answers_exact": 83,
+    "empty": 0,
+    "commands_ok_strict": 48,
+    "false_strict": 0,
+    "commands_ok_brief": 48,
+    "false_brief": 11,
+    "commands_ok_list": 48,
+    "false_list": 0
+   },
+   {
+    "path": "file",
+    "hint": false,
+    "commands_total": 48,
+    "answers_total": 90,
+    "answers_acc": 0.993,
+    "answers_exact": 89,
+    "empty": 0,
+    "commands_ok_strict": 48,
+    "false_strict": 0,
+    "commands_ok_brief": 48,
+    "false_brief": 12,
+    "commands_ok_list": 48,
+    "false_list": 0,
+    "ms_median": 509,
+    "ms_p90": 847
+   },
+   {
+    "path": "file",
+    "hint": true,
+    "commands_total": 48,
+    "answers_total": 90,
+    "answers_acc": 0.993,
+    "answers_exact": 89,
+    "empty": 0,
+    "commands_ok_strict": 48,
+    "false_strict": 0,
+    "commands_ok_brief": 48,
+    "false_brief": 12,
+    "commands_ok_list": 48,
+    "false_list": 0,
+    "ms_median": 483,
+    "ms_p90": 596
+   }
+  ],
+  "date": "2026-11-27T15:06:11"
+ }
 }

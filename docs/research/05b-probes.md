@@ -2,7 +2,88 @@
 
 Код — `tools/probe/s05b.py`, запуск — `python tools/probe/probe.py s05b` (`--part commands|corrector`).
 
-Всего потрачено на пробы S05b: ≈ $0.002.
+Всего потрачено на пробы S05b: ≈ $0.428.
+
+## Команды и короткие ответы (D83, D84, D85)
+
+Синтез Realtime голосами alloy, ash, coral (не голос пользователя): 16 команд S05 и 30 обычных коротких ответов, каждая фраза каждым голосом — 48 команд и 90 ответов. Учитель только что сказал: «Do you like hot weather or cold weather?». Поток — сессия `gpt-live-transcribe` с `prompt`, 0,6 с тишины до и 1,0 с после (как S05). Файл — WAV 16 кГц в `gpt-transcribe`, 0,5 с до и 0,3 с после (кусок короткого звука D85). 2026-11-27T15:06:11.
+
+- Подсказка: «The student may also say a short command: Stop, Again, Slower.» (`TranscriptionPrompt.COMMANDS_HINT`).
+- Правила узнавания: **приложение** — список + терпимое слово с условиями (Again — первая гласная и «g», Stop — начало «st»); **бриф** — то же без условий на буквы; **список** — только список S05.
+
+| Путь | Подсказка | Команды: приложение | бриф | список | Ложных: приложение | бриф | список | Слов ответов верно | Ответов дословно | Пусто | мс (медиана / p90) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| live | нет | 48/48 | 48 | 48 | 0/90 | 11 | 0 | 95.6 % | 82/90 | 0 | — / — |
+| live | да | 48/48 | 48 | 48 | 0/90 | 11 | 0 | 95.1 % | 83/90 | 0 | — / — |
+| file | нет | 48/48 | 48 | 48 | 0/90 | 12 | 0 | 99.3 % | 89/90 | 0 | 509 / 847 |
+| file | да | 48/48 | 48 | 48 | 0/90 | 12 | 0 | 99.3 % | 89/90 | 0 | 483 / 596 |
+
+### Промахи и ложные команды (правило приложения), ошибки распознавания ответов
+
+| Голос | Путь | Подсказка | Сказано | Распознано | Команда | Ждали | Слов верно |
+|---|---|---|---|---|---|---|---|
+| alloy | live | нет | Yes, I do. | Yes. | — | — | 0.33 |
+| alloy | live | нет | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| alloy | live | нет | Spain. | Spam. | — | — | 0.00 |
+| alloy | live | нет | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| alloy | live | нет | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| alloy | live | нет | A gain of five. | I gain of five. | — | — | 0.75 |
+| alloy | live | да | Yes, I do. | Yes. | — | — | 0.33 |
+| alloy | live | да | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| alloy | live | да | Spain. | Spam. | — | — | 0.00 |
+| alloy | live | да | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| alloy | live | да | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| alloy | live | да | A gain of five. | Again, a five. | — | — | 0.50 |
+| alloy | file | нет | Yes, I do. | Yes. | — | — | 0.33 |
+| alloy | file | нет | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| alloy | file | нет | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| alloy | file | нет | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| alloy | file | нет | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| alloy | file | да | Yes, I do. | Yes. | — | — | 0.33 |
+| alloy | file | да | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| alloy | file | да | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| alloy | file | да | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| alloy | file | да | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| ash | live | нет | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| ash | live | нет | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| ash | live | нет | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| ash | live | нет | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| ash | live | да | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| ash | live | да | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| ash | live | да | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| ash | live | да | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| ash | live | да | A gain of five. | Again, of five. | — | — | 0.50 |
+| ash | file | нет | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| ash | file | нет | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| ash | file | нет | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| ash | file | нет | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| ash | file | да | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| ash | file | да | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| ash | file | да | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| ash | file | да | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| coral | live | нет | It is slow. | It is swell. | — | — | 0.67 |
+| coral | live | нет | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| coral | live | нет | Spain. | Spain | — (бриф: again) | — | 1.00 |
+| coral | live | нет | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| coral | live | нет | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| coral | live | нет | Driving license. | Dryving license. | — | — | 0.50 |
+| coral | live | нет | Tucson. | Too sun. | — | — | 0.00 |
+| coral | live | нет | A gain of five. | I'd gain of five. | — | — | 0.75 |
+| coral | live | да | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| coral | live | да | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| coral | live | да | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| coral | live | да | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| coral | live | да | Driving license. | Drying license. | — | — | 0.50 |
+| coral | live | да | Tucson. | Too sun. | — | — | 0.00 |
+| coral | live | да | A gain of five. | I'd gain of five. | — | — | 0.75 |
+| coral | file | нет | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| coral | file | нет | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| coral | file | нет | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| coral | file | нет | Top. | Top. | — (бриф: stop) | — | 1.00 |
+| coral | file | да | Rain. | Rain. | — (бриф: again) | — | 1.00 |
+| coral | file | да | Spain. | Spain. | — (бриф: again) | — | 1.00 |
+| coral | file | да | Shop. | Shop. | — (бриф: stop) | — | 1.00 |
+| coral | file | да | Top. | Top. | — (бриф: stop) | — | 1.00 |
 
 ## Поправщик: участок с ошибкой (D87)
 
