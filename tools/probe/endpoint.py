@@ -112,6 +112,8 @@ class Rec:
     label_text: str = ""
     whisper_end: float | None = None            # конец последнего слова по whisper-1, до уточнения
     refine_note: str = ""
+    shortened_from: list = field(default_factory=list)  # паузы оригинала, укороченные в этой копии
+    pause_target_s: float | None = None
 
     @property
     def speech(self) -> bool:
@@ -130,7 +132,7 @@ class Rec:
         return self.words[0]["start"] if self.words else None
 
     def mid_pauses(self) -> list[tuple[float, float]]:
-        return [(a["end"], b["start"]) for a, b in zip(self.words, self.words[1:]) if b["start"] - a["end"] > MID_PAUSE_S]
+        return speech_gaps(self)
 
     @property
     def stop_ms(self) -> float:
@@ -246,8 +248,13 @@ class Spend:
         self.spent += usd
         self.by[what] = self.by.get(what, 0.0) + usd
 
-    def cost(self, what: str, usd: float) -> None:
-        """Цена вызова, взятого из кэша этого или прошлого прогона (для итога «сколько стоила проба»)."""
+    def cost(self, what: str, usd: float, key: str = "") -> None:
+        """Цена вызова (нового или из кэша) для итога «сколько стоила проба»; один вызов — один раз (по ключу кэша)."""
+        self._seen = getattr(self, "_seen", set())
+        if key:
+            if key in self._seen:
+                return
+            self._seen.add(key)
         self.cached = getattr(self, "cached", 0.0) + usd
         self.cached_by = getattr(self, "cached_by", {})
         self.cached_by[what] = self.cached_by.get(what, 0.0) + usd
@@ -283,7 +290,7 @@ def label(recs: list[Rec], key: str, spend: Spend, timeout: float) -> None:
                 ("language", "en"), ("prompt", r.text.replace("…", ""))], timeout)
             cache_put("label", ck, got)
             spend.add("разметка whisper-1", PRICE_MIN[M_LABEL] * len(r.pcm) / SAMPLE_RATE / 60)
-        spend.cost("разметка whisper-1", PRICE_MIN[M_LABEL] * len(r.pcm) / SAMPLE_RATE / 60)
+        spend.cost("разметка whisper-1", PRICE_MIN[M_LABEL] * len(r.pcm) / SAMPLE_RATE / 60, ck)
         r.words = [{"word": w["word"], "start": float(w["start"]), "end": float(w["end"])} for w in got.get("words", [])]
         r.label_text = got.get("text", "")
         if r.words:
@@ -302,6 +309,103 @@ def band_db(pcm, frame_ms: int = 10):
     k = len(y) // n
     e = (y[: k * n].reshape(k, n) ** 2).mean(axis=1)
     return 10 * np.log10(np.maximum(e, 1e-3))
+
+
+def speech_frames(r: "Rec"):
+    """Кадры 10 мс, где звучит речь (энергия в полосе речи над шумом, как в refine_end); кадры пульсов — не речь."""
+    import numpy as np
+    e = band_db(r.pcm)
+    e = np.convolve(e, np.ones(3) / 3, mode="same")
+    fr = 0.01
+    for p in r.pulses_ms:
+        if p is not None:
+            e[int(p / 1000 / fr): int((p / 1000 + 0.15) / fr)] = -99
+    stop = (r.press_ms or r.duration_ms) / 1000
+    end = r.last_word_end or stop
+    tail = e[int((end + 0.6) / fr): int(stop / fr)]
+    tail = tail[tail > -99]
+    if len(tail) < 30:
+        tail = e[e > -99]
+    floor = float(np.percentile(tail, 30))
+    peak = float(e[int(0.3 / fr): int((end + 0.1) / fr)].max()) if end > 0.4 else floor
+    return e > floor + max(8.0, 0.3 * (peak - floor))
+
+
+def speech_gaps(r: "Rec", min_gap_s: float = MID_PAUSE_S) -> list[tuple[float, float]]:
+    """Паузы посреди мысли по звуку: промежутки без речи > min_gap_s между первой речью и концом речи.
+    Метки whisper-1 для этого не годятся: в длинной паузе он растягивает соседние слова."""
+    import numpy as np
+    if not r.words or r.last_word_end is None:
+        return []
+    sp = speech_frames(r)
+    fr = 0.01
+    a, b = int(0.3 / fr), int(r.last_word_end / fr)
+    idx = np.nonzero(sp[a:b])[0]
+    if len(idx) == 0:
+        return []
+    idx = idx + a
+    gaps = []
+    for x, y in zip(idx, idx[1:]):
+        if (y - x) * fr > min_gap_s:
+            gaps.append((round((x + 1) * fr, 2), round(y * fr, 2)))
+    return gaps
+
+
+PAUSE_TARGETS_S = [1.5, 2.0, 2.5]   # бриф: пауза посреди мысли 1,5–2,5 с; по очереди по номеру реплики
+
+
+def shorten_pauses(r: "Rec", target_s: float | None = None) -> "Rec":
+    """Копия записи, где каждая пауза посреди мысли длиннее цели укорочена до неё: из середины паузы вырезан
+    кусок (стык — плавный, 30 мс), голос и шум остаются настоящими. Слова, пульсы и кнопка после выреза
+    сдвигаются; пульсы внутри выреза выбрасываются. Цель — 1,5 / 2,0 / 2,5 с по номеру реплики."""
+    import copy
+    import numpy as np
+    target = target_s if target_s is not None else PAUSE_TARGETS_S[(r.line - 1) % len(PAUSE_TARGETS_S)]
+    gaps = [g for g in r.mid_pauses() if g[1] - g[0] > target + 0.05]
+    if not gaps:
+        return r
+    x = r.pcm.astype(np.float64)
+    cuts = []  # (начало выреза, длина), с
+    for a, b in gaps:
+        cuts.append((a + target / 2, (b - a) - target))
+    out, pos = [], 0
+    xf = int(0.03 * SAMPLE_RATE)
+    for c0, ln in cuts:
+        i0, i1 = int(c0 * SAMPLE_RATE), int((c0 + ln) * SAMPLE_RATE)
+        out.append(x[pos:i0])
+        pos = i1 - xf  # плавный стык перекрывает xf отсчётов: вырезано ровно ln
+    out.append(x[pos:])
+    y = out[0]
+    ramp = np.linspace(0, 1, xf)
+    for seg in out[1:]:
+        if len(y) >= xf and len(seg) >= xf:
+            y = np.concatenate([y[:-xf], y[-xf:] * (1 - ramp) + seg[:xf] * ramp, seg[xf:]])
+        else:
+            y = np.concatenate([y, seg])
+
+    def shift(t: float | None) -> float | None:  # секунды
+        if t is None:
+            return None
+        d = 0.0
+        for c0, ln in cuts:
+            if t >= c0 + ln:
+                d += ln
+            elif t > c0:
+                return None  # внутри выреза
+        return t - d
+
+    n = copy.copy(r)
+    n.base = r.base + "_p" + f"{int(target * 10):02d}"
+    n.pcm = np.clip(np.round(y), -32768, 32767).astype(np.int16)
+    n.duration_ms = int(len(n.pcm) * 1000 / SAMPLE_RATE)
+    n.press_ms = shift(r.press_ms / 1000) * 1000 if r.press_ms is not None else None
+    n.pulses_ms = [p * 1000 for p in (shift(q / 1000) for q in r.pulses_ms if q is not None) if p is not None]
+    n.words = [dict(w, start=shift(w["start"]) or w["start"], end=shift(w["end"]) or w["end"]) for w in r.words]
+    n.whisper_end = shift(r.whisper_end) if r.whisper_end is not None else None
+    n.refine_note = r.refine_note + f"; паузы укорочены до {target:.1f} с (вырезано {sum(l for _, l in cuts):.1f} с)"
+    n.shortened_from = [(round(a, 2), round(b, 2)) for a, b in gaps]
+    n.pause_target_s = target
+    return n
 
 
 def refine_end(r: "Rec") -> tuple[float, str]:
@@ -661,7 +765,7 @@ async def run_server(recs: list[Rec], key: str, timeout: float, spend: Spend, pa
                 if not got.get("error"):
                     cache_put("server", ck, got)
                 spend.add(f"сессия {M_SESSION} ({setting.split(':')[0]})", PRICE_MIN[M_SESSION] * r.duration_ms / 60000)
-        spend.cost(f"сессия {M_SESSION} ({setting.split(':')[0]})", PRICE_MIN[M_SESSION] * r.duration_ms / 60000)
+        spend.cost(f"сессия {M_SESSION} ({setting.split(':')[0]})", PRICE_MIN[M_SESSION] * r.duration_ms / 60000, ck)
         raw[(setting, r.base)] = got
 
     await asyncio.gather(*(one(s, r) for s, r in jobs))
@@ -690,7 +794,7 @@ async def run_live(recs: list[Rec], key: str, timeout: float, spend: Spend, para
                 if not got.get("error"):
                     cache_put("live", ck, got)
                 spend.add(f"{M_LIVE}", PRICE_MIN[M_LIVE] * send_ms / 60000)
-        spend.cost(f"{M_LIVE}", PRICE_MIN[M_LIVE] * send_ms / 60000)
+        spend.cost(f"{M_LIVE}", PRICE_MIN[M_LIVE] * send_ms / 60000, ck)
         done = next((e for e in got.get("events", []) if e["type"].endswith("transcription.completed")), None)
         first_delta = next((e for e in got.get("events", []) if e["type"].endswith("transcription.delta")), None)
         res.setdefault(f"live {delay}", {})[r.base] = {
@@ -731,7 +835,7 @@ def run_file(recs: list[Rec], key: str, timeout: float, spend: Spend) -> dict[st
             got = {"text": body.get("text", ""), "request_s": dt}
             cache_put("file", ck, got)
             spend.add(f"файл {M_FILE}", PRICE_MIN[M_FILE] * upto / 60000)
-        spend.cost(f"файл {M_FILE}", PRICE_MIN[M_FILE] * upto / 60000)
+        spend.cost(f"файл {M_FILE}", PRICE_MIN[M_FILE] * upto / 60000, ck)
         out[r.base] = got
     return out
 
@@ -901,6 +1005,10 @@ def probe_endpoint(ctx) -> bool:
     print("Оценка цены (сверху):")
     for k, v in est.items():
         print(f"  {k}: " + (f"{v:.1f}" if k == "минут звука" else f"${v:.3f}"))
+    # укороченные паузы: те же серверные сессии ещё раз на записях с паузой (≈ 60 % звука этих записей)
+    paused_min = sum(r.duration_ms for r in recs if r.kind in ("pause", "long")) / 60000 * 0.6
+    est["сессии на записях с укороченными паузами"] = PRICE_MIN[M_SESSION] * paused_min * (len(SERVER_VAD_SILENCE) + len(SEMANTIC_EAGERNESS))
+    est["итого"] = sum(v for k, v in est.items() if k not in ("итого", "минут звука"))
     if not getattr(args, "yes", False) and not getattr(args, "offline", False):
         if input(f"Запустить? Бюджет ${args.endpoint_budget:.2f} [y/N] ").strip().lower() != "y":
             print("Отменено.")
@@ -910,21 +1018,29 @@ def probe_endpoint(ctx) -> bool:
     t0 = time.time()
     print("1/5 разметка whisper-1 …")
     label(recs, key, spend, ctx.timeout)
+    short = [shorten_pauses(r) if r.kind in ("pause", "long") else r for r in recs]
+    changed = [r for r in short if r.shortened_from]
+    print(f"   паузы посреди мысли укорочены до 1,5–2,5 с в {len(changed)} записях (бриф: 1,5–2,5 с)")
     print("2/5 детекторы на устройстве (порог, Silero, WebRTC) …")
     results = run_device_detectors(recs)
+    results_b = run_device_detectors(short)
     live, filed = {}, {}
     if not getattr(args, "offline", False):
         print(f"3/5 серверные сессии ({len(recs)} записей × 9 настроек, в реальном времени, по {args.parallel} сразу) …")
         results.update(asyncio.run(run_server(recs, key, ctx.timeout, spend, args.parallel)))
+        print(f"   то же на {len(changed)} записях с укороченными паузами …")
+        results_b.update(asyncio.run(run_server(short, key, ctx.timeout, spend, args.parallel)))
         print("4/5 gpt-live-transcribe …")
         live = asyncio.run(run_live(recs, key, ctx.timeout, spend, args.parallel))
         print("5/5 нынешний путь: файл в gpt-transcribe …")
         filed = run_file(recs, key, ctx.timeout, spend)
-    report(recs, results, live, filed, spend, est, time.time() - t0)
+    report(recs, results, short, results_b, live, filed, spend, est, time.time() - t0)
     shown = [n for n in ("threshold 59 dB / 3000 ms", "silero p≥0.5 / 1000 ms", "webrtc mode 3 / 1000 ms",
                          "server_vad 1000 ms", "semantic_vad high") if n in results]
     for r in recs:
         plot(r, OUT / "plots" / f"{r.base}.png", {n: results[n][r.base] for n in shown if r.base in results[n]})
+    for r in changed:
+        plot(r, OUT / "plots" / f"{r.base}.png", {n: results_b[n][r.base] for n in shown if r.base in results_b[n]})
     print(f"Графики для ручной сверки разметки: {OUT / 'plots'}")
     return True
 
@@ -947,10 +1063,20 @@ def rank_key(m: dict, ok: bool) -> tuple:
             a["latency_med"] if a["latency_med"] is not None else 99)
 
 
-def report(recs, results, live, filed, spend, est, elapsed) -> None:
+def rec_row(r: Rec) -> dict:
+    return {"base": r.base, "condition": r.condition, "line": r.line, "kind": r.kind, "text": r.text, "take": r.take,
+            "duration_ms": r.duration_ms, "press_ms": r.press_ms, "pulses_ms": r.pulses_ms,
+            "last_word_end_s": r.last_word_end, "first_word_start_s": r.first_word_start,
+            "mid_pauses_s": r.mid_pauses(), "label_text": r.label_text, "whisper_end_s": r.whisper_end,
+            "refine_note": r.refine_note, "shortened_from": r.shortened_from, "pause_target_s": r.pause_target_s,
+            "words": r.words}
+
+
+def report(recs, results, short, results_b, live, filed, spend, est, elapsed) -> None:
     metrics = {name: evaluate(recs, outs) for name, outs in results.items()}
     verdict = {name: passes(m) for name, m in metrics.items()}
-    # точность и «текст готов» нынешнего пути и live
+    metrics_b = {name: evaluate(short, outs) for name, outs in results_b.items()}
+    verdict_b = {name: passes(m) for name, m in metrics_b.items()}
     speech = [r for r in recs if r.speech and r.words]
 
     def live_stats(name):
@@ -966,45 +1092,49 @@ def report(recs, results, live, filed, spend, est, elapsed) -> None:
         return {"accuracy": statistics.mean(acc) if acc else None, "commit_med": pct(lat, 0.5), "commit_p90": pct(lat, 0.9),
                 "no_text": miss, "by_condition": per_c}
 
+    def file_acc_c(c):
+        v = [accuracy(r.text, filed[r.base]["text"]) for r in speech if r.condition == c and r.base in filed]
+        return statistics.mean(v) if v else None
     file_acc = [accuracy(r.text, filed[r.base]["text"]) for r in speech if r.base in filed]
     file_req = [filed[r.base]["request_s"] for r in speech if r.base in filed]
     file_stats = {"accuracy": statistics.mean(file_acc) if file_acc else None, "request_med": pct(file_req, 0.5),
-                  "request_p90": pct(file_req, 0.9),
-                  "by_condition": {c: {"accuracy": statistics.mean([accuracy(r.text, filed[r.base]["text"]) for r in speech
-                                                                    if r.condition == c and r.base in filed] or [float("nan")])}
-                                   for c in CONDITIONS}}
+                  "request_p90": pct(file_req, 0.9), "by_condition": {c: {"accuracy": file_acc_c(c)} for c in CONDITIONS}}
     live_s = {name: live_stats(name) for name in live}
 
     data = {
         "date": time.strftime("%Y-%m-%d %H:%M"),
-        "recordings": [{"base": r.base, "condition": r.condition, "line": r.line, "kind": r.kind, "text": r.text, "take": r.take,
-                        "duration_ms": r.duration_ms, "press_ms": r.press_ms, "pulses_ms": r.pulses_ms,
-                        "last_word_end_s": r.last_word_end, "first_word_start_s": r.first_word_start,
-                        "mid_pauses_s": r.mid_pauses(), "label_text": r.label_text,
-                        "whisper_end_s": r.whisper_end, "refine_note": r.refine_note,
-                        "words": r.words} for r in recs],
-        "metrics": metrics,
-        "verdict": {k: {"ok": v[0], "why": v[1]} for k, v in verdict.items()},
-        "outcomes": {name: {b: o.__dict__ for b, o in outs.items()} for name, outs in results.items()},
+        "recordings": [rec_row(r) for r in recs],
+        "recordings_shortened": [rec_row(r) for r in short if r.shortened_from],
+        "as_recorded": {"metrics": metrics, "verdict": {k: {"ok": v[0], "why": v[1]} for k, v in verdict.items()},
+                        "outcomes": {n: {b: o.__dict__ for b, o in outs.items()} for n, outs in results.items()}},
+        "pauses_per_brief": {"metrics": metrics_b, "verdict": {k: {"ok": v[0], "why": v[1]} for k, v in verdict_b.items()},
+                             "outcomes": {n: {b: o.__dict__ for b, o in outs.items() if b.endswith(("_p15", "_p20", "_p25"))}
+                                          for n, outs in results_b.items()}},
         "live": live, "live_stats": live_s, "file": filed, "file_stats": file_stats,
         "spend": {"this_run": spend.spent, "this_run_by": spend.by, "probe_total": getattr(spend, "cached", 0.0),
                   "probe_total_by": getattr(spend, "cached_by", {}), "estimate": est}, "elapsed_s": elapsed,
     }
     DOCS_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
-    DOCS_MD.write_text(render_md(recs, metrics, verdict, live_s, file_stats, spend, est, elapsed), encoding="utf-8")
+    DOCS_MD.write_text(render_md(recs, short, metrics, verdict, metrics_b, verdict_b, live_s, file_stats, spend, est, elapsed),
+                       encoding="utf-8")
     print(f"Итог: {DOCS_MD}\nСырые данные: {DOCS_JSON}\nПотрачено в этом прогоне ≈ ${spend.spent:.3f}, "
           f"цена всех вызовов пробы ≈ ${getattr(spend, 'cached', 0.0):.3f}")
 
 
 def metric_row(name: str, m: dict, ok: bool) -> str:
     a = m["all"]
-    return (f"| {'✓' if ok else '✗'} {name} | {fmt(a['false_end_pct'], 0, ' %')} | {fmt(a['latency_med'])} | {fmt(a['latency_p90'])} | "
-            f"{fmt(a['no_end_pct'], 0, ' %')} | {a['false_speech']} из {a['silent_lines']} | {fmt(a['text_ready_med'])} | "
+    return (f"| {'✓' if ok else '✗'} {name} | {a['false_end']} из {a['speech_lines']} | {fmt(a['latency_med'])} | {fmt(a['latency_p90'])} | "
+            f"{a['no_end']} из {a['speech_lines']} | {a['false_speech']} из {a['silent_lines']} | {fmt(a['text_ready_med'])} | "
             f"{fmt(a['text_ready_p90'])} | {fmt(a['accuracy'] * 100 if a['accuracy'] is not None else None, 0, ' %')} |")
 
 
-def condition_table(name: str, m: dict) -> list[str]:
-    L = [f"**{name}**", "", "| Условие | ложный конец (с паузой) | задержка мед / p90, с | нет конца | ложная речь | текст готов мед, с | точность |",
+SUMMARY_HEAD = ["| Настройка | ложный конец | задержка мед, с | p90, с | нет конца | ложная речь | текст готов мед, с | p90, с | точность |",
+                "|---|---|---|---|---|---|---|---|---|"]
+
+
+def condition_table(name: str, m: dict, ok: bool) -> list[str]:
+    L = [f"**{'✓' if ok else '✗'} {name}**", "",
+         "| Условие | ложный конец (из них с паузой) | задержка мед / p90, с | нет конца | ложная речь | текст готов мед, с | точность |",
          "|---|---|---|---|---|---|---|"]
     for c in CONDITIONS:
         b = m.get(c)
@@ -1016,80 +1146,199 @@ def condition_table(name: str, m: dict) -> list[str]:
     return L + [""]
 
 
-def render_md(recs, metrics, verdict, live_s, file_stats, spend, est, elapsed) -> str:
-    L = ["# Проба S03b — конец реплики в шуме", "",
-         f"_Прогон: {time.strftime('%Y-%m-%d %H:%M')}; записей {len(recs)} (последний дубль каждой реплики); "
-         f"цена всех вызовов пробы ≈ ${getattr(spend, 'cached', 0.0):.3f} (оценка сверху была ${est['итого']:.3f}; "
-         f"остальное — из кэша прежних прогонов, в этом прогоне ≈ ${spend.spent:.3f}); {elapsed / 60:.0f} мин._", ""]
-    L += ["## Сценарий (дословно на экране)", ""]
-    from collections import OrderedDict
-    seen = OrderedDict()
-    for r in recs:
-        seen.setdefault(r.line, (r.kind, r.text))
-    for n, (k, t) in seen.items():
-        L.append(f"{n}. {t or '(без речи: молчать, четыре пульса)'} — `{k}`")
-    L += ["", "Условия: " + ", ".join(f"{CONDITION_RU[c]} ({sum(1 for r in recs if r.condition == c)})" for c in CONDITIONS), ""]
-    L += ["## Как мерили", "",
-          "- **Конец речи** — конец последнего слова `whisper-1` (`verbose_json`, метки слов). Пауза посреди мысли — промежуток между словами > 1 с.",
-          "- **Конец речи уточнён по энергии**: метки `whisper-1` бывают сдвинуты целиком (на пилоте — на 1 с), поэтому они задают только "
-          "окно поиска, а конец — последний кадр 10 мс в полосе 300–3400 Гц громче шума после реплики (подробности — `refine_end`, "
-          "заметка по каждой записи — `refine_note` в JSON). Ручная сверка — ниже.",
-          "- **Ложный конец** — детектор сработал раньше конца речи (больше чем на 0,2 с), то есть на паузе посреди мысли или в «um…». **Задержка** — от конца последнего слова до срабатывания. "
-          "**Нет конца** — не сработал до нажатия кнопки. **Ложная речь** — в записи без речи детектор услышал речь.",
-          "- Детекторы на устройстве гоняются по WAV без сети. Серверные — сессия транскрипции, звук потоком кусками по 100 мс в темпе "
-          "реального времени, 24 кГц; срабатывание — приход `speech_stopped`.",
-          "- **Текст готов** — от конца последнего слова до `…transcription.completed` реплики с последним словом.",
-          "- Правило п. 4 брифа: «не больше 1 из 8» прочитано так: ложный конец — не больше 1 на условие среди реплик с паузой и длинных "
-          "(их 6 на условие), ложная речь — не больше 1 из 8 записей без речи (2 на условие × 4).", ""]
+def summary_rows(metrics: dict, verdict: dict, per_family: int = 3) -> list[str]:
     ordered = sorted(metrics, key=lambda n: rank_key(metrics[n], verdict[n][0]))
-    L += ["## Сводка по всем записям (лучшие настройки каждого детектора и база)", "",
-          "| Настройка | ложный конец | задержка мед, с | p90, с | нет конца | ложная речь | текст готов мед, с | p90, с | точность |",
-          "|---|---|---|---|---|---|---|---|---|"]
-    shown = []
+    rows = []
     for fam in ("threshold", "silero", "webrtc", "server_vad", "semantic_vad"):
         names = [n for n in ordered if family(n) == fam]
-        pick = names[:3]
+        pick = names if fam == "semantic_vad" else names[:per_family]
         if fam == "threshold" and "threshold 59 dB / 3000 ms" in metrics and "threshold 59 dB / 3000 ms" not in pick:
-            pick = ["threshold 59 dB / 3000 ms"] + pick[:2]
-        if fam == "semantic_vad":
-            pick = names
-        for n in pick:
-            L.append(metric_row(n, metrics[n], verdict[n][0]))
-            shown.append(n)
-    L += ["", "✓ — проходит правило п. 4 во всех условиях. Полная сетка — в `03b-endpoint.json` (`metrics`, `verdict`).", ""]
-    L += ["## Нынешний путь и потоковый текст", "",
-          f"- **Файл в `{M_FILE}`** (m4a 32 кбит/с до конца последнего слова + 1 с, запрос из облака, не с телефона): "
-          f"запрос мед {fmt(file_stats['request_med'])} с, p90 {fmt(file_stats['request_p90'])} с; "
-          f"точность {fmt(file_stats['accuracy'] * 100 if file_stats['accuracy'] is not None else None, 0, ' %')}. "
-          "Текст готов от последнего слова = задержка детектора + запрос."]
-    for name, s in live_s.items():
-        L.append(f"- **`{M_LIVE}`, delay {name.split()[-1]}** (звук потоком, `commit` через 1 с после последнего слова): "
-                 f"от `commit` до текста мед {fmt(s['commit_med'])} с, p90 {fmt(s['commit_p90'])} с; точность "
-                 f"{fmt(s['accuracy'] * 100 if s['accuracy'] is not None else None, 0, ' %')}; без текста {s['no_text']}.")
-    L += ["", "## По условиям: база и лучшие кандидаты", ""]
-    best = [n for n in ordered if verdict[n][0]][:3]
-    cand = (["threshold 59 dB / 3000 ms"] if "threshold 59 dB / 3000 ms" in metrics else []) + best
-    for fam in ("silero", "server_vad", "semantic_vad"):
-        f = [n for n in ordered if family(n) == fam]
-        if f and f[0] not in cand:
-            cand.append(f[0])
+            pick = ["threshold 59 dB / 3000 ms"] + pick[: per_family - 1]
+        rows += [metric_row(n, metrics[n], verdict[n][0]) for n in pick]
+    return rows
+
+
+def best_per_family(metrics: dict, verdict: dict) -> dict[str, str]:
+    ordered = sorted(metrics, key=lambda n: rank_key(metrics[n], verdict[n][0]))
+    out = {}
+    for n in ordered:
+        out.setdefault(family(n), n)
+    return out
+
+
+MANUAL_CHECK = [
+    ("silence #1", "конец 1,74 с совпадает с волной; whisper поставил «noon» на 1,7–3,1 с (+1,4 с)"),
+    ("silence #5", "конец 8,31 с совпадает; пауза 2,8–5,4 с видна, whisper растянул «my» на всю паузу"),
+    ("water #7", "конец 9,06 с совпадает; пауза 3,1–8,5 с, whisper растянул «is» и «pizza»"),
+    ("water #9", "конец 17,11 с совпадает; пауза 5,9–12,9 с (в начале — короткое «um» на 5,7 с)"),
+    ("street #2", "конец 1,73 с совпадает; whisper 2,38 с; шум улицы ≈ 70 дБ, выше порога 59"),
+    ("street #5", "конец 8,93 с совпадает; whisper 9,42 с; пауза 2,8–6,3 с"),
+    ("street #10", "конец 14,12 с совпадает; пауза 5,9–11,8 с"),
+    ("steady_noise #2", "конец 3,09 с совпадает; щелчок ТВ на 4,6–4,9 с речью не считается"),
+    ("steady_noise #5", "конец 10,61 с совпадает; пауза 4,1–8,9 с"),
+    ("water #7, пауза укорочена до 1,5 с", "стык без щелчка, пауза 1,5 с, конец 5,12 с совпадает"),
+]
+
+
+def pulse_audibility(recs) -> dict:
+    """Слышит ли микрофон пульс: пик в полосе речи за 150 мс после пульса над медианой 350 мс перед ним (только вне речи)."""
+    import numpy as np
+    out = {}
+    for c in CONDITIONS:
+        d = []
+        for r in recs:
+            if r.condition != c:
+                continue
+            e = band_db(r.pcm)
+            for p in r.pulses_ms:
+                i = int(p / 10)
+                if i < 60 or i + 40 >= len(e):
+                    continue
+                base = float(np.median(e[i - 40:i - 5]))
+                if base < float(np.percentile(e, 60)):
+                    d.append(float(e[i:i + 15].max()) - base)
+        out[c] = {"n": len(d), "median_db": statistics.median(d) if d else None, "over6": sum(x > 6 for x in d)}
+    return out
+
+
+def all_but_false_end(m: dict) -> bool:
+    return all(m[c]["no_end"] == 0 and m[c]["latency_med"] is not None and m[c]["latency_med"] <= 1.5
+               and m[c]["latency_p90"] <= 2.5 for c in CONDITIONS if c in m) and m["all"]["false_speech"] <= 1
+
+
+def render_md(recs, short, metrics, verdict, metrics_b, verdict_b, live_s, file_stats, spend, est, elapsed) -> str:
+    changed = [r for r in short if r.shortened_from]
+    gaps = [b - a for r in recs for a, b in r.mid_pauses() if b - a > 2.5]
+    L = ["# Проба S03b — конец реплики в шуме", "",
+         f"_Прогон: {time.strftime('%Y-%m-%d %H:%M')}; записей {len(recs)} (последний дубль каждой реплики, телефон "
+         f"{recs[0].meta.get('device', '')}); цена всех вызовов пробы ≈ ${getattr(spend, 'cached', 0.0):.3f} — оценка сверху: сессия посчитана по всей длине записи, "
+         f"а платится распознанный звук реплик "
+         f"(в этом прогоне ≈ ${spend.spent:.3f}, остальное — кэш прежнего прогона; оценка сверху ${est['итого']:.3f})._", ""]
+    L += ["## Сценарий (дословно на экране)", ""]
+    seen = {}
+    for r in recs:
+        seen.setdefault(r.line, (r.kind, r.text))
+    for n, (k, t) in sorted(seen.items()):
+        L.append(f"{n}. {t or '(без речи: молчать четыре пульса)'} — `{k}`")
+    L += ["", "Условия: тишина, вода (кран рядом), улица (машины), ровный шум (вентилятор или ТВ); по 12 записей.", ""]
+    L += ["## Как мерили", "",
+          "- **Конец речи** — по энергии в полосе 300–3400 Гц (кадры 10 мс, громче шума после реплики), в окне вокруг меток слов "
+          "`whisper-1` (`verbose_json`, `timestamp_granularities: word`). Одни метки whisper ненадёжны: в `silence #1` слово «noon» "
+          "стоит на 1,7–3,1 с при речи до 1,74 с; в длинной паузе он растягивает соседние слова на всю паузу. Заметка по каждой "
+          "записи — `refine_note` в JSON.",
+          "- **Пауза посреди мысли** — промежуток без речи > 1 с между первой речью и концом речи (по той же энергии).",
+          "- **Ручная сверка разметки** — 10 записей по графикам волны и энергии с метками (список — ниже).",
+          "- **Ложный конец** — детектор сработал раньше конца речи (больше чем на 0,2 с): на паузе посреди мысли или в «um…». "
+          "**Задержка** — от конца речи до срабатывания. **Нет конца** — не сработал до нажатия кнопки. **Ложная речь** — в записи "
+          "без речи детектор услышал речь.",
+          "- Детекторы на устройстве гоняются по WAV без сети. Серверные — сессия транскрипции `gpt-transcribe`, звук потоком по "
+          "100 мс в темпе реального времени (24 кГц); срабатывание — приход `speech_stopped`. **Текст готов** — от конца речи до "
+          "`…transcription.completed` реплики с последним словом. **Точность** — доля слов эталона (текст сценария без «um»), "
+          "найденных в тексте при выравнивании.",
+          "- Silero: кадры 32 мс, речь — p ≥ порога, тишина — p < порога − 0,15 (как `VADIterator`), отрезок короче 250 мс — не речь. "
+          "«mask» — кадры 350 мс после пульса считаются тишиной (D34). Порог громкости — эмуляция `SilenceTurnDetector` по окнам 80 мс "
+          "(с маской D34, как в приложении, если не сказано «no mask»).",
+          "- **Правило п. 4.** «Не больше 1 из 8» прочитано так: ложный конец — не больше 1 на условие среди реплик с паузой и "
+          "длинных (их 6 на условие); ложная речь — не больше 1 из 8 записей без речи (2 на условие × 4), всего.", ""]
+    L += ["## Главное наблюдение: паузы обдумывания длиннее, чем в брифе", "",
+          f"Паузы посреди мысли на записях — {min(gaps):.1f}–{max(gaps):.1f} с (медиана {statistics.median(gaps):.1f} с), "
+          "а не 1,5–2,5 с из брифа: пользователь молчал, пока не вспоминал продолжение. Такую паузу акустический детектор с "
+          "задержкой ≤ 1,5 с отличить от конца реплики не может. Поэтому правило п. 4 проверено на **копиях записей, где каждая "
+          "пауза длиннее цели укорочена до 1,5 / 2,0 / 2,5 с** (по очереди по номеру реплики; из середины паузы вырезан кусок, "
+          f"голос и шум — настоящие; {len(changed)} записей). Результат на записях как есть — в разделе Б.", ""]
+    bf_b = best_per_family(metrics_b, verdict_b)
+    good_b = sorted([n for n in metrics_b if verdict_b[n][0]], key=lambda n: rank_key(metrics_b[n], True))
+    L += ["## А. Паузы по брифу (1,5–2,5 с): правило п. 4", "", *SUMMARY_HEAD, *summary_rows(metrics_b, verdict_b), "",
+          "✓ — проходит правило п. 4 во всех условиях. Полная сетка — `pauses_per_brief` в `03b-endpoint.json`.", ""]
+    L += ["### По условиям", ""]
+    cand = ["threshold 59 dB / 3000 ms"] + [bf_b[f] for f in ("silero", "webrtc", "server_vad", "semantic_vad") if f in bf_b]
+    for n in good_b[:2]:
+        if n not in cand:
+            cand.append(n)
     for n in cand:
-        L += condition_table(n, metrics[n])
-    L += ["## Вывод по правилу п. 4", ""]
-    good = [n for n in ordered if verdict[n][0]]
-    if good:
-        L.append("Годные настройки (лучшие сверху): " + ", ".join(f"`{n}`" for n in good[:8]) + ".")
+        if n in metrics_b:
+            L += condition_table(n, metrics_b[n], verdict_b[n][0])
+    L += ["### Вывод по правилу п. 4", ""]
+    if good_b:
+        L.append("Годные (лучшие сверху): " + ", ".join(f"`{n}`" for n in good_b[:10]) + ".")
     else:
+        ordered = sorted(metrics_b, key=lambda n: rank_key(metrics_b[n], False))
         L.append("Годных нет. Лучшие два и что им мешает:")
         for n in ordered[:2]:
-            L.append(f"- `{n}`: " + "; ".join(verdict[n][1]))
-    L += ["", "Что мешает остальным (по одному лучшему на детектор):", ""]
-    for fam in ("threshold", "silero", "webrtc", "server_vad", "semantic_vad"):
-        f = [n for n in ordered if family(n) == fam]
-        if f:
-            L.append(f"- `{f[0]}`: " + ("проходит" if verdict[f[0]][0] else "; ".join(verdict[f[0]][1])))
-    L += ["", "## Цена", "",
-          f"- `{M_SESSION}` (сессия и файл): ${PRICE_MIN[M_SESSION]}/мин; `{M_LIVE}`: ${PRICE_MIN[M_LIVE]}/мин; `{M_LABEL}`: ${PRICE_MIN[M_LABEL]}/мин.",
-          "- Детекторы на устройстве — $0.",
+            L.append(f"- `{n}`: " + "; ".join(verdict_b[n][1]))
+    L += ["", "Лучшая настройка каждого детектора и что ей мешает:", ""]
+    for f in ("threshold", "silero", "webrtc", "server_vad", "semantic_vad"):
+        if f in bf_b:
+            n = bf_b[f]
+            L.append(f"- `{n}`: " + ("проходит" if verdict_b[n][0] else "; ".join(verdict_b[n][1])))
+    L += ["", "## Б. Записи как есть (паузы до 7 с)", "", *SUMMARY_HEAD, *summary_rows(metrics, verdict), ""]
+    bf = best_per_family(metrics, verdict)
+    for n in ["threshold 59 dB / 3000 ms", bf.get("silero"), bf.get("semantic_vad")]:
+        if n in metrics:
+            L += condition_table(n, metrics[n], verdict[n][0])
+    L += ["## В. Всё, кроме ложного конца", "",
+          "Ложный конец на паузе посреди мысли по плану — забота S04 («ответ готовится после короткой паузы, но отменяется, если "
+          "ученик продолжил»). Настройки, которые проходят **остальные** пункты правила п. 4 во всех условиях (нет конца 0, "
+          "задержка ≤ 1,5 / 2,5 с, ложная речь ≤ 1 из 8), паузы по брифу:", "",
+          "| Настройка | задержка мед / p90, с | по условиям мед, с (тишина / вода / улица / шум) | ложная речь | ложный конец |",
+          "|---|---|---|---|---|"]
+    abf = sorted([n for n in metrics_b if all_but_false_end(metrics_b[n])], key=lambda n: metrics_b[n]["all"]["latency_p90"])
+    for n in abf:
+        m = metrics_b[n]
+        L.append(f"| {n} | {fmt(m['all']['latency_med'])} / {fmt(m['all']['latency_p90'])} | "
+                 + " / ".join(fmt(m[c]['latency_med']) for c in CONDITIONS)
+                 + f" | {m['all']['false_speech']} из {m['all']['silent_lines']} | {m['all']['false_end']} из {m['all']['speech_lines']} |")
+    if not abf:
+        L.append("| — | | | | |")
+    fams = sorted({family(n) for n in abf})
+    L += ["", f"Проходят только: {', '.join(fams) or 'никто'}. У `server_vad` и `semantic_vad` — ложная речь на улице (2 из 2: машины); "
+          "у порога громкости и WebRTC — «нет конца» в воде и на улице.", ""]
+    pa = pulse_audibility(recs)
+    tails = {c: [r.press_ms / 1000 - r.last_word_end for r in recs if r.condition == c and r.last_word_end and r.press_ms] for c in CONDITIONS}
+    L += ["## Пульс и маска D34", "",
+          "Пик в полосе речи за 150 мс после пульса над фоном перед ним (вне речи): "
+          + "; ".join(f"{CONDITION_RU[c]} — медиана {fmt(v['median_db'], 1)} дБ, > 6 дБ в {v['over6']} из {v['n']}" for c, v in pa.items())
+          + ". Микрофон пульс почти не слышит (единичные > 6 дБ — шорох, начало речи). Маска ничего не меняет: у порога 59 дБ "
+          f"ложная речь {metrics['threshold 59 dB / 3000 ms']['all']['false_speech']} из 8 с маской и "
+          f"{metrics['threshold 59 dB / 3000 ms, no mask']['all']['false_speech']} из 8 без; у Silero ложной речи 0 из 8 и без маски.", ""]
+    L += ["## Тишина после речи до кнопки", "",
+          "От конца речи до нажатия: " + "; ".join(
+              f"{CONDITION_RU[c]} — медиана {fmt(statistics.median(v), 1)} с, меньше 3 с в {sum(x < 3 for x in v)} из {len(v)}"
+              for c, v in tails.items() if v)
+          + ". В «тишине» (её записали первой) кнопку нажимали раньше, чем через 3 с, поэтому «нет конца» нынешнего порога "
+          "в тишине — не его вина. В воде и на улице тишины после речи хватало (≥ 3,2 с), а порог не сработал ни разу: шум "
+          "выше 59 дБ.", ""]
+    L += ["## Ручная сверка разметки (10 записей, графики волны и энергии)", ""]
+    L += [f"- **{a}** — {b}." for a, b in MANUAL_CHECK]
+    L += ["", "Итог сверки: конец речи по энергии совпадает с волной (≈ 0,1 с) во всех 10; метка whisper-1 расходится до 1,4 с, "
+          "в длинной паузе whisper растягивает соседние слова на всю паузу — поэтому паузы и конец меряются по звуку.", ""]
+    L += ["## Текст: нынешний путь и потоковое распознавание", "",
+          f"- **Нынешний путь — файл в `{M_FILE}`** (m4a 32 кбит/с, звук до конца речи + 1 с; запрос из облака, не с телефона): "
+          f"запрос мед {fmt(file_stats['request_med'])} с, p90 {fmt(file_stats['request_p90'])} с; точность "
+          f"{fmt(file_stats['accuracy'] * 100 if file_stats['accuracy'] is not None else None, 0, ' %')} ("
+          + ", ".join(f"{CONDITION_RU[c]} {fmt((file_stats['by_condition'][c]['accuracy'] or 0) * 100, 0, ' %')}" for c in CONDITIONS)
+          + "). Текст готов от конца речи = задержка детектора + отправка и распознавание файла (в S02i на телефоне 0,8–6,8 с)."]
+    for name, st in live_s.items():
+        L.append(f"- **`{M_LIVE}`, `delay: {name.split()[-1]}`** (сверх брифа: звук потоком во время записи, конец решает детектор "
+                 f"на устройстве, затем `commit`; в пробе `commit` через 1 с после конца речи): от `commit` до текста мед "
+                 f"{fmt(st['commit_med'])} с, p90 {fmt(st['commit_p90'])} с; точность "
+                 f"{fmt(st['accuracy'] * 100 if st['accuracy'] is not None else None, 0, ' %')} ("
+                 + ", ".join(f"{CONDITION_RU[c]} {fmt((st['by_condition'][c]['accuracy'] or 0) * 100, 0, ' %')}" for c in CONDITIONS)
+                 + f"); без текста {st['no_text']}.")
+    L += ["- **Сессия `gpt-transcribe` с серверным VAD** — «текст готов» и точность — в таблицах выше.", ""]
+    L += ["## Вес на телефоне и цена", "",
+          "| Детектор | Библиотека для Android | Вес | Лицензия |",
+          "|---|---|---|---|",
+          "| порог громкости | нет (есть в приложении) | 0 | — |",
+          "| Silero VAD v6 | onnxruntime-android 1.32.0 (Maven Central) + модель `silero_vad.onnx` | arm64: `libonnxruntime.so` 36,3 МБ (в APK сжато 13,7 МБ); модель 2,2 МБ; весь AAR 59 МБ (4 ABI) | MIT (silero-vad 6.3), MIT (onnxruntime) |",
+          "| Silero через `android-vad` 2.0.10 (gkonovalov, jitpack) | своя обёртка 17 КБ + модель 1,8 МБ, тянет onnxruntime-android 1.22.0 и kotlin-stdlib 2.2.0 (в проекте Kotlin 1.9) | ≈ как строка выше | MIT |",
+          "| WebRTC VAD | `android-vad:webrtc` 2.0.10 | arm64 `libvad_jni.so` 65 КБ (сжато 37 КБ) | MIT (обёртка), BSD (WebRTC) |",
+          "| `server_vad`, `semantic_vad` | нет: сессия Realtime по WebSocket (уже есть OkHttp) | 0 | — |", "",
+          f"- Цена звука: `{M_SESSION}` (сессия и файл) ${PRICE_MIN[M_SESSION]}/мин; `{M_LIVE}` ${PRICE_MIN[M_LIVE]}/мин; "
+          "детекторы на устройстве — $0. Сессия с серверным VAD берёт деньги за распознанный звук реплик.",
           "- Цена пробы по частям: " + ", ".join(f"{k} ${v:.3f}" for k, v in getattr(spend, "cached_by", {}).items()) + ".", ""]
+    L += ["## Записи с укороченными паузами", "", "| Запись | паузы оригинала, с | цель, с |", "|---|---|---|"]
+    for r in changed:
+        L.append(f"| {r.condition} #{r.line} | " + ", ".join(f"{a:.1f}–{b:.1f} ({b - a:.1f})" for a, b in r.shortened_from)
+                 + f" | {r.pause_target_s:.1f} |")
     return "\n".join(L) + "\n"

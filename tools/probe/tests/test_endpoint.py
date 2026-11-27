@@ -236,3 +236,25 @@ def test_sessions_follow_the_docs():
 def test_to24k_keeps_duration():
     pytest.importorskip("scipy")
     assert len(ep.to24k(np.zeros(16000, dtype=np.int16))) == 24000 * 2
+
+
+def test_shorten_pauses_cuts_the_middle_and_shifts_marks():
+    # речь 0.5–1.5, пауза до 6.5 (5 с), речь 6.5–7.5, тишина до 10; пульсы в 2, 4, 8 с; кнопка 9.5 с
+    x = np.concatenate([noise(0.5, 30), tone(1.0, 70, 600) + noise(1.0, 30, 1), noise(5.0, 30, 2),
+                        tone(1.0, 70, 600) + noise(1.0, 30, 3), noise(2.5, 30, 4)])
+    r = rec(x, kind="pause", text="I think that … it is a good idea.",
+            words=[{"word": "that", "start": 1.0, "end": 1.5}, {"word": "idea", "start": 7.0, "end": 7.5}],
+            press_ms=9500, pulses=[2000, 4000, 8000], base="ep_1_water_05", cond="water")
+    r.line = 5  # цели по очереди: #5 — 2.0 с, #6 — 2.5 с, #7 — 1.5 с
+    gaps = r.mid_pauses()
+    assert len(gaps) == 1 and gaps[0][1] - gaps[0][0] == pytest.approx(5.0, abs=0.1)
+    s = ep.shorten_pauses(r)
+    assert s.base == "ep_1_water_05_p20" and s.pause_target_s == 2.0
+    cut = (gaps[0][1] - gaps[0][0]) - 2.0
+    assert s.duration_ms == pytest.approx(r.duration_ms - cut * 1000, abs=15)
+    assert s.last_word_end == pytest.approx(7.5 - cut, abs=0.02)
+    assert s.press_ms == pytest.approx(9500 - cut * 1000, abs=20)
+    assert len(s.pulses_ms) == 2 and s.pulses_ms[0] == 2000  # пульс 4 с попал в вырез
+    g2 = s.mid_pauses()
+    assert len(g2) == 1 and g2[0][1] - g2[0][0] == pytest.approx(2.0, abs=0.1)
+    assert ep.shorten_pauses(s) is s  # уже короче цели — без изменений
