@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Забирает журнал событий приложения с подключённого по USB телефона в diagnostics/latest.log
 # и печатает путь к файлу. Этот файл прикладывается в чат архитектора.
+# Если на телефоне есть тексты сверки потока и файла (S03d, debug: files/diagnostics/live_vs_file.jsonl),
+# они тоже копируются — в diagnostics/live_vs_file.jsonl (вне Git: это тексты реплик ученика).
 #
 # Запуск из любого каталога:  tools/pull-log.sh
 #
@@ -64,3 +66,11 @@ if [[ $found -eq 0 ]]; then
 fi
 mv "$tmp" "$OUT"
 echo "$OUT"
+
+# Тексты сверки S03d (если есть).
+LIVE_VS_FILE=files/diagnostics/live_vs_file.jsonl
+if "$ADB" shell run-as "$PKG" ls "$LIVE_VS_FILE" >/dev/null 2>&1; then
+    "$ADB" exec-out run-as "$PKG" cat "$LIVE_VS_FILE" >"$OUT_DIR/live_vs_file.jsonl.tmp"
+    mv "$OUT_DIR/live_vs_file.jsonl.tmp" "$OUT_DIR/live_vs_file.jsonl"
+    echo "$OUT_DIR/live_vs_file.jsonl"
+fi

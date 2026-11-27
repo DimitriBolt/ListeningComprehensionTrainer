@@ -6,6 +6,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.AudioInput
+import com.example.listeningtrainer.conversation.AudioSink
 import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.TurnDetector
 import com.example.listeningtrainer.conversation.TurnEnd
@@ -27,7 +28,7 @@ import java.nio.ByteOrder
  * Если сжатие не удалось или выключено в [ModelConfig] — загружается WAV. Формат, размер загрузки
  * и время дожимания — в журнал.
  *
- * Каждый кусок звука идёт в [TurnDetector] (S03c: Silero VAD, кадры 32 мс). Вывод модели — в этом же
+ * Каждый кусок звука идёт в [AudioSink] (S03d: поток в распознавание) и в [TurnDetector] (S03c: Silero VAD, кадры 32 мс). Вывод модели — в этом же
  * потоке записи (`Dispatchers.IO`), не в главном. Детектор кончает запись по тишине или по предохранителю
  * 90 с (D31); кнопка — [finish]. Громкость (пик в журнале, уровень на экране) — кусками по
  * [ModelConfig.RECORD_LEVEL_WINDOW_MS], только для показа.
@@ -44,7 +45,7 @@ class AudioRecorder(
     private var isRecording = false
 
     @SuppressLint("MissingPermission") // разрешение проверяет экран до запуска сервиса
-    override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio =
+    override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
         withContext(Dispatchers.IO) {
             val window = SAMPLE_RATE * ModelConfig.RECORD_LEVEL_WINDOW_MS / 1000
             val minBuffer = AudioRecord.getMinBufferSize(
@@ -86,6 +87,7 @@ class AudioRecorder(
                     }
                     outputStream.write(bytes, 0, read * 2)
                     totalSamples += read
+                    sink?.onPcm(buffer, read)
                     encoder?.let { enc ->
                         try {
                             enc.feed(buffer, read)
@@ -116,6 +118,8 @@ class AudioRecorder(
             }
             if (!isActive) encoder?.release()
             ensureActive() // отменённая запись результата не даёт
+            // Конец — в поток распознавания сразу, до дожимания m4a: `commit` не ждёт сжатия.
+            sink?.onEnd(turnDetector.heardSpeech)
             val durationMs = totalSamples * 1000 / SAMPLE_RATE
             val endedBy = ended ?: TurnEnd.BUTTON
             if (endedBy == TurnEnd.LIMIT) {

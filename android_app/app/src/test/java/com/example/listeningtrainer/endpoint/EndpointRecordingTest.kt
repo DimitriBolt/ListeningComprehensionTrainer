@@ -1,6 +1,7 @@
 package com.example.listeningtrainer.endpoint
 
 import com.example.listeningtrainer.conversation.AudioInput
+import com.example.listeningtrainer.conversation.AudioSink
 import com.example.listeningtrainer.conversation.AudioOutput
 import com.example.listeningtrainer.conversation.Cue
 import com.example.listeningtrainer.conversation.RecordedAudio
@@ -245,7 +246,7 @@ class EndpointRecorderTest {
     private class FakeMic(private val clock: () -> Long, private val tmp: TemporaryFolder, private val level: (Long) -> Float) : AudioInput {
         @Volatile var finished = false
         var records = 0
-        override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio {
+        override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio {
             records++
             finished = false
             turnDetector.reset()

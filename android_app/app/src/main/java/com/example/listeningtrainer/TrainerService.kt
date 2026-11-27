@@ -24,6 +24,7 @@ import com.example.listeningtrainer.audio.exportToPublicMusic
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.audio.lastUserUploadFile
 import com.example.listeningtrainer.conversation.AudioInput
+import com.example.listeningtrainer.conversation.AudioSink
 import com.example.listeningtrainer.conversation.ConversationController
 import com.example.listeningtrainer.conversation.ConversationUi
 import com.example.listeningtrainer.conversation.EndReason
@@ -35,6 +36,9 @@ import com.example.listeningtrainer.conversation.VadTurnDetector
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.openai.RealtimeSynthesizer
+import com.example.listeningtrainer.openai.RealtimeTranscriber
+import com.example.listeningtrainer.openai.OkHttpLiveSocketFactory
+import com.example.listeningtrainer.eventlog.LiveVsFileStore
 import com.example.listeningtrainer.openai.FileTranscriber
 import com.example.listeningtrainer.openai.ResponsesCorrector
 import com.example.listeningtrainer.endpoint.EndpointRecorder
@@ -91,8 +95,8 @@ class TrainerService : Service() {
         val recorder = AudioRecorder(lastUserSpeechFile(this), lastUserUploadFile(this), AppLog)
         // Копия каждой записи в общую папку Music — только в debug-сборке, последние 20 файлов.
         val input: AudioInput = if (!BuildConfig.DEBUG) recorder else object : AudioInput by recorder {
-            override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio =
-                recorder.record(turnDetector, onLevel).also { audio ->
+            override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
+                recorder.record(turnDetector, sink, onLevel).also { audio ->
                     scope.launch(Dispatchers.IO) { exportToPublicMusic(this@TrainerService, audio.file) }
                 }
         }
@@ -112,6 +116,13 @@ class TrainerService : Service() {
             speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
             corrector = ResponsesCorrector(apiKey),
             studentLevel = (application as TrainerApplication).studentLevel,
+            // Потоковое распознавание (S03d, D67): одна сессия на разговор; сбой — файл.
+            liveTranscriber = RealtimeTranscriber(OkHttpLiveSocketFactory(apiKey), AppLog),
+            // Сверка потока с файлом — только в debug (S03d, п. 3); тексты — в files/diagnostics, не в журнал.
+            compareLiveWithFile = BuildConfig.DEBUG && ModelConfig.LIVE_COMPARE_WITH_FILE_IN_DEBUG,
+            onLiveVsFile = if (!BuildConfig.DEBUG) null else LiveVsFileStore(
+                File(File(filesDir, LiveVsFileStore.DIR), LiveVsFileStore.NAME),
+            )::add,
         )
         // Режим записи для пробы S03b (только debug): свой микрофон без сжатия; моменты пульсов — от проигрывателя
         // сигналов; эмуляция Silero — со своим состоянием модели.

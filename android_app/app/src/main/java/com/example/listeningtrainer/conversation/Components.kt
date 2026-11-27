@@ -31,9 +31,11 @@ data class RecordedAudio(
 interface AudioInput {
     /**
      * Записывает одну реплику, пока [turnDetector] не скажет «закончил» или не вызван [finish].
-     * [onLevel] получает громкость в дБ (для экрана). Отмена корутины прерывает запись без результата.
+     * [sink] получает каждый кусок звука и конец записи (S03d: поток в распознавание), из потока записи.
+     * [onLevel] получает громкость в дБ (для экрана). Отмена корутины прерывает запись без результата
+     * (конец в [sink] тогда не приходит).
      */
-    suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio
+    suspend fun record(turnDetector: TurnDetector, sink: AudioSink? = null, onLevel: (Float) -> Unit): RecordedAudio
 
     /** Ученик сам закончил реплику (кнопка «Stop Recording» или гарнитура): запись завершается и отдаётся. */
     fun finish()

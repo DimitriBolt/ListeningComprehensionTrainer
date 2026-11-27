@@ -39,14 +39,16 @@ class ConversationControllerTest {
         var encodeMs = 0L
         private var pending: CompletableDeferred<Unit>? = null
 
-        override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio {
+        override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio {
             records++
             timeline.events += "record"
             statesAtRecord += ui().state
             error?.let { throw it }
             val heard = speech.removeFirstOrNull() ?: true
             onLevel(if (heard) 65f else 40f)
+            sink?.onPcm(ShortArray(1280), 1280)
             if (hold) CompletableDeferred<Unit>().also { pending = it }.await()
+            sink?.onEnd(heard)
             return RecordedAudio(
                 File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f,
                 endedBy = if (heard) TurnEnd.SILENCE else TurnEnd.BUTTON,
@@ -219,6 +221,49 @@ class ConversationControllerTest {
         override fun release() { released = true }
     }
 
+    /**
+     * Поток распознавания: итог реплики — по очереди из [results] (строка — текст, `Fail(…)` — сбой); пусто —
+     * «live text». Текст приходит через [delayMs] после конца записи.
+     */
+    private class FakeLive : LiveTranscriber {
+        class Fail(val reason: String)
+        val results = ArrayDeque<Any>()
+        var delayMs = 200L
+        var prepares = 0
+        var released = false
+        val prompts = mutableListOf<String>()
+        val turns = mutableListOf<Turn>()
+
+        inner class Turn(private val onPartial: (String) -> Unit) : LiveTurn {
+            var samples = 0
+            var ended: Boolean? = null
+            var cancelled = false
+            override fun onPcm(pcm: ShortArray, count: Int) {
+                samples += count
+                onPartial("I like")
+            }
+            override fun onEnd(heardSpeech: Boolean) { ended = heardSpeech }
+            override suspend fun result(): LiveResult {
+                delay(delayMs)
+                return when (val r = results.removeFirstOrNull() ?: "live text") {
+                    is Fail -> LiveResult.Failed(r.reason, LiveStats(audioSentMs = 80))
+                    else -> LiveResult.Text(
+                        r as String,
+                        LiveStats(sessionWaitMs = 0, reused = turns.size > 1, audioSentMs = 2_500, commitToTextMs = delayMs, deltas = 3, chars = r.length, costUsd = 0.00071),
+                    )
+                }
+            }
+            override fun cancel() { cancelled = true }
+        }
+
+        override fun prepare() { prepares++ }
+        override fun begin(prompt: String, onPartial: (String) -> Unit): LiveTurn {
+            prompts += prompt
+            return Turn(onPartial).also { turns += it }
+        }
+        override fun release() { released = true }
+    }
+
     private class FakeLog : EventLog {
         val lines = mutableListOf<String>()
         override fun event(source: String, message: String) { lines += "[$source] $message" }
@@ -229,8 +274,9 @@ class ConversationControllerTest {
 
     private class Rig(
         scope: TestScope, vararg transcripts: Any, filler: String? = null, val corrector: FakeCorrector? = null,
-        val level: StudentLevel? = null,
+        val level: StudentLevel? = null, val live: FakeLive? = null, compare: Boolean = false,
     ) {
+        val compared = mutableListOf<Triple<String, String, Double>>()
         lateinit var controller: ConversationController
         private val ui = { controller.ui.value }
         private val clock = { scope.testScheduler.currentTime }
@@ -262,6 +308,9 @@ class ConversationControllerTest {
                 searchFiller = filler,
                 corrector = corrector,
                 studentLevel = level,
+                liveTranscriber = live,
+                compareLiveWithFile = compare,
+                onLiveVsFile = { a, b, sim -> compared += Triple(a, b, sim) },
             )
         }
 
@@ -401,7 +450,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         // распознавание 300 мс, учитель +1000, синтез +200; щита нет — слышно сразу
-        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=1500 filler_audio=-"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=1500 filler_audio=- stt_path=file"), rig.timing)
     }
 
     @Test
@@ -426,7 +475,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=2700 filler_audio=-"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=2700 filler_audio=- stt_path=file"), rig.timing)
     }
 
     @Test
@@ -530,7 +579,7 @@ class ConversationControllerTest {
         assertEquals(listOf("One,", "two,", "three,", "four,", "five,", "six."), rig.output.played)
         // «One,» не изменится, когда после «two, » пришёл знак (2300); синтез 200 мс
         assertEquals(
-            listOf("enc=0 stt=300 first_token=1300 first_group=2300 tutor=4300 search=no search_ms=- filler=no reply_chars=33 first_audio=2500 audible=2500 filler_audio=-"),
+            listOf("enc=0 stt=300 first_token=1300 first_group=2300 tutor=4300 search=no search_ms=- filler=no reply_chars=33 first_audio=2500 audible=2500 filler_audio=- stt_path=file"),
             rig.timing,
         )
         assertTrue(rig.output.startTimes.first() < 4300)
@@ -660,7 +709,7 @@ class ConversationControllerTest {
         assertTrue(rig.log.lines.any { it.startsWith("[Controller] search filler ready:") })
         assertTrue(rig.log.lines.contains("[Controller] search started, nothing said yet: filler phrase"))
         assertEquals(
-            listOf("enc=0 stt=300 first_token=3300 first_group=3300 tutor=3300 search=yes search_ms=2000 filler=yes reply_chars=25 first_audio=3500 audible=3500 filler_audio=300"),
+            listOf("enc=0 stt=300 first_token=3300 first_group=3300 tutor=3300 search=yes search_ms=2000 filler=yes reply_chars=25 first_audio=3500 audible=3500 filler_audio=300 stt_path=file"),
             rig.timing,
         )
         assertEquals(300L, rig.output.startTimes.first()) // фраза — сразу, как учитель начал искать
@@ -985,7 +1034,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
         // сжатие 400 (уже прошло) + распознавание 300; дальше всё на те же 400 больше
-        assertEquals(listOf("enc=400 stt=700 first_token=1700 first_group=1700 tutor=1700 search=no search_ms=- filler=no reply_chars=25 first_audio=1900 audible=1900 filler_audio=-"), rig.timing)
+        assertEquals(listOf("enc=400 stt=700 first_token=1700 first_group=1700 tutor=1700 search=no search_ms=- filler=no reply_chars=25 first_audio=1900 audible=1900 filler_audio=- stt_path=file"), rig.timing)
     }
 
     @Test
@@ -997,7 +1046,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
         // поиск 300…1200, текст через 1000 после него
         assertEquals(
-            listOf("enc=0 stt=300 first_token=2200 first_group=2200 tutor=2200 search=yes search_ms=900 filler=no reply_chars=20 first_audio=2400 audible=2400 filler_audio=-"),
+            listOf("enc=0 stt=300 first_token=2200 first_group=2200 tutor=2200 search=yes search_ms=900 filler=no reply_chars=20 first_audio=2400 audible=2400 filler_audio=- stt_path=file"),
             rig.timing,
         )
     }
@@ -1558,6 +1607,149 @@ class ConversationControllerTest {
         advanceUntilIdle()
         assertEquals(listOf<String?>(null), rig.tutor.levelNotes)
         assertFalse(rig.log.lines.any { "] level " in it })
+    }
+
+    // ---- потоковое распознавание (S03d) ---------------------------------------------------
+
+    @Test
+    fun `live - text from the stream, the file is not sent, stt_path live`() = runTest {
+        val live = FakeLive().apply { results += "I like coffee" }
+        val rig = Rig(this, "file text", live = live)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(0, rig.transcriber.calls)
+        assertEquals("I like coffee", rig.controller.ui.value.studentText)
+        assertEquals("I like coffee", rig.tutor.replies.single())
+        val turn = live.turns.single()
+        assertEquals(1280, turn.samples)
+        assertEquals(true, turn.ended)
+        assertTrue(rig.log.lines.contains(
+            "[Network] live transcription: session open in 0 ms (new), audio 2.5 s sent, commit → text 200 ms, 3 deltas, 13 chars; cost \$0.00071",
+        ))
+        assertEquals(listOf("enc=0 stt=200 first_token=1200 first_group=1200 tutor=1200 search=no search_ms=- filler=no reply_chars=25 first_audio=1400 audible=1400 filler_audio=- stt_path=live"), rig.timing)
+        assertFalse(rig.log.lines.any { "I like coffee" in it })
+    }
+
+    @Test
+    fun `live - the prompt is the same as for the file, session prepared at start and before every recording`() = runTest {
+        val live = FakeLive()
+        val rig = Rig(this, live = live)
+        rig.controller.prepare()
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        rig.tutor.lastTeacherText = "Good. Do you like tea?"
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(3, live.prepares)
+        assertEquals(TranscriptionPrompt.CONTEXT, live.prompts[0])
+        assertEquals(TranscriptionPrompt.build("Good. Do you like tea?", 200), live.prompts[1])
+        assertTrue(rig.log.lines.any { "live transcription: session open in 0 ms (reused)" in it })
+    }
+
+    @Test
+    fun `live failure - text from the file, one line in the log, stt_path file`() = runTest {
+        val live = FakeLive().apply { results += FakeLive.Fail("no text in 2500 ms") }
+        val rig = Rig(this, "I like tea", live = live)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(1, rig.transcriber.calls)
+        assertEquals("I like tea", rig.tutor.replies.single())
+        assertTrue(rig.log.lines.contains("[Network] live transcription failed (no text in 2500 ms) → file"))
+        // поток 200 мс до сбоя, файл ещё 300 мс
+        assertEquals("stt=500", rig.timing.single().split(' ')[1])
+        assertTrue(rig.timing.single().endsWith("stt_path=file"))
+    }
+
+    @Test
+    fun `live failure and the file fails too - transcription error as before`() = runTest {
+        val live = FakeLive().apply { results += FakeLive.Fail("closed: network: SocketException") }
+        val rig = Rig(this, ServiceException(FailureKind.NO_NETWORK, "network"), live = live)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("TRANSCRIPTION_ERROR"), rig.circleEnds)
+    }
+
+    @Test
+    fun `live - silence ends the stream without a commit, nothing is transcribed`() = runTest {
+        val live = FakeLive()
+        val rig = Rig(this, live = live)
+        rig.input.speech += false
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(false, live.turns.single().ended)
+        assertEquals(0, rig.transcriber.calls)
+        assertTrue(rig.log.lines.none { "live transcription" in it })
+        assertEquals(listOf("SILENCE_MANUAL"), rig.circleEnds)
+    }
+
+    @Test
+    fun `live - Stop while listening cancels the stream`() = runTest {
+        val live = FakeLive()
+        val rig = Rig(this, live = live)
+        rig.input.hold = true
+        rig.controller.startTurn()
+        runCurrent()
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+
+        assertTrue(live.turns.single().cancelled)
+        assertEquals(null, live.turns.single().ended)
+    }
+
+    @Test
+    fun `live - partial text of the current turn is available, empty at the start of the next one`() = runTest {
+        val live = FakeLive()
+        val rig = Rig(this, live = live)
+        rig.input.hold = true
+        rig.controller.startTurn()
+        runCurrent()
+        assertEquals("I like", rig.controller.partialText.value)
+        assertFalse(rig.log.lines.any { "I like" in it })
+        rig.controller.finishRecording()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `debug comparison - the file runs too, the log has only the similarity`() = runTest {
+        val live = FakeLive().apply { results += "I like to read books" }
+        val rig = Rig(this, "I like read books in evening", live = live, compare = true)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(1, rig.transcriber.calls)
+        assertEquals("I like to read books", rig.tutor.replies.single())
+        // общих слов 4 (i like read books), длиннее — 6 слов
+        assertTrue(rig.log.lines.contains("[Network] live vs file: similarity 0.67 (5 vs 6 words)"))
+        assertEquals(Triple("I like to read books", "I like read books in evening", 4.0 / 6), rig.compared.single())
+        assertFalse(rig.log.lines.any { "read books" in it })
+        // ответ учителя не ждал файл: поток 200 мс
+        assertTrue(rig.timing.single().startsWith("enc=0 stt=200 "))
+    }
+
+    @Test
+    fun `debug comparison - when the stream fails the file already running gives the text`() = runTest {
+        val live = FakeLive().apply { results += FakeLive.Fail("error invalid_request_error/-") }
+        val rig = Rig(this, "I like tea", live = live, compare = true)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(1, rig.transcriber.calls)
+        assertEquals("I like tea", rig.tutor.replies.single())
+        assertTrue(rig.log.lines.none { "live vs file" in it })
+        assertEquals("stt=300", rig.timing.single().split(' ')[1])
+    }
+
+    @Test
+    fun `live session is released with the service`() = runTest {
+        val live = FakeLive()
+        val rig = Rig(this, live = live)
+        rig.controller.release()
+        assertTrue(live.released)
     }
 }
 

@@ -123,6 +123,17 @@ class ConversationController(
     private val correctionWaitMs: Long = ModelConfig.CORRECTOR_WAIT_MS,
     /** Уровень ученика (S02h, D56): цель длины — служебной строкой в запрос; `null` — без неё. */
     private val studentLevel: StudentLevel? = null,
+    /**
+     * Потоковое распознавание во время записи (S03d, D67); `null` — только файл. Сбой потока — текст из файла
+     * ([transcriber]) нынешним путём, без повтора потока.
+     */
+    private val liveTranscriber: LiveTranscriber? = null,
+    /**
+     * Сверка (только debug, S03d п. 3): для каждой реплики параллельно идёт и файл; в журнал — похожесть,
+     * тексты — в [onLiveVsFile] (файл на телефоне, не журнал).
+     */
+    private val compareLiveWithFile: Boolean = false,
+    private val onLiveVsFile: ((live: String, file: String, similarity: Double) -> Unit)? = null,
 ) {
     private val speech = SpeechPipeline(synthesizer, fallbackSynthesizer, log, clock, speechLookahead)
 
@@ -136,6 +147,15 @@ class ConversationController(
     private var failure: FailureKind? = null
     /** Время сжатия последней записи — для строки `[Timing]`. */
     private var lastEncodeMs = 0L
+    /** Откуда текст последней реплики — для строки `[Timing]`: `live` (поток) или `file`. */
+    private var lastSttPath = STT_FILE
+
+    private val _partialText = MutableStateFlow("")
+    /**
+     * Частичный текст текущей реплики из потока распознавания (S03d; понадобится S04, чтобы понять, закончена
+     * ли мысль). С начала каждой записи — пустой. Не показывается и в журнал не пишется.
+     */
+    val partialText: StateFlow<String> = _partialText.asStateFlow()
     /** Круг уже записан в журнал как законченный, идёт голосовое сообщение об ошибке. */
     private var closing = false
     /** «Тики» ожидания; дочерняя корутина круга. */
@@ -230,14 +250,18 @@ class ConversationController(
         log.event(SOURCE, "New conversation: tutor history cleared")
     }
 
-    /** Сервис стартовал: заранее открыть сессию синтеза, чтобы подключение не попало во время ответа. */
-    fun prepare() = speech.prepare()
+    /** Сервис стартовал: заранее открыть сессии синтеза и распознавания, чтобы подключение не попало во время ответа. */
+    fun prepare() {
+        speech.prepare()
+        liveTranscriber?.prepare()
+    }
 
     /** Сервис закрывается. Если круг ещё идёт — он заканчивается с причиной «service destroyed». */
     fun release() {
         stop(EndReason.SERVICE_DESTROYED)
         output.release()
         speech.release()
+        liveTranscriber?.release()
     }
 
     // ---- круг --------------------------------------------------------------------------------
@@ -296,18 +320,27 @@ class ConversationController(
         setState(ConversationState.Listening, why) {
             it.copy(studentText = "", teacherText = "", currentChunk = "")
         }
-        // Сессия синтеза — заранее, пока ученик говорит (если оборвалась — переподключится сейчас).
+        // Сессии синтеза и распознавания — заранее, пока звучит «говори» и ученик говорит (если оборвались —
+        // переподключатся сейчас).
         speech.prepare()
+        liveTranscriber?.prepare()
         prepareFiller()
-        // Запись — после сигнала: микрофон его не слышит, и 3 с тишины отсчитываются от конца сигнала.
+        // Контекст распознавания — последнее предложение учителя; один и тот же для потока и файла.
+        val prompt = TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS)
+        _partialText.value = ""
+        // Запись — после сигнала: микрофон его не слышит, и тишина отсчитывается от конца сигнала.
         output.playCue(Cue.LISTEN)
         output.awaitCues()
+        // Поток распознавания — с первого кадра записи (S03d).
+        val live = liveTranscriber?.begin(prompt) { partial -> _partialText.value = partial }
         val pulses = startListenPulses()
         val audio = try {
-            input.record(turnDetector) { db -> _ui.update { it.copy(levelDb = db) } }
+            input.record(turnDetector, live) { db -> _ui.update { it.copy(levelDb = db) } }
         } catch (e: CancellationException) {
+            live?.cancel()
             throw e
         } catch (e: Exception) {
+            live?.cancel()
             return fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e)
         } finally {
             pulses?.cancel() // конец записи любым путём: тишина, кнопка, «Stop Recording», предохранитель
@@ -327,6 +360,7 @@ class ConversationController(
         // Молчание определяется по звуку: в записи без речи распознаватель «слышит» `Thank you.`
         // и т. п., поэтому его не вызываем (и не платим за тишину).
         if (!audio.heardSpeech) {
+            // Поток уже очищен (`clear` в конце записи): распознавать нечего.
             log.event(SOURCE, "counted as silence: yes (speech under ${ModelConfig.TURN_MIN_SPEECH_MS} ms, transcription skipped)")
             return onSilence()
         }
@@ -335,12 +369,24 @@ class ConversationController(
         output.playCue(Cue.PROCESSING)
         startWaitTicks()
         setState(ConversationState.Thinking, "recording finished") { it.copy(status = "Transcribing...") }
+        // Сверка в debug: файл — параллельно с потоком, в области сервиса (круг не ждёт его конца).
+        val fileJob = if (live != null && compareLiveWithFile) {
+            scope.async { runCatching { transcriber.transcribe(audio, prompt) } }
+        } else {
+            null
+        }
         val studentText = try {
-            transcriber.transcribe(
-                audio,
-                TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS),
-            )
+            val liveText = live?.let { liveText(it) }
+            lastSttPath = if (liveText != null) STT_LIVE else STT_FILE
+            if (liveText != null) {
+                fileJob?.let { compareWithFile(liveText, it) }
+                liveText
+            } else {
+                // Запасной путь — файл, как до S03d (повтор по D30). В debug файл уже идёт — ждём его.
+                fileJob?.await()?.getOrThrow() ?: transcriber.transcribe(audio, prompt)
+            }
         } catch (e: CancellationException) {
+            fileJob?.cancel()
             throw e
         } catch (e: Exception) {
             return fail(EndReason.TRANSCRIPTION_ERROR, "Transcription error: ${e.localizedMessage}", e)
@@ -369,6 +415,43 @@ class ConversationController(
             correction?.finish()
         }
         return if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
+    }
+
+    /** Текст из потока или `null` — сбой, нужен файл. Обе строки журнала — без текстов. */
+    private suspend fun liveText(turn: LiveTurn): String? {
+        when (val r = turn.result()) {
+            is LiveResult.Text -> {
+                val s = r.stats
+                log.event(
+                    NETWORK,
+                    "live transcription: session open in ${s.sessionWaitMs} ms (${if (s.reused) "reused" else "new"}), " +
+                        "audio ${sec1(s.audioSentMs)} s sent, commit → text ${s.commitToTextMs} ms, ${s.deltas} deltas, " +
+                        "${s.chars} chars; cost \$${"%.5f".format(java.util.Locale.US, s.costUsd)}",
+                )
+                return r.text
+            }
+            is LiveResult.Failed -> {
+                log.event(NETWORK, "live transcription failed (${r.reason}) → file")
+                return null
+            }
+        }
+    }
+
+    /** Debug: похожесть потока и файла — в журнал, тексты — в [onLiveVsFile]. Ответ учителя не ждёт. */
+    private fun compareWithFile(liveText: String, fileJob: Deferred<Result<String>>) {
+        scope.launch {
+            val file = fileJob.await().getOrElse { e ->
+                log.event(NETWORK, "live vs file: file failed (${e.message ?: e.javaClass.simpleName})")
+                return@launch
+            }
+            val sim = TranscriptMatch.similarity(liveText, file)
+            log.event(
+                NETWORK,
+                "live vs file: similarity ${"%.2f".format(java.util.Locale.US, sim)} " +
+                    "(${TranscriptMatch.words(liveText).size} vs ${TranscriptMatch.words(file).size} words)",
+            )
+            onLiveVsFile?.invoke(liveText, file, sim)
+        }
     }
 
     /** Учесть реплику в уровне ученика, записать в журнал; служебная строка цели длины для запроса. */
@@ -886,7 +969,8 @@ class ConversationController(
      * `search` — искал ли учитель, `filler` — звучала ли фраза на время поиска, `reply_chars` —
      * длина ответа без сносок (при обрыве — сколько успело прийти). `first_audio` — запуск звука первой группы ответа (не фразы);
      * `audible` — голос ответа слышен (после щита, если он есть); `filler_audio` — слышна фраза на время поиска
-     * (D44: цель — первый звук учителя, фраза или ответ). `-` — не было.
+     * (D44: цель — первый звук учителя, фраза или ответ). `-` — не было. `stt_path` (S03d) — откуда текст
+     * ученика: `live` — поток, `file` — файл (потока нет или он дал сбой).
      */
     private fun logTimings(recordedAt: Long, transcribedAt: Long, t: ReplyTiming, shieldMs: Long) {
         fun rel(at: Long?) = at?.let { (it - recordedAt).toString() } ?: "-"
@@ -897,7 +981,7 @@ class ConversationController(
                 "first_group=${rel(t.firstGroup)} tutor=${rel(t.repliedAt)} search=${yesNo(t.searchStart != null)} " +
                 "search_ms=$searchMs filler=${yesNo(t.filler)} reply_chars=${t.chars} " +
                 "first_audio=${rel(t.firstSound)} audible=${rel(t.firstSound?.plus(shieldMs))} " +
-                "filler_audio=${rel(t.fillerSound?.plus(shieldMs))}",
+                "filler_audio=${rel(t.fillerSound?.plus(shieldMs))} stt_path=$lastSttPath",
         )
     }
 
@@ -911,6 +995,8 @@ class ConversationController(
 
     private fun ms1(value: Double) = String.format(java.util.Locale.US, "%.1f", value)
 
+    private fun sec1(ms: Long) = String.format(java.util.Locale.US, "%.1f", ms / 1000.0)
+
     companion object {
         private const val SOURCE = "Controller"
         private const val NETWORK = "Network"
@@ -918,5 +1004,7 @@ class ConversationController(
         const val TIMING_SOURCE = "Timing"
         /** Фраза учителя, пока идёт поиск и он ещё ничего не сказал (D39). */
         const val SEARCH_FILLER = "Let me check."
+        const val STT_LIVE = "live"
+        const val STT_FILE = "file"
     }
 }
