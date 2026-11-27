@@ -37,16 +37,41 @@ interface AudioInput {
      */
     suspend fun record(turnDetector: TurnDetector, sink: AudioSink? = null, onLevel: (Float) -> Unit): RecordedAudio
 
+    /**
+     * Продолжение реплики после объявленного конца (S04): то же, что [record], но в свои файлы — прошлая запись ещё
+     * может распознаваться файлом. Кончает его детектор (ученик продолжил и снова закончил) или [finish] (звучит учитель).
+     */
+    suspend fun recordContinuation(turnDetector: TurnDetector, sink: AudioSink? = null, onLevel: (Float) -> Unit): RecordedAudio =
+        record(turnDetector, sink, onLevel)
+
     /** Ученик сам закончил реплику (кнопка «Stop Recording» или гарнитура): запись завершается и отдаётся. */
     fun finish()
 }
 
-/** Чем кончилась запись: тишина после речи (или с начала), кнопка ученика, предохранитель 90 с (D31). */
+/**
+ * Чем кончилась запись. [SILENCE] — молчание с начала (речи не было, D70) или тишина без судьи (режим записи S03b);
+ * [JUDGE] — тишина-кандидат, и судья сказал «мысль закончена» (S04); [LONG_SILENCE] — тишина до предела без
+ * «закончена»; [BUTTON] — кнопка ученика; [LIMIT] — предохранитель 90 с (D31).
+ */
 enum class TurnEnd(val label: String) {
     SILENCE("silence"),
+    JUDGE("judge"),
+    LONG_SILENCE("long_silence"),
     BUTTON("button"),
     LIMIT("limit"),
 }
+
+/**
+ * Что нужно детектору на одну запись (S04): [text] — что ученик уже сказал (для судьи); [continuation] — запись
+ * после объявленного конца, до голоса учителя: молчание с начала её не кончает (её кончает контроллер);
+ * [onHeardSpeech] — набралось речи на «речь была» (из потока записи); [onDecision] — решение судьи (журнал).
+ */
+class TurnContext(
+    val text: () -> String = { "" },
+    val continuation: Boolean = false,
+    val onHeardSpeech: () -> Unit = {},
+    val onDecision: (TurnDecision) -> Unit = {},
+)
 
 /** Речь за запись и время вывода модели на кадр (журнал, S03c). */
 data class TurnStats(
@@ -54,16 +79,21 @@ data class TurnStats(
     val frames: Int = 0,
     val avgFrameMs: Double = 0.0,
     val maxFrameMs: Double = 0.0,
+    /** Тишина от последней речи до конца записи, мс (S04: `end_wait` в `[Timing]`). */
+    val endWaitMs: Long = 0,
 )
 
 /** Решает, закончил ли ученик реплику, по звуку записи (S03c: Silero VAD, D64). */
 interface TurnDetector {
-    /** Начало новой реплики: счёт и состояние модели — с нуля. */
+    /** Начало новой реплики: счёт и состояние модели — с нуля. Контекст ([setContext]) остаётся. */
     fun reset()
+
+    /** Контекст следующих записей (S04); детектор без судьи его не читает. */
+    fun setContext(context: TurnContext) {}
 
     /**
      * Очередной кусок звука: [count] отсчётов PCM 16 кГц из [pcm], подряд с прошлым куском.
-     * Не `null` — реплика кончилась ([TurnEnd.SILENCE] или [TurnEnd.LIMIT]).
+     * Не `null` — реплика кончилась ([TurnEnd]).
      */
     fun onAudio(pcm: ShortArray, count: Int): TurnEnd?
 

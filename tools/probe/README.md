@@ -317,6 +317,15 @@ python tools/probe/probe.py turn-end --offline    # без сети: сесси�
   умолчанию $1.5).
 - **Итог:** `docs/research/04-turn-end.md` (+ `.json`) — числа, тексты сценария и распознанные тексты этих реплик.
 
+**Проверка кодом приложения (п. 3):** `turn_end_export.py` кладёт в `diagnostics/s04/` (вне Git) записи с тем же хвостом и
+ленту частичного текста из кэша пробы; JVM-тест гоняет на них детектор, Silero и судью приложения с отменой:
+
+```bash
+python tools/probe/turn_end_export.py
+cd android_app && ./gradlew testDebugUnitTest --tests '*S04TurnEndRecordingsTest' --rerun
+python tools/probe/turn_end_export.py --check   # расхождения кода приложения с пробой
+```
+
 ## Тесты (без ключа и без сети)
 
 ```bash

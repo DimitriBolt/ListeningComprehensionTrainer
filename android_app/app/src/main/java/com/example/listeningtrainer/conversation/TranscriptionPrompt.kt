@@ -20,6 +20,13 @@ object TranscriptionPrompt {
         return if (sentence.isEmpty()) CONTEXT else "$CONTEXT The teacher just said: \"$sentence\""
     }
 
+    /**
+     * Продолжение реплики (S04): ученик заговорил снова после объявленного конца — в `prompt` уже сказанное [said].
+     * Тот же вид, что у куска способа б пробы `turn-end`.
+     */
+    fun continued(prompt: String, said: String): String =
+        if (said.isBlank()) prompt else "$prompt The learner has already said: \"${said.trim()}\" and goes on."
+
     /** Последнее предложение без разметки, не длиннее [maxChars] (обрезка по слову с начала). */
     fun lastSentence(text: String, maxChars: Int): String {
         val clean = text.replace("**", "").replace(Regex("\\s+"), " ").trim()

@@ -34,19 +34,36 @@ import java.nio.ByteOrder
  * [ModelConfig.RECORD_LEVEL_WINDOW_MS], только для показа.
  */
 class AudioRecorder(
-    private val wavFile: File,
-    private val m4aFile: File,
+    wavFile: File,
+    m4aFile: File,
     private val log: EventLog,
     /** Сжимать ли звук в m4a во время записи (запись для пробы S03b — без сжатия, нужен только WAV). */
     private val compress: Boolean = ModelConfig.TRANSCRIBE_UPLOAD_COMPRESSED,
+    /**
+     * Вторая пара файлов (S04) — для продолжения реплики ([recordContinuation]): оно пишется, пока прошлая запись ещё
+     * распознаётся файлом (запасной путь, сверка в debug), и её файлы не затирает. Обычная запись — всегда в первую
+     * пару (кнопка «My Voice»). `null` — одна пара.
+     */
+    altFiles: Pair<File, File>? = null,
 ) : AudioInput {
 
     @Volatile
     private var isRecording = false
+    private val pairs = listOfNotNull(wavFile to m4aFile, altFiles)
+    private var lastPair = 0
+
+    override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
+        recordInto(0, turnDetector, sink, onLevel)
+
+    /** Продолжение реплики — в пару, которой не занята прошлая запись. */
+    override suspend fun recordContinuation(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
+        recordInto((lastPair + 1) % pairs.size, turnDetector, sink, onLevel)
 
     @SuppressLint("MissingPermission") // разрешение проверяет экран до запуска сервиса
-    override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
+    private suspend fun recordInto(pair: Int, turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
         withContext(Dispatchers.IO) {
+            lastPair = pair
+            val (wavFile, m4aFile) = pairs[pair]
             val window = SAMPLE_RATE * ModelConfig.RECORD_LEVEL_WINDOW_MS / 1000
             val minBuffer = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
@@ -127,7 +144,7 @@ class AudioRecorder(
             }
             val prepareStarted = System.nanoTime()
             val upload = if (turnDetector.heardSpeech) {
-                uploadFile(encoder, durationMs)
+                uploadFile(encoder, durationMs, wavFile, m4aFile)
             } else {
                 encoder?.release() // молчание не загружается
                 wavFile
@@ -149,7 +166,7 @@ class AudioRecorder(
     }
 
     /** Файл для распознавания: дожатый m4a, при сбое — WAV. Формат, размер и время дожимания — в журнал. */
-    private fun uploadFile(encoder: AacEncoder?, durationMs: Long): File {
+    private fun uploadFile(encoder: AacEncoder?, durationMs: Long, wavFile: File, m4aFile: File): File {
         val seconds = maxOf(1L, durationMs) / 1000.0
         if (encoder != null) {
             val started = System.nanoTime()

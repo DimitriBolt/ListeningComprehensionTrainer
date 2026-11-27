@@ -37,6 +37,13 @@ class ConversationControllerTest {
         var error: Exception? = null
         /** Сколько «длилось» сжатие (оно уже прошло к возврату записи). */
         var encodeMs = 0L
+        /** Чем кончилась очередная запись с речью (S04); пусто — тишиной без судьи (как до S04). */
+        val endings = ArrayDeque<TurnEnd>()
+        var endWaitMs = 0L
+        /** Запись-продолжение (S04): через сколько мс ученик заговорил снова; `null` или пусто — молчит. */
+        val resumes = ArrayDeque<Long?>()
+        var continuations = 0
+        var continuationsCancelled = 0
         private var pending: CompletableDeferred<Unit>? = null
 
         override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio {
@@ -49,12 +56,33 @@ class ConversationControllerTest {
             sink?.onPcm(ShortArray(1280), 1280)
             if (hold) CompletableDeferred<Unit>().also { pending = it }.await()
             sink?.onEnd(heard)
-            return RecordedAudio(
-                File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f,
-                endedBy = if (heard) TurnEnd.SILENCE else TurnEnd.BUTTON,
-                turn = if (heard) TurnStats(speechMs = 1_216, frames = 94, avgFrameMs = 0.84, maxFrameMs = 2.5) else TurnStats(),
-                encodeMs = encodeMs,
-            )
+            return audio(heard)
+        }
+
+        private fun audio(heard: Boolean) = RecordedAudio(
+            File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f,
+            endedBy = if (heard) endings.removeFirstOrNull() ?: TurnEnd.SILENCE else TurnEnd.BUTTON,
+            turn = if (heard) TurnStats(speechMs = 1_216, frames = 94, avgFrameMs = 0.84, maxFrameMs = 2.5, endWaitMs = endWaitMs) else TurnStats(),
+            encodeMs = encodeMs,
+        )
+
+        override suspend fun recordContinuation(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio {
+            continuations++
+            timeline.events += "continuation"
+            val after = resumes.removeFirstOrNull()
+            try {
+                if (after == null) CompletableDeferred<Unit>().await() // молчит: запись бросят, когда звучит учитель
+                delay(after!!)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                continuationsCancelled++
+                throw e
+            }
+            (turnDetector as CtxDetector).ctx.onHeardSpeech()
+            records++
+            delay(1_500) // договорил и замолчал
+            sink?.onPcm(ShortArray(1280), 1280)
+            sink?.onEnd(true)
+            return audio(true)
         }
 
         override fun finish() {
@@ -299,7 +327,7 @@ class ConversationControllerTest {
             controller = ConversationController(
                 scope = scope,
                 input = input,
-                turnDetector = NoTurnDetector,
+                turnDetector = CtxDetector(),
                 transcriber = transcriber,
                 tutor = tutor,
                 planner = SpeechPlanner(),
@@ -453,7 +481,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         // распознавание 300 мс, учитель +1000, синтез +200; щита нет — слышно сразу
-        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=1500 filler_audio=- stt_path=file"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=1500 filler_audio=- stt_path=file end_wait=0 ended_by=silence"), rig.timing)
     }
 
     @Test
@@ -478,7 +506,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=2700 filler_audio=- stt_path=file"), rig.timing)
+        assertEquals(listOf("enc=0 stt=300 first_token=1300 first_group=1300 tutor=1300 search=no search_ms=- filler=no reply_chars=25 first_audio=1500 audible=2700 filler_audio=- stt_path=file end_wait=0 ended_by=silence"), rig.timing)
     }
 
     @Test
@@ -582,7 +610,7 @@ class ConversationControllerTest {
         assertEquals(listOf("One,", "two,", "three,", "four,", "five,", "six."), rig.output.played)
         // «One,» не изменится, когда после «two, » пришёл знак (2300); синтез 200 мс
         assertEquals(
-            listOf("enc=0 stt=300 first_token=1300 first_group=2300 tutor=4300 search=no search_ms=- filler=no reply_chars=33 first_audio=2500 audible=2500 filler_audio=- stt_path=file"),
+            listOf("enc=0 stt=300 first_token=1300 first_group=2300 tutor=4300 search=no search_ms=- filler=no reply_chars=33 first_audio=2500 audible=2500 filler_audio=- stt_path=file end_wait=0 ended_by=silence"),
             rig.timing,
         )
         assertTrue(rig.output.startTimes.first() < 4300)
@@ -712,7 +740,7 @@ class ConversationControllerTest {
         assertTrue(rig.log.lines.any { it.startsWith("[Controller] search filler ready:") })
         assertTrue(rig.log.lines.contains("[Controller] search started, nothing said yet: filler phrase"))
         assertEquals(
-            listOf("enc=0 stt=300 first_token=3300 first_group=3300 tutor=3300 search=yes search_ms=2000 filler=yes reply_chars=25 first_audio=3500 audible=3500 filler_audio=300 stt_path=file"),
+            listOf("enc=0 stt=300 first_token=3300 first_group=3300 tutor=3300 search=yes search_ms=2000 filler=yes reply_chars=25 first_audio=3500 audible=3500 filler_audio=300 stt_path=file end_wait=0 ended_by=silence"),
             rig.timing,
         )
         assertEquals(300L, rig.output.startTimes.first()) // фраза — сразу, как учитель начал искать
@@ -1037,7 +1065,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
         // сжатие 400 (уже прошло) + распознавание 300; дальше всё на те же 400 больше
-        assertEquals(listOf("enc=400 stt=700 first_token=1700 first_group=1700 tutor=1700 search=no search_ms=- filler=no reply_chars=25 first_audio=1900 audible=1900 filler_audio=- stt_path=file"), rig.timing)
+        assertEquals(listOf("enc=400 stt=700 first_token=1700 first_group=1700 tutor=1700 search=no search_ms=- filler=no reply_chars=25 first_audio=1900 audible=1900 filler_audio=- stt_path=file end_wait=0 ended_by=silence"), rig.timing)
     }
 
     @Test
@@ -1049,7 +1077,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
         // поиск 300…1200, текст через 1000 после него
         assertEquals(
-            listOf("enc=0 stt=300 first_token=2200 first_group=2200 tutor=2200 search=yes search_ms=900 filler=no reply_chars=20 first_audio=2400 audible=2400 filler_audio=- stt_path=file"),
+            listOf("enc=0 stt=300 first_token=2200 first_group=2200 tutor=2200 search=yes search_ms=900 filler=no reply_chars=20 first_audio=2400 audible=2400 filler_audio=- stt_path=file end_wait=0 ended_by=silence"),
             rig.timing,
         )
     }
@@ -1630,7 +1658,7 @@ class ConversationControllerTest {
         assertTrue(rig.log.lines.contains(
             "[Network] live transcription: session open in 0 ms (new), audio 2.5 s sent, commit → text 200 ms, 3 deltas, 13 chars; cost \$0.00071",
         ))
-        assertEquals(listOf("enc=0 stt=200 first_token=1200 first_group=1200 tutor=1200 search=no search_ms=- filler=no reply_chars=25 first_audio=1400 audible=1400 filler_audio=- stt_path=live"), rig.timing)
+        assertEquals(listOf("enc=0 stt=200 first_token=1200 first_group=1200 tutor=1200 search=no search_ms=- filler=no reply_chars=25 first_audio=1400 audible=1400 filler_audio=- stt_path=live end_wait=0 ended_by=silence"), rig.timing)
         assertFalse(rig.log.lines.any { "I like coffee" in it })
     }
 
@@ -1663,7 +1691,7 @@ class ConversationControllerTest {
         assertTrue(rig.log.lines.contains("[Network] live transcription failed (no text in 2500 ms) → file (deltas 2, audio 0.1 s sent)"))
         // поток 200 мс до сбоя, файл ещё 300 мс
         assertEquals("stt=500", rig.timing.single().split(' ')[1])
-        assertTrue(rig.timing.single().endsWith("stt_path=file"))
+        assertTrue(rig.timing.single().endsWith("stt_path=file end_wait=0 ended_by=silence"))
     }
 
     @Test
@@ -1760,7 +1788,7 @@ class ConversationControllerTest {
         assertEquals("I like tea", rig.tutor.replies.single())
         // 1000 мс ожидания потока + 300 мс файл
         assertEquals("stt=1300", rig.timing.single().split(' ')[1])
-        assertTrue(rig.timing.single().endsWith("stt_path=file"))
+        assertTrue(rig.timing.single().endsWith("stt_path=file end_wait=0 ended_by=silence"))
         val lines = rig.log.lines
         assertTrue(lines.contains("[Network] live transcription: no text in 1000 ms after commit → file in parallel"))
         assertTrue(lines.contains("[Network] transcription: file first (live still waiting)"))
@@ -1777,7 +1805,7 @@ class ConversationControllerTest {
 
         assertEquals("I like coffee", rig.tutor.replies.single())
         assertEquals("stt=1200", rig.timing.single().split(' ')[1])
-        assertTrue(rig.timing.single().endsWith("stt_path=live"))
+        assertTrue(rig.timing.single().endsWith("stt_path=live end_wait=0 ended_by=silence"))
         assertTrue(rig.log.lines.contains("[Network] live transcription: no text in 1000 ms after commit → file in parallel"))
         assertTrue(rig.log.lines.none { "file first" in it })
     }
@@ -1790,7 +1818,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         assertEquals("I like coffee", rig.tutor.replies.single())
-        assertTrue(rig.timing.single().endsWith("stt_path=live"))
+        assertTrue(rig.timing.single().endsWith("stt_path=live end_wait=0 ended_by=silence"))
     }
 
     @Test
@@ -1817,6 +1845,70 @@ class ConversationControllerTest {
         assertEquals(listOf("SILENCE_MANUAL"), rig.circleEnds)
     }
 
+    // ---- конец реплики: судья и отмена (S04) -------------------------------------------------
+
+    @Test
+    fun `judge end and the student stays silent - the teacher answers, the continuation is dropped`() = runTest {
+        val rig = Rig(this, "At noon")
+        rig.input.endings += TurnEnd.JUDGE
+        rig.input.endWaitMs = 1024
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("At noon"), rig.tutor.replies)
+        assertEquals(1, rig.input.continuations)
+        assertEquals(1, rig.input.continuationsCancelled)
+        assertTrue(rig.timing.single().endsWith("end_wait=1024 ended_by=judge"))
+        assertTrue(rig.log.lines.none { "resumed after end" in it })
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `the student goes on before the teacher - reply cancelled, one turn with both texts`() = runTest {
+        val level = StudentLevel(MemoryLevelStore())
+        val rig = Rig(this, "I like", "to read books", corrector = FakeCorrector(), level = level)
+        rig.input.endings += TurnEnd.JUDGE
+        rig.input.resumes += 600L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        // первый запрос к учителю отменён (ничего не прозвучало), второй — на всю реплику
+        assertEquals(listOf("I like", "I like to read books"), rig.tutor.replies)
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertEquals(2, rig.output.cues.count { it == Cue.PROCESSING })
+        assertEquals(1, rig.output.cues.count { it == Cue.LISTEN })
+        assertTrue(rig.log.lines.contains("[Turn] resumed after end (+600 ms) → cancelled tutor, corrector; tutor cost unknown (stream cut)"))
+        assertTrue(rig.log.lines.any { it.startsWith("[Network] corrector: cancelled (student went on)") })
+        assertEquals(1, rig.timing.size)
+        assertEquals(1, level.state.value.turns) // одна реплика в окне уровня (D56)
+        assertFalse(rig.log.lines.any { "read books" in it })
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `button end - no continuation, no cancel`() = runTest {
+        val rig = Rig(this, "I like tea")
+        rig.input.endings += TurnEnd.BUTTON
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(0, rig.input.continuations)
+        assertTrue(rig.timing.single().endsWith("ended_by=button"))
+    }
+
+    @Test
+    fun `long silence end can be cancelled too and the log shows the limit`() = runTest {
+        val rig = Rig(this, "My favorite food is", "pizza")
+        rig.input.endings += TurnEnd.LONG_SILENCE
+        rig.input.endWaitMs = 8000
+        rig.input.resumes += 300L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertTrue(rig.log.lines.contains("[Turn] pause 8000 ms: limit → end"))
+        assertEquals("My favorite food is pizza", rig.tutor.replies.last())
+    }
+
     @Test
     fun `live session is released with the service`() = runTest {
         val live = FakeLive()
@@ -1826,8 +1918,10 @@ class ConversationControllerTest {
     }
 }
 
-/** Детектор не нужен: поддельный микрофон сам решает, была ли речь. */
-private object NoTurnDetector : TurnDetector {
+/** Детектор не нужен: поддельный микрофон сам решает, была ли речь. Контекст (S04) запоминается для подделки. */
+private class CtxDetector : TurnDetector {
+    var ctx = TurnContext()
+    override fun setContext(context: TurnContext) { ctx = context }
     override fun reset() {}
     override fun onAudio(pcm: ShortArray, count: Int): TurnEnd? = null
     override val heardSpeech = false

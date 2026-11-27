@@ -32,6 +32,7 @@ import com.example.listeningtrainer.conversation.IdleShutdown
 import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.SpeechPlanner
 import com.example.listeningtrainer.conversation.TurnDetector
+import com.example.listeningtrainer.conversation.TurnEndRule
 import com.example.listeningtrainer.conversation.VadTurnDetector
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.config.ModelConfig
@@ -92,7 +93,11 @@ class TrainerService : Service() {
         val pulseMarks = PulseMarks()
         // Конец реплики — Silero VAD (S03c, D64): модель грузится при первой записи, в её потоке.
         val vadModel = (application as TrainerApplication).vadModel
-        val recorder = AudioRecorder(lastUserSpeechFile(this), lastUserUploadFile(this), AppLog)
+        // Две пары файлов по очереди (S04): продолжение реплики не затирает запись, которая ещё распознаётся.
+        val recorder = AudioRecorder(
+            lastUserSpeechFile(this), lastUserUploadFile(this), AppLog,
+            altFiles = File(cacheDir, "user_speech_b.wav") to File(cacheDir, "user_upload_b.m4a"),
+        )
         // Копия каждой записи в общую папку Music — только в debug-сборке, последние 20 файлов.
         val input: AudioInput = if (!BuildConfig.DEBUG) recorder else object : AudioInput by recorder {
             override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
@@ -105,7 +110,8 @@ class TrainerService : Service() {
         controller = ConversationController(
             scope = scope,
             input = input,
-            turnDetector = VadTurnDetector(SileroVad(vadModel)),
+            // Конец реплики (S04): тишина-кандидат + судья «последнее слово» по тексту потока, предел 8 с.
+            turnDetector = VadTurnDetector(SileroVad(vadModel), rule = TurnEndRule()),
             transcriber = FileTranscriber(apiKey, log = AppLog),
             tutor = tutor,
             planner = SpeechPlanner(),

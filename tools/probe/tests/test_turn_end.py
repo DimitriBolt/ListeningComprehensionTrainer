@@ -193,3 +193,15 @@ def test_padding_keeps_the_recording_and_adds_its_own_noise():
 def test_accuracy_treats_contractions_as_the_full_form():
     assert te.accuracy("I think that … it is a good idea.", "I think that it's a good idea") == 1.0
     assert te.accuracy("At noon.", "Add nogen") == 0.0
+
+
+def test_j2_lists_match_the_app():
+    import re
+    kt = (probe.REPO_ROOT / "android_app/app/src/main/java/com/example/listeningtrainer/conversation/TurnEndRule.kt").read_text(encoding="utf-8")
+
+    def kset(name):
+        body = re.search(name + r" = setOf\((.*?)\n    \)", kt, re.S).group(1)
+        return set(re.findall(r'"([^"]+)"', body))
+    assert kset("UNFINISHED") == te.J2_WORDS
+    assert kset("AUXILIARIES") == te.AUXILIARIES
+    assert set(re.findall(r'"([^"]+)"', re.search(r"PRONOUNS = setOf\((.*?)\)", kt).group(1))) == te.PRONOUNS

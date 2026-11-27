@@ -179,4 +179,52 @@ class VadTurnDetectorTest {
         assertEquals(2.0, d.stats.avgFrameMs, 1e-9)
         assertEquals(3.0, d.stats.maxFrameMs, 1e-9)
     }
+
+    // ---- S04: судья и запись-продолжение ----------------------------------------------------
+
+    @Test
+    fun `with the rule - a finished answer ends after 1000 ms, end_wait is the silence`() {
+        val d = VadTurnDetector(ScriptedVad(List(20) { 0.9f } + listOf(0.1f)), rule = TurnEndRule())
+        val decisions = mutableListOf<TurnDecision>()
+        d.setContext(TurnContext(text = { "At noon" }, onDecision = { decisions += it }))
+        val (end, n) = runFrames(d)
+        assertEquals(TurnEnd.JUDGE, end)
+        assertEquals(20 + 32, n) // 32 кадра = 1024 мс
+        assertEquals(1024L, d.stats.endWaitMs)
+        assertEquals(listOf(true), decisions.map { it.end })
+    }
+
+    @Test
+    fun `with the rule - an unfinished thought waits for more speech, then ends`() {
+        // «Yesterday I» — 4 с паузы — «went to the shop»
+        val probs = List(20) { 0.9f } + List(125) { 0.1f } + List(20) { 0.9f } + listOf(0.1f)
+        val d = VadTurnDetector(ScriptedVad(probs), rule = TurnEndRule())
+        var frames = 0
+        d.setContext(TurnContext(text = { if (frames < 150) "Yesterday I" else "Yesterday I went to the shop" }))
+        d.reset()
+        var end: TurnEnd? = null
+        while (end == null && frames < 1000) { frames++; end = d.onAudio(frame, frame.size) }
+        assertEquals(TurnEnd.JUDGE, end)
+        assertEquals(20 + 125 + 20 + 32, frames)
+    }
+
+    @Test
+    fun `with the rule - silence up to 8000 ms ends with LONG_SILENCE`() {
+        val d = VadTurnDetector(ScriptedVad(List(20) { 0.9f } + listOf(0.1f)), rule = TurnEndRule())
+        d.setContext(TurnContext(text = { "My favorite food is" }))
+        val (end, n) = runFrames(d)
+        assertEquals(TurnEnd.LONG_SILENCE, end)
+        assertEquals(20 + 250, n)
+    }
+
+    @Test
+    fun `continuation - no end on silence from the start, speech is reported once`() {
+        val d = VadTurnDetector(ScriptedVad(List(400) { 0.1f } + List(20) { 0.9f } + listOf(0.1f)), rule = TurnEndRule())
+        var heard = 0
+        d.setContext(TurnContext(text = { "and then we watched a movie" }, continuation = true, onHeardSpeech = { heard++ }))
+        val (end, n) = runFrames(d)
+        assertEquals(TurnEnd.JUDGE, end) // 12,8 с молчания не кончили запись
+        assertEquals(400 + 20 + 32, n)
+        assertEquals(1, heard)
+    }
 }

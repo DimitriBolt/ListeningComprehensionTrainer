@@ -52,24 +52,29 @@ class StudentLevel(
 
     /** Реплика ученика дошла до учителя: учесть её в окне; может сменить уровень. */
     @Synchronized
-    fun onStudentTurn(studentText: String): Step {
+    fun onStudentTurn(studentText: String): Step = preview(studentText).also { set(it.state) }
+
+    /**
+     * Что сделала бы реплика с уровнем, без записи (S04): ответ на неё ещё может отмениться — ученик продолжил, и
+     * вся реплика посчитается один раз, когда учитель ответит ([apply]).
+     */
+    @Synchronized
+    fun preview(studentText: String): Step {
         val s = _state.value
         val turns = s.turns + 1
         val nu = s.notUnderstood + if (NotUnderstood.isMarker(studentText)) 1 else 0
-        if (nu < downMin && turns < window) {
-            val state = State(s.level, turns, nu)
-            set(state)
-            return Step(state)
-        }
+        if (nu < downMin && turns < window) return Step(State(s.level, turns, nu))
         val next = when {
             nu >= downMin -> s.level - 1
             nu <= upMax -> s.level + 1
             else -> s.level
         }.coerceIn(1, maxLevel)
-        val state = State(next)
-        set(state)
-        return Step(state, from = s.level.takeIf { it != next })
+        return Step(State(next), from = s.level.takeIf { it != next })
     }
+
+    /** Записать шаг [preview]. */
+    @Synchronized
+    fun apply(step: Step) = set(step.state)
 
     /** Задать уровень вручную (только debug-сборка, ручная проверка): окно начинается заново. */
     @Synchronized

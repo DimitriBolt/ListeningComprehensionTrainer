@@ -9,9 +9,13 @@ import com.example.listeningtrainer.config.ModelConfig
  * Время — по звуку (номер кадра), а не по часам: так детектор одинаково ведёт себя в приложении, в тестах
  * и на записях S03b.
  * - кадр с `p ≥ speechProb` — речь;
- * - речь уже была ([heardSpeech]) — конец ([TurnEnd.SILENCE]) через [silenceMs] без речи после последнего кадра речи;
+ * - речь уже была ([heardSpeech]):
+ *   - с [rule] (приложение, S04) — тишина-кандидат и судья по тексту, предел ([TurnEndRule]);
+ *   - без него (режим записи S03b) — конец ([TurnEnd.SILENCE]) через [silenceMs] без речи после последнего кадра речи;
  * - речи ещё не было — через [startSilenceMs] без речи (с начала записи или после последнего кадра речи):
- *   ученик молчит, запись тоже кончается (D70);
+ *   ученик молчит, запись тоже кончается (D70). Кроме записи-продолжения ([TurnContext.continuation]): её кончает
+ *   контроллер, когда звучит учитель;
+ * - речи набралось на [heardSpeech] — [TurnContext.onHeardSpeech] (один раз за запись);
  * - [heardSpeech] — речи набралось не меньше [minSpeechMs];
  * - предохранитель: [maxMs] звука — [TurnEnd.LIMIT] (D31).
  * Время вывода модели на кадр копится в [stats] (журнал).
@@ -25,7 +29,12 @@ class VadTurnDetector(
     private val minSpeechMs: Long = ModelConfig.TURN_MIN_SPEECH_MS,
     private val maxMs: Long = ModelConfig.RECORD_MAX_MS.toLong(),
     private val nanoTime: () -> Long = System::nanoTime,
+    /** Конец реплики по тексту (S04); `null` — только тишина [silenceMs] (режим записи S03b). */
+    private val rule: TurnEndRule? = null,
 ) : TurnDetector {
+
+    private var context = TurnContext()
+    private var heardReported = false
 
     private val frame = ShortArray(vad.frameSamples)
     private var filled = 0
@@ -53,9 +62,16 @@ class VadTurnDetector(
             frames = frames,
             avgFrameMs = if (frames == 0) 0.0 else inferNsTotal / 1e6 / frames,
             maxFrameMs = inferNsMax / 1e6,
+            endWaitMs = framesToMs(framesSinceSpeech),
         )
 
+    override fun setContext(context: TurnContext) {
+        this.context = context
+    }
+
     override fun reset() {
+        heardReported = false
+        rule?.onSpeech()
         vad.reset()
         filled = 0
         frames = 0
@@ -92,15 +108,25 @@ class VadTurnDetector(
         if (ns > inferNsMax) inferNsMax = ns
         onFrame?.invoke(frames, p)
         frames++
-        if (p >= speechProb) {
+        val speech = p >= speechProb
+        if (speech) {
             speechFrames++
             framesSinceSpeech = 0
+            rule?.onSpeech()
+            if (heardSpeech && !heardReported) {
+                heardReported = true
+                context.onHeardSpeech()
+            }
         } else {
             framesSinceSpeech++
         }
+        val silence = framesToMs(framesSinceSpeech)
         val end = when {
             audioMs >= maxMs -> TurnEnd.LIMIT
-            framesToMs(framesSinceSpeech) >= (if (heardSpeech) silenceMs else startSilenceMs) -> TurnEnd.SILENCE
+            speech -> null
+            !heardSpeech -> if (!context.continuation && silence >= startSilenceMs) TurnEnd.SILENCE else null
+            rule != null -> rule.onSilence(silence, context.text, context.onDecision)
+            silence >= silenceMs -> TurnEnd.SILENCE
             else -> null
         }
         if (end != null && endMs == null) endMs = audioMs

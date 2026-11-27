@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -149,6 +150,9 @@ class ConversationController(
     private var lastEncodeMs = 0L
     /** Откуда текст последней реплики — для строки `[Timing]`: `live` (поток) или `file`. */
     private var lastSttPath = STT_FILE
+    /** Чем кончилась последняя запись и тишина от речи до конца (S04: `ended_by`, `end_wait` в `[Timing]`). */
+    private var lastEndedBy = TurnEnd.BUTTON
+    private var lastEndWaitMs = 0L
 
     private val _partialText = MutableStateFlow("")
     /**
@@ -328,11 +332,13 @@ class ConversationController(
         // Контекст распознавания — последнее предложение учителя; один и тот же для потока и файла.
         val prompt = TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS)
         _partialText.value = ""
+        val utterance = Utterance()
         // Запись — после сигнала: микрофон его не слышит, и тишина отсчитывается от конца сигнала.
         output.playCue(Cue.LISTEN)
         output.awaitCues()
         // Поток распознавания — с первого кадра записи (S03d).
         val live = liveTranscriber?.begin(prompt) { partial -> _partialText.value = partial }
+        turnDetector.setContext(turnContext(utterance, continuation = false))
         val pulses = startListenPulses()
         val audio = try {
             input.record(turnDetector, live) { db -> _ui.update { it.copy(levelDb = db) } }
@@ -343,19 +349,9 @@ class ConversationController(
             live?.cancel()
             return fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e)
         } finally {
-            pulses?.cancel() // конец записи любым путём: тишина, кнопка, «Stop Recording», предохранитель
+            pulses?.cancel() // конец записи любым путём: тишина, судья, кнопка, «Stop Recording», предохранитель
         }
-        // Конец записи — до сжатия: время сжатия ученик тоже ждёт, оно входит в `stt` (поле `enc`).
-        val recordedAt = clock() - audio.encodeMs
-        lastEncodeMs = audio.encodeMs
-        _ui.update { it.copy(levelDb = 0f) }
-        val t = audio.turn
-        log.event(
-            SOURCE,
-            "recording: ${audio.durationMs} ms, speech ${t.speechMs} ms (silero), ended by ${audio.endedBy.label}, " +
-                "peak ${audio.peakDb.toInt()} dB, vad frames ${t.frames}, avg ${ms1(t.avgFrameMs)} ms, max ${ms1(t.maxFrameMs)} ms, " +
-                "pulses: $pulseCount",
-        )
+        logRecording(audio)
 
         // Молчание определяется по звуку: в записи без речи распознаватель «слышит» `Thank you.`
         // и т. п., поэтому его не вызываем (и не платим за тишину).
@@ -365,30 +361,172 @@ class ConversationController(
             return onSilence()
         }
 
-        // --- Thinking: распознавание ---
-        output.playCue(Cue.PROCESSING)
-        startWaitTicks()
-        setState(ConversationState.Thinking, "recording finished") { it.copy(status = "Transcribing...") }
+        var segment = Segment(audio, live, prompt)
+        while (true) {
+            // --- Thinking: распознавание и ответ; ученик может продолжить до первого звука учителя (S04) ---
+            output.playCue(Cue.PROCESSING)
+            startWaitTicks()
+            setState(ConversationState.Thinking, "recording finished") { it.copy(status = "Transcribing...") }
+            utterance.partials += _partialText.value
+            _partialText.value = ""
+            val resumable = segment.audio.endedBy == TurnEnd.JUDGE || segment.audio.endedBy == TurnEnd.LONG_SILENCE
+            val watch = if (resumable) ResumeWatch(utterance, prompt, CoroutineScope(currentCoroutineContext())) else null
+            currentWatch = watch
+            val outcome = try {
+                respond(segment, utterance, watch)
+            } finally {
+                currentWatch = null
+            }
+            if (outcome !is TurnOutcome.Resumed) {
+                watch?.close()
+                return (outcome as TurnOutcome.End).reason
+            }
+            // Ученик продолжил: та же реплика, снова слушание с пульсом, без нового «говори».
+            stopWaitTicks()
+            setState(ConversationState.Listening, "student went on after the end") { it.copy(status = "Listening...") }
+            val more = startListenPulses()
+            val next = try {
+                watch!!.recording.await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e)
+            } finally {
+                more?.cancel()
+            }
+            logRecording(next)
+            segment = Segment(next, watch!!.live, watch.prompt)
+        }
+    }
+
+    /** Строка журнала о записи (без текстов). */
+    private fun logRecording(audio: RecordedAudio) {
+        lastEndedBy = audio.endedBy
+        lastEndWaitMs = audio.turn.endWaitMs
+        val t = audio.turn
+        log.event(
+            SOURCE,
+            "recording: ${audio.durationMs} ms, speech ${t.speechMs} ms (silero), ended by ${audio.endedBy.label}, " +
+                "peak ${audio.peakDb.toInt()} dB, vad frames ${t.frames}, avg ${ms1(t.avgFrameMs)} ms, max ${ms1(t.maxFrameMs)} ms, " +
+                "pulses: $pulseCount",
+        )
+        if (audio.endedBy == TurnEnd.LONG_SILENCE) log.event(TURN, "pause ${t.endWaitMs} ms: limit → end")
+    }
+
+    /** Контекст детектора на одну запись: текст для судьи — всё, что уже сказано в реплике, и частичный текст куска. */
+    private fun turnContext(utterance: Utterance, continuation: Boolean, onHeardSpeech: () -> Unit = {}) = TurnContext(
+        text = { (utterance.partials + _partialText.value).filter { it.isNotBlank() }.joinToString(" ") },
+        continuation = continuation,
+        onHeardSpeech = onHeardSpeech,
+        onDecision = { d ->
+            log.event(
+                TURN,
+                "pause ${d.pauseMs} ms: judge ${d.judge} ${if (d.complete) "complete" else "incomplete"} (${d.judgeMs} ms) → " +
+                    if (d.end) "end" else "wait",
+            )
+        },
+    )
+
+    /** Кусок реплики: запись, её поток и `prompt` (S04: после отмены реплика идёт дальше новым куском). */
+    private class Segment(val audio: RecordedAudio, val live: LiveTurn?, val prompt: String)
+
+    /** Что уже сказано в реплике (S04): тексты кусков (для учителя) и их частичный текст (для судьи). */
+    private class Utterance {
+        val texts = mutableListOf<String>()
+        val partials = mutableListOf<String>()
+        val text: String get() = texts.filter { it.isNotBlank() }.joinToString(" ")
+    }
+
+    private sealed interface TurnOutcome {
+        class End(val reason: EndReason?) : TurnOutcome
+        class Resumed(val afterEndMs: Long) : TurnOutcome
+    }
+
+    /** Наблюдение за продолжением, пока идёт ответ (S04); ставится на время ответа, звук учителя его закрывает. */
+    @Volatile
+    private var currentWatch: ResumeWatch? = null
+
+    /**
+     * После объявленного конца микрофон и Silero слушают дальше — до первого звука учителя (поправка, «Let me check.»
+     * или ответ). Запись-продолжение — в свои файлы, со своим потоком распознавания. Ученик заговорил (речь ≥ 200 мс)
+     * раньше учителя — [resumed]: ответ отменяется, а эта запись становится следующим куском реплики. Учитель успел —
+     * [claimSound] её бросает.
+     */
+    private inner class ResumeWatch(utterance: Utterance, basePrompt: String, scope: CoroutineScope) {
+        private val lock = Any()
+        private var closed = false
+        private val endedAt = clock()
+        val resumed = CompletableDeferred<Long>()
+        val prompt = TranscriptionPrompt.continued(basePrompt, utterance.partials.filter { it.isNotBlank() }.joinToString(" "))
+        val live: LiveTurn? = liveTranscriber?.begin(prompt) { partial -> _partialText.value = partial }
+        val recording: Deferred<RecordedAudio> = scope.async {
+            turnDetector.setContext(turnContext(utterance, continuation = true, onHeardSpeech = ::onSpeech))
+            input.recordContinuation(turnDetector, live) { db -> _ui.update { it.copy(levelDb = db) } }
+        }
+
+        private fun onSpeech() = synchronized(lock) {
+            if (!closed) resumed.complete(clock() - endedAt)
+        }
+
+        /** Перед первым звуком учителя: `true` — ученик молчит, запись-продолжение брошена, звук можно. */
+        fun claimSound(): Boolean = synchronized(lock) {
+            if (resumed.isCompleted) return false
+            if (!closed) {
+                closed = true
+                recording.cancel()
+                live?.cancel()
+            }
+            true
+        }
+
+        /** Ход кончился без продолжения (ответ, ошибка, молчание): запись-продолжение не нужна. */
+        suspend fun close() {
+            synchronized(lock) {
+                closed = true
+                if (!resumed.isCompleted) {
+                    recording.cancel()
+                    live?.cancel()
+                }
+            }
+            recording.join()
+        }
+    }
+
+    /** Звучит учитель (поправка, фраза поиска, ответ): если ученик уже продолжил — не звучать (ответ отменяется). */
+    private suspend fun beforeTeacherSound() {
+        val watch = currentWatch ?: return
+        if (!watch.claimSound()) awaitCancellation()
+    }
+
+    /** Текст куска, ответ на всю реплику; ученик продолжил раньше голоса учителя — [TurnOutcome.Resumed]. */
+    private suspend fun respond(segment: Segment, utterance: Utterance, watch: ResumeWatch?): TurnOutcome {
+        val audio = segment.audio
+        // Конец записи — до сжатия: время сжатия ученик тоже ждёт, оно входит в `stt` (поле `enc`).
+        val recordedAt = clock() - audio.encodeMs
+        lastEncodeMs = audio.encodeMs
+        _ui.update { it.copy(levelDb = 0f) }
         // Сверка в debug: файл — параллельно с потоком, в области сервиса (круг не ждёт его конца).
-        val fileJob = if (live != null && compareLiveWithFile) {
-            scope.async { runCatching { transcriber.transcribe(audio, prompt) } }
+        val fileJob = if (segment.live != null && compareLiveWithFile) {
+            scope.async { runCatching { transcriber.transcribe(audio, segment.prompt) } }
         } else {
             null
         }
-        val studentText = try {
-            if (live == null) {
+        val segmentText = try {
+            if (segment.live == null) {
                 lastSttPath = STT_FILE
-                transcriber.transcribe(audio, prompt)
+                transcriber.transcribe(audio, segment.prompt)
             } else {
-                studentTextLive(live, audio, prompt, fileJob)
+                studentTextLive(segment.live, audio, segment.prompt, fileJob)
             }
         } catch (e: CancellationException) {
             fileJob?.cancel()
             throw e
         } catch (e: Exception) {
-            return fail(EndReason.TRANSCRIPTION_ERROR, "Transcription error: ${e.localizedMessage}", e)
+            return TurnOutcome.End(fail(EndReason.TRANSCRIPTION_ERROR, "Transcription error: ${e.localizedMessage}", e))
         }
         val transcribedAt = clock()
+        utterance.texts += segmentText.trim()
+        val studentText = utterance.text
         _ui.update { it.copy(studentText = studentText) }
 
         // Запасной путь: речь была, а текста нет.
@@ -396,22 +534,50 @@ class ConversationController(
         log.event(SOURCE, "transcript: ${studentText.trim().length} chars, counted as silence: ${yesNo(silent)}")
         if (silent) {
             stopWaitTicks()
-            return onSilence()
+            return TurnOutcome.End(onSilence())
         }
+        watch?.resumed?.takeIf { it.isCompleted }?.let { return resumedOutcome(it.getCompleted(), correction = false) }
         silenceCount = 0
 
-        // Реплика дошла до учителя: она идёт в окно уровня (D56) один раз, повтор запроса её не считает.
-        val levelNote = studentLevel?.let { countTurn(it, studentText) }
+        // Реплика дошла до учителя: она идёт в окно уровня (D56) один раз — когда ответ не отменён (S04);
+        // повтор запроса её не считает.
+        val levelStep = studentLevel?.preview(studentText)
+        val levelNote = levelStep?.let { studentLevel?.note(it.state.level) }
+        if (watch == null) levelStep?.let { countTurn(it) }
 
-        // Поправщик — сразу, одновременно с учителем (S02f).
-        val correction = corrector?.let { CorrectionTask(it, studentText, CoroutineScope(currentCoroutineContext())) }
-        try {
-            answer(recordedAt, transcribedAt, correction = correction) { onEvent -> tutor.reply(studentText, levelNote, onEvent) }
-                ?.let { return it }
-        } finally {
-            correction?.finish()
+        return coroutineScope {
+            var correction: CorrectionTask? = null
+            val reply = async {
+                // Поправщик — сразу, одновременно с учителем (S02f).
+                correction = corrector?.let { CorrectionTask(it, studentText, this) }
+                try {
+                    answer(recordedAt, transcribedAt, correction = correction) { onEvent -> tutor.reply(studentText, levelNote, onEvent) }
+                        ?.let { return@async it }
+                } finally {
+                    correction?.finish()
+                }
+                if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
+            }
+            if (watch == null) return@coroutineScope TurnOutcome.End(reply.await())
+            select<TurnOutcome> {
+                reply.onAwait { r ->
+                    levelStep?.let { countTurn(it) }
+                    TurnOutcome.End(r)
+                }
+                watch.resumed.onAwait { afterMs ->
+                    correction?.cancelled()
+                    reply.cancel()
+                    resumedOutcome(afterMs, correction = correction != null)
+                }
+            }
         }
-        return if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
+    }
+
+    /** Ученик продолжил после объявленного конца, до голоса учителя: ответ отменён (строка журнала без текстов). */
+    private fun resumedOutcome(afterEndMs: Long, correction: Boolean): TurnOutcome {
+        val what = if (correction) "tutor, corrector" else "tutor"
+        log.event(TURN, "resumed after end (+$afterEndMs ms) → cancelled $what; tutor cost unknown (stream cut)")
+        return TurnOutcome.Resumed(afterEndMs)
     }
 
     /**
@@ -529,15 +695,15 @@ class ConversationController(
         }
     }
 
-    /** Учесть реплику в уровне ученика, записать в журнал; служебная строка цели длины для запроса. */
-    private fun countTurn(level: StudentLevel, studentText: String): String {
-        val step = level.onStudentTurn(studentText)
+    /** Учесть реплику в уровне ученика (шаг [StudentLevel.preview]), записать в журнал. */
+    private fun countTurn(step: StudentLevel.Step) {
+        val level = studentLevel ?: return
+        level.apply(step)
         val s = step.state
         step.from?.let { from ->
             log.event(SOURCE, "level ${if (s.level > from) "up" else "down"} $from → ${s.level}")
         }
         log.event(SOURCE, "level ${s.level} (window ${s.turns} of ${level.windowSize}, not understood ${s.notUnderstood})")
-        return level.note(s.level)
     }
 
     /** Ученик промолчал. `null` — авто-режим, слушать снова. */
@@ -835,6 +1001,7 @@ class ConversationController(
                                 it.copy(currentChunk = sent[i].text, status = "Speaking ${i + 1} 🔊")
                             }
                             val teacherGroup = i >= prefix.size
+                            beforeTeacherSound()
                             output.play(audio, shieldMs) {
                                 if (t.firstSound == null) {
                                     t.firstSound = clock()
@@ -892,6 +1059,7 @@ class ConversationController(
         log.event(SOURCE, "search started, nothing said yet: filler phrase")
         return scope.launch {
             after.await()
+            beforeTeacherSound()
             output.play(audio, shieldMs) { if (t.fillerSound == null) t.fillerSound = clock() }
         }
     }
@@ -970,9 +1138,19 @@ class ConversationController(
             }
         }
 
+        private var wasCancelled = false
+
+        /** Ученик продолжил (S04): поправка не нужна; цена — если ответ уже пришёл. */
+        fun cancelled() {
+            wasCancelled = true
+            val cost = (result.takeIf { it.isCompleted }?.getCompleted() as? CorrectorOutcome.Answer)?.answer?.costUsd
+            log.event(NETWORK, "corrector: cancelled (student went on); " +
+                (cost?.let { "cost \$${"%.5f".format(java.util.Locale.US, it)}" } ?: "cost unknown"))
+        }
+
         /** Ход окончен: запрос, который ещё идёт, не нужен. */
         fun finish() {
-            if (!decided && !result.isCompleted) log.event(NETWORK, "corrector: not used (no teacher reply)")
+            if (!wasCancelled && !decided && !result.isCompleted) log.event(NETWORK, "corrector: not used (no teacher reply)")
             result.cancel()
             lateLogger?.cancel()
         }
@@ -1056,7 +1234,8 @@ class ConversationController(
                 "first_group=${rel(t.firstGroup)} tutor=${rel(t.repliedAt)} search=${yesNo(t.searchStart != null)} " +
                 "search_ms=$searchMs filler=${yesNo(t.filler)} reply_chars=${t.chars} " +
                 "first_audio=${rel(t.firstSound)} audible=${rel(t.firstSound?.plus(shieldMs))} " +
-                "filler_audio=${rel(t.fillerSound?.plus(shieldMs))} stt_path=$lastSttPath",
+                "filler_audio=${rel(t.fillerSound?.plus(shieldMs))} stt_path=$lastSttPath " +
+                "end_wait=$lastEndWaitMs ended_by=${lastEndedBy.label}",
         )
     }
 
@@ -1075,6 +1254,7 @@ class ConversationController(
     companion object {
         private const val SOURCE = "Controller"
         private const val NETWORK = "Network"
+        private const val TURN = "Turn"
         /** Источник строки замера скорости (в Logcat — тег LCT-Timing, как в S01). */
         const val TIMING_SOURCE = "Timing"
         /** Фраза учителя, пока идёт поиск и он ещё ничего не сказал (D39). */
