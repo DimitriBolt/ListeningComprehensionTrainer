@@ -137,8 +137,81 @@ MIN_SIMILARITY = 0.5
 WAIT_MS = 800  # ModelConfig.CORRECTOR_WAIT_MS
 
 
+# S05b (D87): поправка длинной реплики — участок с ошибкой. Копия Correction.excerpt / Correction.changes.
+def _kt_const(name: str) -> int:
+    kt = (probe.REPO_ROOT / "android_app" / "app" / "src" / "main" / "java" / "com" / "example" / "listeningtrainer"
+          / "config" / "ModelConfig.kt").read_text(encoding="utf-8")
+    return int(re.search(rf"const val {name}\s*=\s*(\d+)", kt).group(1))
+
+
+def _key(token: str) -> str:
+    return "".join(c for c in token.lower() if c.isalnum())
+
+
+def _tokens(s: str) -> list[str]:
+    return [t for t in s.strip().split() if _key(t)]
+
+
+def changes(student: list[str], fix: list[str]) -> list[tuple[int, int, int, int]]:
+    """Копия Correction.changes: участки (i1, i2, j1, j2), где поправка отличается от реплики."""
+    n, m = len(student), len(fix)
+    lcs = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n - 1, -1, -1):
+        for j in range(m - 1, -1, -1):
+            lcs[i][j] = lcs[i + 1][j + 1] + 1 if student[i] == fix[j] else max(lcs[i + 1][j], lcs[i][j + 1])
+    out, i, j, start = [], 0, 0, None
+    while i < n or j < m:
+        if i < n and j < m and student[i] == fix[j]:
+            if start:
+                out.append((start[0], i, start[1], j))
+                start = None
+            i += 1
+            j += 1
+        else:
+            if start is None:
+                start = (i, j)
+            if j >= m or (i < n and lcs[i + 1][j] >= lcs[i][j + 1]):
+                i += 1
+            else:
+                j += 1
+    if start:
+        out.append((start[0], i, start[1], j))
+    if out and out[0][0] == 0 and out[0][2] == 0 and out[0][3] == 0:
+        out.pop(0)
+    if out and out[-1][1] == n and out[-1][3] == m and out[-1][2] == m:
+        out.pop()
+    return out
+
+
+def excerpt(student: str, fix: str) -> tuple[str, object]:
+    """Копия Correction.excerpt: ("fix", участок) | ("none", None) | ("span", слов)."""
+    max_w, ctx_w, reject_w = (_kt_const("CORRECTION_MAX_WORDS"), _kt_const("CORRECTION_CONTEXT_WORDS"),
+                              _kt_const("CORRECTION_SPAN_REJECT_WORDS"))
+    st = _tokens(student)
+    if len(st) <= max_w:
+        return "fix", fix
+    ft = _tokens(fix)
+    ch = changes([_key(t) for t in st], [_key(t) for t in ft])
+    if not ch:
+        return "none", None
+    _, _, j1, j2 = ch[0]
+    core = j2 - j1
+    if core > reject_w:
+        return "span", core
+    before, after = min(ctx_w, j1), min(ctx_w, len(ft) - j2)
+    while core + before + after > max_w and before + after > 0:
+        if after >= before:
+            after -= 1
+        else:
+            before -= 1
+    words = ft[j1 - before:j2 + after]
+    if not words:
+        return "none", None
+    return "fix", " ".join(words).rstrip(",;:- ")
+
+
 def check(student: str, answer: str) -> tuple[str, object]:
-    """("fix", текст) | ("none", None) | ("rejected", сходство) — как Correction.check."""
+    """("fix", текст) | ("none", None) | ("rejected", сходство) | ("span", слов) — как Correction.check."""
     a = answer.strip()
     if re.match(r"^\s*I think you meant,?\s*", a, re.I):
         a = re.sub(r"^\s*I think you meant,?\s*", "", a, flags=re.I)
@@ -148,7 +221,9 @@ def check(student: str, answer: str) -> tuple[str, object]:
     if n in ("", "ok") or n == norm(student):
         return "none", None
     sim = containment(a, student)
-    return ("rejected", sim) if sim < MIN_SIMILARITY else ("fix", a)
+    if sim < MIN_SIMILARITY:
+        return "rejected", sim
+    return excerpt(student, a)
 
 
 def phrase(fix: str) -> str:

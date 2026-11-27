@@ -1,5 +1,7 @@
 package com.example.listeningtrainer.conversation
 
+import com.example.listeningtrainer.config.ModelConfig
+
 /**
  * Поправка ошибки ученика отдельным запросом «поправщик» (S02f, D47). Чистый Kotlin (инвариант 3).
  * Копия проверки — `corrector_says_ok`, `containment` в `tools/probe/corrector.py`.
@@ -17,6 +19,8 @@ object Correction {
         data object None : Verdict
         /** Ответ не похож на поправку: доля слов ученика, которые остались в ответе, ниже порога. */
         data class Rejected(val similarity: Double) : Verdict
+        /** Длинная реплика (S05b, D87): изменённый участок длиннее [ModelConfig.CORRECTION_SPAN_REJECT_WORDS] слов. */
+        data class SpanTooLong(val words: Int) : Verdict
     }
 
     /**
@@ -69,7 +73,76 @@ object Correction {
         val n = normalize(a)
         if (n.isEmpty() || n == "ok" || n == normalize(student)) return Verdict.None
         val sim = similarity(a, student)
-        return if (sim < MIN_SIMILARITY) Verdict.Rejected(sim) else Verdict.Fix(a)
+        if (sim < MIN_SIMILARITY) return Verdict.Rejected(sim)
+        return excerpt(student, a)
+    }
+
+    /** Слово для сравнения: без регистра и знаков («Doesn't,» → «doesnt»). */
+    private fun key(token: String): String = token.lowercase().filter { it.isLetterOrDigit() }
+
+    private fun tokens(s: String): List<String> = s.trim().split(SPACES).filter { key(it).isNotEmpty() }
+
+    /** Изменённый участок: слова ученика `[i1, i2)` заменены словами поправки `[j1, j2)`. */
+    data class Change(val i1: Int, val i2: Int, val j1: Int, val j2: Int)
+
+    /**
+     * Участки, где поправка [fix] отличается от реплики [student] (по словам, без регистра и знаков), по порядку.
+     * Выравнивание — наибольшая общая подпоследовательность слов. Слова ученика до начала и после конца поправки
+     * (поправщик вернул одно предложение из длинной реплики) изменением не считаются. Копия — `changes` в
+     * `tools/probe/corrector.py`.
+     */
+    fun changes(student: List<String>, fix: List<String>): List<Change> {
+        val n = student.size
+        val m = fix.size
+        // lcs[i][j] — длина общей подпоследовательности student[i:] и fix[j:].
+        val lcs = Array(n + 1) { IntArray(m + 1) }
+        for (i in n - 1 downTo 0) for (j in m - 1 downTo 0) {
+            lcs[i][j] = if (student[i] == fix[j]) lcs[i + 1][j + 1] + 1 else maxOf(lcs[i + 1][j], lcs[i][j + 1])
+        }
+        val out = mutableListOf<Change>()
+        var i = 0
+        var j = 0
+        var start: Pair<Int, Int>? = null
+        fun close() {
+            start?.let { (si, sj) -> out += Change(si, i, sj, j) }
+            start = null
+        }
+        while (i < n || j < m) {
+            if (i < n && j < m && student[i] == fix[j]) {
+                close(); i++; j++
+            } else {
+                if (start == null) start = i to j
+                if (j >= m || (i < n && lcs[i + 1][j] >= lcs[i][j + 1])) i++ else j++
+            }
+        }
+        close()
+        if (out.isNotEmpty() && out.first().let { it.i1 == 0 && it.j1 == 0 && it.j2 == 0 }) out.removeAt(0)
+        if (out.isNotEmpty() && out.last().let { it.i2 == n && it.j2 == m && it.j1 == m }) out.removeAt(out.lastIndex)
+        return out
+    }
+
+    /**
+     * Поправка длинной реплики — участок с ошибкой (S05b, D87). Реплика не длиннее [ModelConfig.CORRECTION_MAX_WORDS]
+     * слов — поправка целиком, как раньше. Иначе — первый изменённый участок поправки и до
+     * [ModelConfig.CORRECTION_CONTEXT_WORDS] слов вокруг, всего не больше [ModelConfig.CORRECTION_MAX_WORDS] (слова вокруг
+     * убираются, пока не уложится); сам участок длиннее [ModelConfig.CORRECTION_SPAN_REJECT_WORDS] — поправки нет.
+     */
+    fun excerpt(student: String, fix: String): Verdict {
+        val st = tokens(student)
+        if (st.size <= ModelConfig.CORRECTION_MAX_WORDS) return Verdict.Fix(fix)
+        val ft = tokens(fix)
+        val change = changes(st.map(::key), ft.map(::key)).firstOrNull() ?: return Verdict.None
+        val core = change.j2 - change.j1
+        if (core > ModelConfig.CORRECTION_SPAN_REJECT_WORDS) return Verdict.SpanTooLong(core)
+        var before = minOf(ModelConfig.CORRECTION_CONTEXT_WORDS, change.j1)
+        var after = minOf(ModelConfig.CORRECTION_CONTEXT_WORDS, ft.size - change.j2)
+        // Длиннее предела — убрать слова вокруг, сначала дальние после участка.
+        while (core + before + after > ModelConfig.CORRECTION_MAX_WORDS && before + after > 0) {
+            if (after >= before) after-- else before--
+        }
+        val words = ft.subList(change.j1 - before, change.j2 + after)
+        if (words.isEmpty()) return Verdict.None
+        return Verdict.Fix(words.joinToString(" ").trimEnd(',', ';', ':', '-', ' '))
     }
 
     /**

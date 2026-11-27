@@ -1473,6 +1473,7 @@ class ConversationController(
                     Correction.Verdict.None -> "ok in ${o.ms} ms; $cost" to null
                     is Correction.Verdict.Rejected ->
                         "rejected (similarity ${"%.2f".format(java.util.Locale.US, v.similarity)}) in ${o.ms} ms; $cost" to null
+                    is Correction.Verdict.SpanTooLong -> "rejected (span ${v.words} words) in ${o.ms} ms; $cost" to null
                 }
             }
         }

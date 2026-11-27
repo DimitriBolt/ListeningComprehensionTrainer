@@ -158,6 +158,14 @@ object ModelConfig {
      * вместо одного предложения, это ≈ 130 токенов — 250 с запасом.
      */
     const val CORRECTOR_MAX_OUTPUT_TOKENS = 250
+    /**
+     * Поправка длинной реплики (S05b, D87): реплика длиннее стольких слов — звучит только изменённый участок и до
+     * [CORRECTION_CONTEXT_WORDS] слов вокруг, всего не больше стольких же слов («та часть, где ошибка», D47).
+     */
+    const val CORRECTION_MAX_WORDS = 12
+    const val CORRECTION_CONTEXT_WORDS = 3
+    /** Изменённый участок длиннее стольких слов — поправки нет (журнал `corrector: rejected (span N words)`). */
+    const val CORRECTION_SPAN_REJECT_WORDS = 15
     /** Общий предел на запрос поправщика: дольше он всё равно опоздал. */
     const val CORRECTOR_CALL_TIMEOUT_MS = 5_000L
     /**
