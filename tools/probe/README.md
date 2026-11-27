@@ -278,6 +278,22 @@ python tools/probe/silero_app_check.py   # после ./gradlew testDebugUnitTes
   приложении), считает то же правилом приложения (`app_rule`) на вероятностях пробы и печатает расхождение
   вероятностей, концов записи в кадрах и меры обоих.
 
+## Потоковое распознавание кодом приложения (S03d)
+
+Не проба на Python, а JVM-тест приложения `S03dLiveRecordingsTest`: `RealtimeTranscriber` (сессия `gpt-live-transcribe`,
+`prompt`, `commit`, запасной путь) и Silero приложения на 48 записях S03b, звук в темпе реального времени, с настоящим ключом
+из `credentials.properties`. Стоит ≈ $0,16, поэтому идёт только по явной просьбе (≈ 3 мин):
+
+```bash
+cd android_app && S03D_LIVE=1 ./gradlew testDebugUnitTest --tests '*S03dLiveRecordingsTest' --rerun
+```
+
+Итог — `docs/research/03d-live.md` (числа) и `diagnostics/s03d-live.json` (с текстами, вне Git). Без переменной, без
+`diagnostics/recordings/` или без ключа тест пропускается.
+
+`android_app/app/src/test/resources/resample/golden_24k.txt` — `round(resample_poly(x, 3, 2))` SciPy для
+`Resampler16To24Test` (формула `x` — в тесте).
+
 ## Тесты (без ключа и без сети)
 
 ```bash
