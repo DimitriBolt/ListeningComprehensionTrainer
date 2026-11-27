@@ -5,8 +5,8 @@ import kotlin.math.sqrt
 
 /**
  * Громкость куска записи в «дБ отсчётов»: 20·lg(RMS), где RMS — в единицах 16-битного отсчёта.
- * Шкала та же, что у порога [com.example.listeningtrainer.conversation.SilenceTurnDetector]
- * (59 дБ). Расчёт не зависит от частоты записи: один и тот же синус даёт одно и то же число
+ * Шкала та же, что у прежнего порога 59 дБ (до S03c; теперь он только в режиме записи для сравнения —
+ * [com.example.listeningtrainer.endpoint.LevelTrace]). Расчёт не зависит от частоты записи: один и тот же синус даёт одно и то же число
  * при 16 и 44,1 кГц (тест `PcmLevelTest`). Чистый Kotlin.
  */
 object PcmLevel {
