@@ -13,12 +13,17 @@ CFG = probe.REPO_ROOT / "android_app" / "app" / "src" / "main" / "java" / "com" 
 
 
 def run(probs, stop_ms=1e9):
-    return chk.app_rule(probs, stop_ms, 0.5, 3000, 200)
+    return chk.app_rule(probs, stop_ms, 0.5, 3000, 200, start_silence_ms=8000)
 
 
-def test_silence_from_the_start_ends_after_94_frames_without_speech():
-    o = run([0.1] * 200)
-    assert o.end_s == 94 * 32 / 1000 and not o.speech_heard
+def test_silence_from_the_start_ends_after_250_frames_without_speech():
+    o = run([0.1] * 400)
+    assert o.end_s == 250 * 32 / 1000 and not o.speech_heard
+
+
+def test_s03c_rule_without_start_silence_ends_after_94_frames():
+    o = chk.app_rule([0.1] * 200, 1e9, 0.5, 3000, 200)
+    assert o.end_s == 94 * 32 / 1000
 
 
 def test_speech_then_silence_ends_3000_ms_after_the_last_speech_frame():
@@ -40,5 +45,6 @@ def test_settings_are_the_app_settings():
     text = CFG.read_text(encoding="utf-8")
     assert re.search(r"VAD_SPEECH_PROB = 0\.5f", text)
     assert re.search(r"TURN_END_SILENCE_MS = 3000L", text)
+    assert re.search(r"TURN_START_SILENCE_MS = 8000L", text)
     assert re.search(r"TURN_MIN_SPEECH_MS = 200L", text)
     assert re.search(r"VAD_FRAME_SAMPLES = 512\b", text)

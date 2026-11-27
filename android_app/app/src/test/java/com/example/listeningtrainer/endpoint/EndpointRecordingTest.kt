@@ -198,13 +198,14 @@ class LevelTraceTest {
     }
 
     @Test
-    fun `silence - no speech, both detectors would end after 3 s from the start`() {
+    fun `silence - no speech, the old detector would end after 3 s, Silero after 8 s (D70)`() {
         val trace = LevelTrace(windowMs = 80, silero = VadTurnDetector(LoudFrameVad()))
         trace.reset()
-        repeat(100) { feed(trace, false) }
+        repeat(110) { feed(trace, false) }
         assertFalse(trace.heardSpeech)
         assertEquals(3_040L, trace.emulatedEndMs)
-        assertEquals(3_008L, trace.sileroEmulation().endMs)
+        assertEquals(8_000L, trace.sileroEmulation().endMs)
+        assertEquals(8_000L, trace.sileroEmulation().startSilenceMs)
         assertFalse(trace.sileroEmulation().heardSpeech)
     }
 

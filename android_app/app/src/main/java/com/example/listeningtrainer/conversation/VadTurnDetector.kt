@@ -9,8 +9,9 @@ import com.example.listeningtrainer.config.ModelConfig
  * Время — по звуку (номер кадра), а не по часам: так детектор одинаково ведёт себя в приложении, в тестах
  * и на записях S03b.
  * - кадр с `p ≥ speechProb` — речь;
- * - [silenceMs] без речи после последнего кадра речи — конец ([TurnEnd.SILENCE]); если речи не было,
- *   отсчёт идёт с начала записи — ученик молчит, запись тоже кончается;
+ * - речь уже была ([heardSpeech]) — конец ([TurnEnd.SILENCE]) через [silenceMs] без речи после последнего кадра речи;
+ * - речи ещё не было — через [startSilenceMs] без речи (с начала записи или после последнего кадра речи):
+ *   ученик молчит, запись тоже кончается (D70);
  * - [heardSpeech] — речи набралось не меньше [minSpeechMs];
  * - предохранитель: [maxMs] звука — [TurnEnd.LIMIT] (D31).
  * Время вывода модели на кадр копится в [stats] (журнал).
@@ -20,6 +21,7 @@ class VadTurnDetector(
     private val sampleRate: Int = ModelConfig.RECORD_SAMPLE_RATE,
     private val speechProb: Float = ModelConfig.VAD_SPEECH_PROB,
     private val silenceMs: Long = ModelConfig.TURN_END_SILENCE_MS,
+    private val startSilenceMs: Long = ModelConfig.TURN_START_SILENCE_MS,
     private val minSpeechMs: Long = ModelConfig.TURN_MIN_SPEECH_MS,
     private val maxMs: Long = ModelConfig.RECORD_MAX_MS.toLong(),
     private val nanoTime: () -> Long = System::nanoTime,
@@ -98,7 +100,7 @@ class VadTurnDetector(
         }
         val end = when {
             audioMs >= maxMs -> TurnEnd.LIMIT
-            framesToMs(framesSinceSpeech) >= silenceMs -> TurnEnd.SILENCE
+            framesToMs(framesSinceSpeech) >= (if (heardSpeech) silenceMs else startSilenceMs) -> TurnEnd.SILENCE
             else -> null
         }
         if (end != null && endMs == null) endMs = audioMs

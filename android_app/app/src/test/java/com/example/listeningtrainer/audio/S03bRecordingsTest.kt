@@ -82,7 +82,7 @@ class S03bRecordingsTest {
         val falseEndQuiet = falseEnd.count { it.condition == "silence" || it.condition == "steady_noise" }
 
         val report = buildString {
-            appendLine("S03c: Silero p≥${ModelConfig.VAD_SPEECH_PROB} / ${ModelConfig.TURN_END_SILENCE_MS} ms, heard ≥ ${ModelConfig.TURN_MIN_SPEECH_MS} ms")
+            appendLine("S03c/S03d: Silero p≥${ModelConfig.VAD_SPEECH_PROB} / ${ModelConfig.TURN_END_SILENCE_MS} ms (no speech yet: ${ModelConfig.TURN_START_SILENCE_MS} ms), heard ≥ ${ModelConfig.TURN_MIN_SPEECH_MS} ms")
             appendLine("no end ${noEnd.size} of 40 ${noEnd.map { "${it.base} (button ${"%.2f".format(it.pressMs / 1000.0 - it.speechEndS!!)} s after speech)" }}")
             appendLine("false speech ${falseSpeech.size} of 8 ${falseSpeech.map { it.base }}")
             appendLine("latency median ${"%.2f".format(latencyMed)} s, p90 ${"%.2f".format(pct(latency, 0.9))} s")
@@ -144,6 +144,7 @@ class S03bRecordingsTest {
         put("settings", buildJsonObject {
             put("speech_prob", ModelConfig.VAD_SPEECH_PROB.toDouble())
             put("silence_ms", ModelConfig.TURN_END_SILENCE_MS)
+            put("start_silence_ms", ModelConfig.TURN_START_SILENCE_MS)
             put("min_speech_ms", ModelConfig.TURN_MIN_SPEECH_MS)
             put("piece_samples", SAMPLES_80MS)
         })

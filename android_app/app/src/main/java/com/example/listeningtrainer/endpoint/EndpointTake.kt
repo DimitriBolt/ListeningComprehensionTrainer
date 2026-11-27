@@ -82,6 +82,8 @@ data class SileroEmulation(
     val frames: Int,
     val avgFrameMs: Double,
     val maxFrameMs: Double,
+    /** Тишина до конца, пока речи не было (D70, S03d); в записях S03c поля нет — там было как [silenceMs]. */
+    val startSilenceMs: Long = silenceMs,
 )
 
 /**
@@ -173,6 +175,7 @@ class LevelTrace(
             frames = all.frames,
             avgFrameMs = Math.round(all.avgFrameMs * 100) / 100.0,
             maxFrameMs = Math.round(all.maxFrameMs * 100) / 100.0,
+            startSilenceMs = ModelConfig.TURN_START_SILENCE_MS,
         )
     }
 

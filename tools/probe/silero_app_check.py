@@ -25,12 +25,14 @@ KOTLIN = probe.REPO_ROOT / "diagnostics" / "s03c-kotlin.json"
 
 
 def app_rule(probs: list[float], stop_ms: float, speech_prob: float, silence_ms: int, min_speech_ms: int,
-             piece_samples: int = 1280) -> endpoint.Outcome:
+             piece_samples: int = 1280, start_silence_ms: int | None = None) -> endpoint.Outcome:
     """Как `VadTurnDetector` в приложении: речь — p ≥ speech_prob; конец — silence_ms без речи после последнего
-    кадра речи (или с начала); «слышал» — речи ≥ min_speech_ms к концу записи. Звук кусками по 80 мс, как
+    кадра речи, а пока речи меньше min_speech_ms — start_silence_ms (D70, S03d; `None` — как silence_ms, S03c);
+    «слышал» — речи ≥ min_speech_ms к концу записи. Звук кусками по 80 мс, как
     в `AudioRecorder`: кусок, начатый до кнопки, обрабатывается целиком; конец позже кнопки не считается."""
     since = speech = 0
     end = None
+    start_ms = silence_ms if start_silence_ms is None else start_silence_ms
     for i, p in enumerate(probs):
         piece = (512 * (i + 1) - 1) // piece_samples          # в каком куске кадр становится полным
         if piece * piece_samples * 1000 / endpoint.SAMPLE_RATE >= stop_ms:
@@ -40,7 +42,8 @@ def app_rule(probs: list[float], stop_ms: float, speech_prob: float, silence_ms:
             since = 0
         else:
             since += 1
-        if end is None and since * FRAME_MS >= silence_ms:
+        need = silence_ms if speech * FRAME_MS >= min_speech_ms else start_ms
+        if end is None and since * FRAME_MS >= need:
             end = (i + 1) * FRAME_MS
             last_piece = piece
         if end is not None and piece > last_piece:
@@ -73,7 +76,8 @@ def main() -> None:
         dp = max((abs(probs[i] - k["probs"][i]) for i in range(n)), default=0.0)
         if dp > worst_dp:
             worst_dp, worst_base = dp, r.base
-        o = app_rule(probs, r.stop_ms, st["speech_prob"], st["silence_ms"], st["min_speech_ms"])
+        o = app_rule(probs, r.stop_ms, st["speech_prob"], st["silence_ms"], st["min_speech_ms"],
+                     start_silence_ms=st.get("start_silence_ms"))
         py_out[r.base] = o
         kt_out[r.base] = endpoint.Outcome(None if k["end_ms"] is None else k["end_ms"] / 1000, k["heard"])
         a, b = o.end_s, kt_out[r.base].end_s

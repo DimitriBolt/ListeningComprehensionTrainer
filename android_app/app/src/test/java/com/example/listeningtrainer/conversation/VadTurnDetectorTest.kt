@@ -31,14 +31,34 @@ class VadTurnDetectorTest {
     }
 
     @Test
-    fun `silence from the start - ends after 3000 ms, no speech`() {
+    fun `silence from the start - ends after 8000 ms, no speech (D70)`() {
         val d = VadTurnDetector(ScriptedVad(listOf(0.1f)))
         val (end, n) = runFrames(d)
         assertEquals(TurnEnd.SILENCE, end)
-        assertEquals(94, n) // 94 · 32 = 3008 мс ≥ 3000
-        assertEquals(3_008L, d.audioMs)
+        assertEquals(250, n) // 250 · 32 = 8000 мс
+        assertEquals(8_000L, d.audioMs)
         assertFalse(d.heardSpeech)
         assertEquals(0L, d.stats.speechMs)
+    }
+
+    @Test
+    fun `a pause of 5 s before the answer does not end the recording - then 3000 ms after speech`() {
+        // 5 с молчания (156 кадров), 20 кадров речи, тишина: конец через 3008 мс после речи, а не на 8 с
+        val d = VadTurnDetector(ScriptedVad(List(156) { 0.1f } + List(20) { 0.9f } + listOf(0.1f)))
+        val (end, n) = runFrames(d)
+        assertEquals(TurnEnd.SILENCE, end)
+        assertEquals(156 + 20 + 94, n)
+        assertTrue(d.heardSpeech)
+    }
+
+    @Test
+    fun `a blip under 200 ms is not speech - the 8000 ms rule counts from it`() {
+        // 1 с тишины, 3 кадра «речи» (96 мс, шорох), тишина: речи нет, конец через 8000 мс после шороха
+        val d = VadTurnDetector(ScriptedVad(List(31) { 0.1f } + List(3) { 0.9f } + listOf(0.1f)))
+        val (end, n) = runFrames(d)
+        assertEquals(TurnEnd.SILENCE, end)
+        assertEquals(31 + 3 + 250, n)
+        assertFalse(d.heardSpeech)
     }
 
     @Test
@@ -108,19 +128,20 @@ class VadTurnDetectorTest {
 
     @Test
     fun `a piece is processed to its end even after the end of the turn - audio time is not lost`() {
-        val d = VadTurnDetector(ScriptedVad(listOf(0.1f)))
+        // 10 кадров речи, потом тишина: конец на кадре 10 + 94 = 104 (3328 мс)
+        val d = VadTurnDetector(ScriptedVad(List(10) { 0.9f } + listOf(0.1f)))
         d.reset()
         val piece = ShortArray(1280)
         var end: TurnEnd? = null
         var pieces = 0
         while (end == null) { end = d.onAudio(piece, 1280); pieces++ }
         assertEquals(TurnEnd.SILENCE, end)
-        assertEquals(38, pieces) // 37 кусков = 92 кадра, в 38-м — кадры 93…95, конец на 94-м
-        assertEquals(3_008L, d.endMs)
-        assertEquals(95, d.stats.frames)
+        assertEquals(42, pieces) // 41 кусок = 102 кадра, в 42-м — кадры 103…105, конец на 104-м
+        assertEquals(3_328L, d.endMs)
+        assertEquals(105, d.stats.frames)
         d.onAudio(piece, 1280) // дальше тишина — «конец» снова, но первый момент конца прежний
-        assertEquals(3_008L, d.endMs)
-        assertEquals(97, d.stats.frames)
+        assertEquals(3_328L, d.endMs)
+        assertEquals(107, d.stats.frames)
     }
 
     @Test
