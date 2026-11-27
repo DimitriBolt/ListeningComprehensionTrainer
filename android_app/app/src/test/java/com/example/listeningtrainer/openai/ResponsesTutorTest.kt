@@ -443,4 +443,25 @@ class ResponsesTutorTest {
         val input = transport.bodies[2]["input"]!!.jsonArray.map { it.jsonObject["content"]!!.jsonPrimitive.content }
         assertEquals(listOf("I got up early.", "Many birds sing $mark", "I made coffee.", "And tea."), input)
     }
+
+    @Test
+    fun `withdrawn (S05b, D86) - neither the turn nor the reply stays, the glued turn comes next`() = runTest {
+        val transport = FakeTransport().apply {
+            streams += sse(delta("Hi. How are you?"), completed)
+            streams += sse(delta("Getting up early is nice. What did you do?"), completed)
+            streams += sse(delta("Half an ans")) // поток оборван
+            streams += sse(delta("Coffee is good. Where did you go?"), completed)
+        }
+        val t = tutor(transport)
+        t.reply("Hello.", null) {}
+        t.reply("Yesterday I got up early.", null) {}
+        t.withdrawn("Yesterday I got up early.") // ответ пришёл целиком — пара убрана
+        assertEquals(listOf("Hello.", "Hi. How are you?"), t.turns.map { it.text })
+        try { t.reply("Yesterday I got up early.", null) {} } catch (e: ServiceException) {}
+        t.withdrawn("Yesterday I got up early.") // поток оборван — в истории и так ничего
+        assertEquals(2, t.turns.size)
+        t.reply("Yesterday I got up early. I made coffee.", null) {}
+        assertEquals("Yesterday I got up early. I made coffee.", t.turns[2].text)
+        assertEquals(4, t.turns.size)
+    }
 }

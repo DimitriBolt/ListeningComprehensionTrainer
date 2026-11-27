@@ -106,6 +106,19 @@ class ResponsesTutor(
         log.event(SOURCE, "tutor history: reply interrupted, ${if (spoken.isBlank()) "nothing" else "spoken part"} kept")
     }
 
+    /** S05b (D86): ответ дошёл целиком — убрать пару; поток оборван — в истории и так ничего нет. */
+    override fun withdrawn(studentText: String) {
+        val n = history.size
+        if (lastReplyDone && n >= 2 && history[n - 1].role == ROLE_ASSISTANT && history[n - 2].role == ROLE_USER &&
+            history[n - 2].text == studentText
+        ) {
+            history.removeAt(n - 1)
+            history.removeAt(n - 2)
+        }
+        lastReplyDone = true
+        log.event(SOURCE, "tutor history: turn withdrawn (the student went on)")
+    }
+
     override val lastTeacherText: String?
         get() = history.lastOrNull { it.role == ROLE_ASSISTANT && it.text.isNotBlank() }?.text?.let(BargeIn::unmarked)
 

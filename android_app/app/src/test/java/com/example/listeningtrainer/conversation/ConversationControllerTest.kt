@@ -225,6 +225,9 @@ class ConversationControllerTest {
             interrupted += studentText to spoken
             lastTeacherText = BargeIn.unmarked(spoken).ifBlank { lastTeacherText }
         }
+        /** Отменённые ходы (S05b, D86): ученик продолжил мысль поверх начала ответа. */
+        val withdrawn = mutableListOf<String>()
+        override fun withdrawn(studentText: String) { withdrawn += studentText }
     }
 
     /** Подставной поправщик: ответ [answer] через [delayMs]; [error] — сбой. */
@@ -2136,6 +2139,88 @@ class ConversationControllerTest {
         assertEquals(info, 2, rig.timing.size) // замер прерванного ответа тоже в журнале
         assertEquals(info, 2, level.state.value.turns) // ход ученика — новый, окно уровня как обычно
         assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    // ---- перебивание сразу после судьи — продолжение мысли (S05b, D86) ----------------------------------------
+
+    private fun TestScope.continuationRig(ending: TurnEnd, speakFrom: Long): Pair<Rig, StudentLevel> {
+        val level = StudentLevel(MemoryLevelStore())
+        val rig = Rig(this, "Yesterday I got up early", "I made coffee", bargeIn = true, level = level)
+        rig.input.endings += ending
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = speakFrom
+        rig.vad.speakUntil = speakFrom + 500
+        advanceUntilIdle()
+        return rig to level
+    }
+
+    private fun Rig.bargeAtMs(): Long =
+        log.lines.single { it.startsWith("[Turn] barge-in at +") }.substringAfter("+").substringBefore(" ms").toLong()
+
+    @Test
+    fun `barge-in in the first 3 s after the end by judge - continuation, one glued turn`() = runTest {
+        val (rig, level) = continuationRig(TurnEnd.JUDGE, speakFrom = 2_700)
+        val info = rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.bargeAtMs() <= 3_000)
+        // Учитель получил сначала первую часть, потом склеенную реплику; ход отменён, в историю ничего.
+        assertEquals(info, listOf("Yesterday I got up early", "Yesterday I got up early I made coffee"), rig.tutor.replies)
+        assertEquals(listOf("Yesterday I got up early"), rig.tutor.withdrawn)
+        assertTrue(rig.tutor.interrupted.isEmpty())
+        assertEquals(info, 1, level.state.value.turns) // окно уровня — один раз
+        assertTrue(info, rig.log.lines.single { it.startsWith("[Turn] barge-in at +") }
+            .endsWith("after the end by judge → continuation of the student turn"))
+        assertTrue(rig.log.lines.none { "J2 miss" in it })
+        assertEquals(1, rig.output.cues.count { it == Cue.LISTEN })
+    }
+
+    @Test
+    fun `continuation - the stream prompt of the new piece carries what was said`() = runTest {
+        val live = FakeLive().apply { results += "Yesterday I got up early"; results += "I made coffee" }
+        val rig = Rig(this, bargeIn = true, live = live)
+        rig.input.endings += TurnEnd.JUDGE
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = 2_700
+        rig.vad.speakUntil = 3_200
+        advanceUntilIdle()
+
+        val info = rig.log.lines.joinToString("\n")
+        assertEquals(info, "Yesterday I got up early I made coffee", rig.tutor.replies.last())
+        assertTrue(info, live.prompts.last().endsWith("The learner has already said: \"I like\" and goes on."))
+    }
+
+    @Test
+    fun `long silence end counts too`() = runTest {
+        val (rig, _) = continuationRig(TurnEnd.LONG_SILENCE, speakFrom = 2_700)
+        assertEquals(listOf("Yesterday I got up early"), rig.tutor.withdrawn)
+        assertTrue(rig.log.lines.any { it.endsWith("after the end by long_silence → continuation of the student turn") })
+    }
+
+    @Test
+    fun `barge-in later than 3 s after the end by judge - a new turn`() = runTest {
+        val (rig, level) = continuationRig(TurnEnd.JUDGE, speakFrom = 4_300)
+        val info = rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.bargeAtMs() in 3_001..3_400)
+        assertEquals(info, listOf("Yesterday I got up early", "I made coffee"), rig.tutor.replies)
+        assertTrue(rig.tutor.withdrawn.isEmpty())
+        assertEquals("Yesterday I got up early", rig.tutor.interrupted.single().first)
+        assertEquals(2, level.state.value.turns)
+        assertTrue(rig.log.lines.none { "continuation" in it })
+    }
+
+    @Test
+    fun `after the button - always a new turn`() = runTest {
+        val (rig, level) = continuationRig(TurnEnd.BUTTON, speakFrom = 2_700)
+        assertTrue(rig.bargeAtMs() <= 3_000)
+        assertEquals(listOf("Yesterday I got up early", "I made coffee"), rig.tutor.replies)
+        assertTrue(rig.tutor.withdrawn.isEmpty())
+        assertEquals(2, level.state.value.turns)
+        assertTrue(rig.log.lines.none { "continuation" in it })
     }
 
     @Test
