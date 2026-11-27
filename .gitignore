@@ -54,6 +54,8 @@ recordings/
 logs/
 sessions/
 transcripts/
+# Синтезированный звук для SileroGoldenTest (tools/probe/silero_golden.py, D69): голоса пользователя нет
+!android_app/app/src/test/resources/vad/golden.wav
 
 # OS
 .DS_Store
