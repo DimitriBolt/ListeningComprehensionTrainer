@@ -2499,18 +2499,22 @@ OPTIONS = [
      ("vadservice",)),
     (("--recordings",), dict(default=None, metavar="КАТАЛОГ",
                              help="записи режима «Endpoint recordings» (по умолчанию diagnostics/recordings)"),
-     ("endpoint",)),
+     ("endpoint", "turn-end")),
     (("--endpoint-budget",), dict(type=float, default=1.0, metavar="$", dest="endpoint_budget",
                                   help="остановить прогон, когда потрачено столько, $ (по умолчанию 1.0)"),
      ("endpoint",)),
     (("--parallel",), dict(type=int, default=12, metavar="N",
                            help="сколько потоковых сессий сразу (по умолчанию 12)"),
-     ("endpoint",)),
+     ("endpoint", "turn-end")),
     (("--offline",), dict(action="store_true",
-                          help="без серверных вариантов: только разметка (из кэша) и детекторы на устройстве"),
-     ("endpoint",)),
+                          help="без сети: endpoint — только разметка (из кэша) и детекторы на устройстве; "
+                               "turn-end — только сессии из кэша, без судьи J3"),
+     ("endpoint", "turn-end")),
+    (("--turn-budget",), dict(type=float, default=1.5, metavar="$", dest="turn_budget",
+                              help="остановить прогон, когда потрачено столько, $ (по умолчанию 1.5)"),
+     ("turn-end",)),
     (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"),
-     ("all", "responses", "tutor-dialog", "corrector", "endpoint")),
+     ("all", "responses", "tutor-dialog", "corrector", "endpoint", "turn-end")),
 ]
 
 COMMANDS = {
@@ -2525,6 +2529,7 @@ COMMANDS = {
     "tutor-dialog": "S02e–S02g: учитель-собеседник — диалоги по сценариям, длина реплик, вопросы (судья), поправки, русское слово",
     "corrector": "S02f: поправка ошибки ученика — правило в промпте учителя или отдельный запрос «поправщик»",
     "endpoint": "S03b: конец реплики в шуме — порог, Silero, WebRTC, server_vad, semantic_vad на записях пользователя",
+    "turn-end": "S04: конец реплики на паузах обдумывания — кандидат, текст потока, судьи J0–J3, предел, отмена (записи S03b)",
 }
 
 
@@ -2599,6 +2604,14 @@ def main(argv: list[str] | None = None) -> int:
                 print("\nОтправить архитектору (из корня репозитория):\n"
                       "  git add docs/research/03b-endpoint.md docs/research/03b-endpoint.json && "
                       'git commit -m "[S03b] Проба конца реплики" && git push')
+            return 0
+        elif args.cmd == "turn-end":
+            sys.modules.setdefault("probe", sys.modules[__name__])
+            import turn_end
+            if turn_end.probe_turn_end(ctx):
+                print("\nОтправить архитектору (из корня репозитория):\n"
+                      "  git add docs/research/04-turn-end.md docs/research/04-turn-end.json && "
+                      'git commit -m "[S04] Проба конца реплики" && git push')
             return 0
         elif args.cmd == "tutor-dialog":
             sys.modules.setdefault("probe", sys.modules[__name__])  # tutor_dialog делает import probe: тот же модуль
