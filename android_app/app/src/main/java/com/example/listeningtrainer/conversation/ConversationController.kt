@@ -376,14 +376,11 @@ class ConversationController(
             null
         }
         val studentText = try {
-            val liveText = live?.let { liveText(it) }
-            lastSttPath = if (liveText != null) STT_LIVE else STT_FILE
-            if (liveText != null) {
-                fileJob?.let { compareWithFile(liveText, it) }
-                liveText
+            if (live == null) {
+                lastSttPath = STT_FILE
+                transcriber.transcribe(audio, prompt)
             } else {
-                // Запасной путь — файл, как до S03d (повтор по D30). В debug файл уже идёт — ждём его.
-                fileJob?.await()?.getOrThrow() ?: transcriber.transcribe(audio, prompt)
+                studentTextLive(live, audio, prompt, fileJob)
             }
         } catch (e: CancellationException) {
             fileJob?.cancel()
@@ -417,21 +414,99 @@ class ConversationController(
         return if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
     }
 
-    /** Текст из потока или `null` — сбой, нужен файл. Обе строки журнала — без текстов. */
-    private suspend fun liveText(turn: LiveTurn): String? {
-        when (val r = turn.result()) {
+    /**
+     * Текст реплики из потока со страховкой файлом (D74). Поток дал текст за [ModelConfig.LIVE_FILE_BACKUP_AFTER_MS]
+     * после `commit` — он и берётся. Поток дал сбой раньше — файл, как в S03d. Текста нет к этому сроку — файл
+     * уходит параллельно (в debug он уже идёт для сверки), берётся первый готовый текст; поток по-прежнему ждёт
+     * до своего предела ([ModelConfig.LIVE_TEXT_TIMEOUT_MS]), его итог пишется в журнал и тогда, когда победил файл.
+     */
+    private suspend fun studentTextLive(
+        live: LiveTurn,
+        audio: RecordedAudio,
+        prompt: String,
+        debugFile: Deferred<Result<String>>?,
+    ): String {
+        val liveResult = scope.async { live.result() }
+        // `commit` ушёл в конце записи, до сжатия: время сжатия уже прошло.
+        val backupAfter = (ModelConfig.LIVE_FILE_BACKUP_AFTER_MS - audio.encodeMs).coerceAtLeast(0)
+        val early = withTimeoutOrNull(backupAfter) { liveResult.await() }
+        if (early != null) {
+            liveText(early)?.let { text ->
+                lastSttPath = STT_LIVE
+                debugFile?.let { compareWithFile(text, it) }
+                return text
+            }
+            // Запасной путь — файл, как до S03d (повтор по D30). В debug файл уже идёт — ждём его.
+            lastSttPath = STT_FILE
+            return debugFile?.await()?.getOrThrow() ?: transcriber.transcribe(audio, prompt)
+        }
+
+        log.event(NETWORK, "live transcription: no text in ${ModelConfig.LIVE_FILE_BACKUP_AFTER_MS} ms after commit → file in parallel")
+        val file = debugFile ?: scope.async { runCatching { transcriber.transcribe(audio, prompt) } }
+        try {
+            when (val first = select<Any> {
+                liveResult.onAwait { it }
+                file.onAwait { it }
+            }) {
+                is LiveResult -> {
+                    liveText(first)?.let { text ->
+                        lastSttPath = STT_LIVE
+                        if (debugFile != null) compareWithFile(text, debugFile) else file.cancel()
+                        return text
+                    }
+                    lastSttPath = STT_FILE
+                    return file.await().getOrThrow()
+                }
+                else -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val fromFile = first as Result<String>
+                    fromFile.onSuccess { text ->
+                        lastSttPath = STT_FILE
+                        log.event(NETWORK, "transcription: file first (live still waiting)")
+                        scope.launch { liveText(liveResult.await(), fileUsed = true) }
+                        return text
+                    }
+                    // Файл не дал текста — остаётся поток.
+                    liveText(liveResult.await())?.let { text ->
+                        lastSttPath = STT_LIVE
+                        return text
+                    }
+                    lastSttPath = STT_FILE
+                    return fromFile.getOrThrow()
+                }
+            }
+        } catch (e: CancellationException) {
+            if (debugFile == null) file.cancel()
+            liveResult.cancel()
+            throw e
+        }
+    }
+
+    /**
+     * Итог потока в журнал (без текстов); текст или `null` — сбой, нужен файл. [fileUsed] — итог пришёл после того,
+     * как текст уже взят из файла (D74). Пустой текст — «молчание», как у файла (D76).
+     */
+    private fun liveText(r: LiveResult, fileUsed: Boolean = false): String? {
+        val s = r.stats
+        val tail = if (fileUsed) " (late: file used)" else ""
+        when (r) {
             is LiveResult.Text -> {
-                val s = r.stats
                 log.event(
                     NETWORK,
                     "live transcription: session open in ${s.sessionWaitMs} ms (${if (s.reused) "reused" else "new"}), " +
                         "audio ${sec1(s.audioSentMs)} s sent, commit → text ${s.commitToTextMs} ms, ${s.deltas} deltas, " +
-                        "${s.chars} chars; cost \$${"%.5f".format(java.util.Locale.US, s.costUsd)}",
+                        "${s.chars} chars; cost \$${"%.5f".format(java.util.Locale.US, s.costUsd)}$tail",
                 )
+                if (!fileUsed && r.text.isBlank()) {
+                    log.event(NETWORK, "live transcription: empty text (${s.deltas} deltas) → counted as silence, no file")
+                }
                 return r.text
             }
             is LiveResult.Failed -> {
-                log.event(NETWORK, "live transcription failed (${r.reason}) → file")
+                log.event(
+                    NETWORK,
+                    "live transcription failed (${r.reason}) → file (deltas ${s.deltas}, audio ${sec1(s.audioSentMs)} s sent)$tail",
+                )
                 return null
             }
         }

@@ -29,6 +29,11 @@ object ModelConfig {
     const val LIVE_TRANSCRIBE_SAMPLE_RATE = 24_000
     /** Сколько ждать текст после `commit` (в пробе S03b p90 0,58 с); дольше — запасной путь файлом. */
     const val LIVE_TEXT_TIMEOUT_MS = 2_500L
+    /**
+     * Страховка (D74): нет текста из потока через столько мс после `commit` — параллельно уходит файл, берётся
+     * первый готовый текст (p90 `commit → text` на телефоне 0,65 с, S03d). Поток ждёт до [LIVE_TEXT_TIMEOUT_MS].
+     */
+    const val LIVE_FILE_BACKUP_AFTER_MS = 1_000L
     /** Сессия живёт не больше 60 мин — между репликами она обновляется раньше. */
     const val LIVE_SESSION_RENEW_MS = 50 * 60_000L
     /** Цена: $ за минуту звука (страница модели `gpt-live-transcribe`, 2026-11-26). */

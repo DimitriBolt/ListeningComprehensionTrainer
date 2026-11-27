@@ -229,6 +229,8 @@ class ConversationControllerTest {
         class Fail(val reason: String)
         val results = ArrayDeque<Any>()
         var delayMs = 200L
+        /** Своя задержка для очередных реплик (D74: медленный поток); пусто — [delayMs]. */
+        val delays = ArrayDeque<Long>()
         var prepares = 0
         var released = false
         val prompts = mutableListOf<String>()
@@ -244,12 +246,13 @@ class ConversationControllerTest {
             }
             override fun onEnd(heardSpeech: Boolean) { ended = heardSpeech }
             override suspend fun result(): LiveResult {
-                delay(delayMs)
+                val wait = delays.removeFirstOrNull() ?: delayMs
+                delay(wait)
                 return when (val r = results.removeFirstOrNull() ?: "live text") {
-                    is Fail -> LiveResult.Failed(r.reason, LiveStats(audioSentMs = 80))
+                    is Fail -> LiveResult.Failed(r.reason, LiveStats(audioSentMs = 80, deltas = 2))
                     else -> LiveResult.Text(
                         r as String,
-                        LiveStats(sessionWaitMs = 0, reused = turns.size > 1, audioSentMs = 2_500, commitToTextMs = delayMs, deltas = 3, chars = r.length, costUsd = 0.00071),
+                        LiveStats(sessionWaitMs = 0, reused = turns.size > 1, audioSentMs = 2_500, commitToTextMs = wait, deltas = 3, chars = r.length, costUsd = 0.00071),
                     )
                 }
             }
@@ -1657,7 +1660,7 @@ class ConversationControllerTest {
 
         assertEquals(1, rig.transcriber.calls)
         assertEquals("I like tea", rig.tutor.replies.single())
-        assertTrue(rig.log.lines.contains("[Network] live transcription failed (no text in 2500 ms) → file"))
+        assertTrue(rig.log.lines.contains("[Network] live transcription failed (no text in 2500 ms) → file (deltas 2, audio 0.1 s sent)"))
         // поток 200 мс до сбоя, файл ещё 300 мс
         assertEquals("stt=500", rig.timing.single().split(' ')[1])
         assertTrue(rig.timing.single().endsWith("stt_path=file"))
@@ -1742,6 +1745,76 @@ class ConversationControllerTest {
         assertEquals("I like tea", rig.tutor.replies.single())
         assertTrue(rig.log.lines.none { "live vs file" in it })
         assertEquals("stt=300", rig.timing.single().split(' ')[1])
+    }
+
+    // ---- страховка файлом (D74) и пустой текст (D76) -----------------------------------------
+
+    @Test
+    fun `slow stream - after 1000 ms the file goes in parallel and the first text wins`() = runTest {
+        val live = FakeLive().apply { results += "live late"; delays += 1_500L }
+        val rig = Rig(this, "I like tea", live = live)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(1, rig.transcriber.calls)
+        assertEquals("I like tea", rig.tutor.replies.single())
+        // 1000 мс ожидания потока + 300 мс файл
+        assertEquals("stt=1300", rig.timing.single().split(' ')[1])
+        assertTrue(rig.timing.single().endsWith("stt_path=file"))
+        val lines = rig.log.lines
+        assertTrue(lines.contains("[Network] live transcription: no text in 1000 ms after commit → file in parallel"))
+        assertTrue(lines.contains("[Network] transcription: file first (live still waiting)"))
+        // Итог потока всё равно в журнале, когда он пришёл.
+        assertTrue(lines.any { it.startsWith("[Network] live transcription: session open") && it.endsWith("(late: file used)") })
+    }
+
+    @Test
+    fun `slow stream that still beats the file - text from the stream, stt_path live`() = runTest {
+        val live = FakeLive().apply { results += "I like coffee"; delays += 1_200L }
+        val rig = Rig(this, "file text", live = live)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("I like coffee", rig.tutor.replies.single())
+        assertEquals("stt=1200", rig.timing.single().split(' ')[1])
+        assertTrue(rig.timing.single().endsWith("stt_path=live"))
+        assertTrue(rig.log.lines.contains("[Network] live transcription: no text in 1000 ms after commit → file in parallel"))
+        assertTrue(rig.log.lines.none { "file first" in it })
+    }
+
+    @Test
+    fun `slow stream and the file fails - the stream text is used`() = runTest {
+        val live = FakeLive().apply { results += "I like coffee"; delays += 1_800L }
+        val rig = Rig(this, ServiceException(FailureKind.NO_NETWORK, "network"), live = live)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals("I like coffee", rig.tutor.replies.single())
+        assertTrue(rig.timing.single().endsWith("stt_path=live"))
+    }
+
+    @Test
+    fun `the backup timer counts from the commit - encoding time is already spent`() = runTest {
+        val live = FakeLive().apply { results += "live late"; delays += 1_500L }
+        val rig = Rig(this, "I like tea", live = live)
+        rig.input.encodeMs = 400
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        // 600 мс после возврата записи (+ 400 мс сжатия = 1000 от commit) + 300 мс файл; stt считает и enc
+        assertEquals("stt=1300", rig.timing.single().split(' ')[1])
+    }
+
+    @Test
+    fun `empty text from the stream - silence, one line in the log, no file`() = runTest {
+        val live = FakeLive().apply { results += "" }
+        val rig = Rig(this, "file text", live = live)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(0, rig.transcriber.calls)
+        assertTrue(rig.log.lines.contains("[Network] live transcription: empty text (3 deltas) → counted as silence, no file"))
+        assertEquals(listOf("SILENCE_MANUAL"), rig.circleEnds)
     }
 
     @Test
