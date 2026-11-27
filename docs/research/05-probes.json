@@ -1,0 +1,1555 @@
+{
+ "corrector-long": {
+  "max_output_tokens": 250,
+  "rows": [
+   {
+    "student": "yesterday I got up early and I make coffee then I go to the park with my dog it was very nice weather and we walk for one hour after that I come back home and cook breakfast for my wife",
+    "words": 41,
+    "has_error": true,
+    "rep": 1,
+    "status": "completed",
+    "error": null,
+    "answer": "yesterday I got up early and I made coffee then I went to the park with my dog it was very nice weather and we walked for one hour after that I came back home and cooked breakfast for my wife",
+    "verdict": "fix",
+    "similarity": 0.88,
+    "output_tokens": 46,
+    "seconds": 2.22
+   },
+   {
+    "student": "yesterday I got up early and I make coffee then I go to the park with my dog it was very nice weather and we walk for one hour after that I come back home and cook breakfast for my wife",
+    "words": 41,
+    "has_error": true,
+    "rep": 2,
+    "status": "completed",
+    "error": null,
+    "answer": "yesterday I got up early and I made coffee then I went to the park with my dog it was very nice weather and we walked for one hour after that I came back home and cooked breakfast for my wife",
+    "verdict": "fix",
+    "similarity": 0.88,
+    "output_tokens": 46,
+    "seconds": 1.21
+   },
+   {
+    "student": "I want to tell you about my trip to the mountains last summer we drove four hours to Flagstaff and we stay in a small hotel near the forest every morning we walked on the trails and in the evening we eat pizza",
+    "words": 43,
+    "has_error": true,
+    "rep": 1,
+    "status": "completed",
+    "error": null,
+    "answer": "I want to tell you about my trip to the mountains last summer we drove four hours to Flagstaff and we stayed in a small hotel near the forest every morning we walked on the trails and in the evening we ate pizza",
+    "verdict": "fix",
+    "similarity": 0.95,
+    "output_tokens": 48,
+    "seconds": 1.67
+   },
+   {
+    "student": "I want to tell you about my trip to the mountains last summer we drove four hours to Flagstaff and we stay in a small hotel near the forest every morning we walked on the trails and in the evening we eat pizza",
+    "words": 43,
+    "has_error": true,
+    "rep": 2,
+    "status": "completed",
+    "error": null,
+    "answer": "I want to tell you about my trip to the mountains last summer we drove four hours to Flagstaff and we stayed in a small hotel near the forest every morning we walked on the trails and in the evening we ate pizza",
+    "verdict": "fix",
+    "similarity": 0.95,
+    "output_tokens": 48,
+    "seconds": 0.91
+   },
+   {
+    "student": "my favorite food is pizza I like pizza with mushrooms and cheese my wife likes pizza with pineapple but I think it is strange on Fridays we usually order pizza and watch a movie together at home",
+    "words": 37,
+    "has_error": false,
+    "rep": 1,
+    "status": "completed",
+    "error": null,
+    "answer": "OK",
+    "verdict": "none",
+    "similarity": 0.0,
+    "output_tokens": 5,
+    "seconds": 0.94
+   },
+   {
+    "student": "my favorite food is pizza I like pizza with mushrooms and cheese my wife likes pizza with pineapple but I think it is strange on Fridays we usually order pizza and watch a movie together at home",
+    "words": 37,
+    "has_error": false,
+    "rep": 2,
+    "status": "completed",
+    "error": null,
+    "answer": "OK",
+    "verdict": "none",
+    "similarity": 0.0,
+    "output_tokens": 5,
+    "seconds": 1.03
+   },
+   {
+    "student": "I work as an engineer in a big company I write programs for computers every day I have many meetings and sometimes it is boring but I like my colleagues they are very friendly and help me a lot",
+    "words": 39,
+    "has_error": false,
+    "rep": 1,
+    "status": "completed",
+    "error": null,
+    "answer": "I work as an engineer in a big company I write programs for computers every day I have many meetings and sometimes they are boring but I like my colleagues they are very friendly and help me a lot",
+    "verdict": "fix",
+    "similarity": 0.95,
+    "output_tokens": 43,
+    "seconds": 0.79
+   },
+   {
+    "student": "I work as an engineer in a big company I write programs for computers every day I have many meetings and sometimes it is boring but I like my colleagues they are very friendly and help me a lot",
+    "words": 39,
+    "has_error": false,
+    "rep": 2,
+    "status": "completed",
+    "error": null,
+    "answer": "I work as an engineer in a big company I write programs for computers every day I have many meetings and sometimes it is boring but I like my colleagues they are very friendly and help me a lot",
+    "verdict": "none",
+    "similarity": 1.0,
+    "output_tokens": 43,
+    "seconds": 1.01
+   },
+   {
+    "student": "last weekend my son and me went to the lake we wanted to catch fish but the water was very cold and the fish don't want to eat so we catched nothing but we had a good time and we saw two eagles",
+    "words": 43,
+    "has_error": true,
+    "rep": 1,
+    "status": "completed",
+    "error": null,
+    "answer": "last weekend my son and I went to the lake we wanted to catch fish but the water was very cold and the fish didn't want to eat so we caught nothing but we had a good time and we saw two eagles",
+    "verdict": "fix",
+    "similarity": 0.93,
+    "output_tokens": 48,
+    "seconds": 1.52
+   },
+   {
+    "student": "last weekend my son and me went to the lake we wanted to catch fish but the water was very cold and the fish don't want to eat so we catched nothing but we had a good time and we saw two eagles",
+    "words": 43,
+    "has_error": true,
+    "rep": 2,
+    "status": "completed",
+    "error": null,
+    "answer": "last weekend my son and I went to the lake we wanted to catch fish but the water was very cold and the fish didn't want to eat so we caught nothing but we had a good time and we saw two eagles",
+    "verdict": "fix",
+    "similarity": 0.93,
+    "output_tokens": 48,
+    "seconds": 1.02
+   },
+   {
+    "student": "in the morning I usually drink coffee and read the news on my phone then I take a shower and drive to my office it takes about twenty minutes when there is no traffic",
+    "words": 34,
+    "has_error": false,
+    "rep": 1,
+    "status": "completed",
+    "error": null,
+    "answer": "In the morning I usually drink coffee and read the news on my phone then I take a shower and drive to my office it takes about twenty minutes when there is no traffic.",
+    "verdict": "none",
+    "similarity": 1.0,
+    "output_tokens": 39,
+    "seconds": 1.21
+   },
+   {
+    "student": "in the morning I usually drink coffee and read the news on my phone then I take a shower and drive to my office it takes about twenty minutes when there is no traffic",
+    "words": 34,
+    "has_error": false,
+    "rep": 2,
+    "status": "completed",
+    "error": null,
+    "answer": "In the morning I usually drink coffee and read the news on my phone then I take a shower and drive to my office it takes about twenty minutes when there is no traffic",
+    "verdict": "none",
+    "similarity": 1.0,
+    "output_tokens": 38,
+    "seconds": 1.45
+   }
+  ],
+  "incomplete": 0,
+  "fixes_on_errors": 6,
+  "errors_total": 6,
+  "false_fixes": 1,
+  "rejected": 0,
+  "ok_total": 6,
+  "output_tokens_max": 48,
+  "date": "2026-11-27T01:10:09"
+ },
+ "interrupted": {
+  "mark": "[interrupted by the student]",
+  "rows": [
+   {
+    "id": "I1",
+    "rep": 1,
+    "what": "ученик продолжил рассказ (пауза после законченного предложения)",
+    "first_student": "Yesterday I got up early.",
+    "first_reply": "You got up early yesterday, so you had time. Many birds sing before the sun comes up. Some people enjoy a quiet walk then. What do birds do before sunrise?",
+    "groups": 8,
+    "spoken": "You got up early yesterday, so you had time. Many birds sing",
+    "then": "I made coffee and went to the park.",
+    "reply": "Coffee before a walk sounds like a nice morning. In the park, birds sing and people walk their dogs. Some people sit on benches and watch the trees. What did people do in the park?",
+    "repeat_share": 0.0,
+    "repeat_share_spoken": 0.0,
+    "mark_leak": false,
+    "question": true,
+    "own_words": 35,
+    "error": null
+   },
+   {
+    "id": "I1",
+    "rep": 2,
+    "what": "ученик продолжил рассказ (пауза после законченного предложения)",
+    "first_student": "Yesterday I got up early.",
+    "first_reply": "Getting up early gives you a calm start. Many birds sing before the sun comes up. Some people enjoy a quiet walk then. What do many birds do early?",
+    "groups": 7,
+    "spoken": "Getting up early gives you a calm start. Many birds sing",
+    "then": "I made coffee and went to the park.",
+    "reply": "That sounds like a peaceful morning for you. Some parks have quiet paths beneath tall trees. People often walk there before the day gets busy. What did you see in the park?",
+    "repeat_share": 0.0,
+    "repeat_share_spoken": 0.0,
+    "mark_leak": false,
+    "question": true,
+    "own_words": 32,
+    "error": null
+   },
+   {
+    "id": "I2",
+    "rep": 1,
+    "what": "ученик переспросил слово посреди ответа",
+    "first_student": "Tell me about the Grand Canyon.",
+    "first_reply": "The Grand Canyon is very large and beautiful. Do you want to hear about its animals or rocks?",
+    "groups": 5,
+    "spoken": "The Grand Canyon is very large and beautiful. Do you want to hear about its animals",
+    "then": "Wait, what is a canyon?",
+    "reply": "A canyon is a deep space between high rocks. Water can slowly make a canyon over many years. The Grand Canyon has high sides and a low floor. What can slowly make a canyon?",
+    "repeat_share": 0.0,
+    "repeat_share_spoken": 0.0,
+    "mark_leak": false,
+    "question": true,
+    "own_words": 34,
+    "error": null
+   },
+   {
+    "id": "I2",
+    "rep": 2,
+    "what": "ученик переспросил слово посреди ответа",
+    "first_student": "Tell me about the Grand Canyon.",
+    "first_reply": "The Grand Canyon is very big and beautiful. Do you want to hear about its animals or its rocks?",
+    "groups": 5,
+    "spoken": "The Grand Canyon is very big and beautiful. Do you want to hear about its animals",
+    "then": "Wait, what is a canyon?",
+    "reply": "A canyon is a deep space between high rocks. Rivers often make canyons over many years. The Grand Canyon has tall, colorful rock walls. What can make a canyon?",
+    "repeat_share": 0.0,
+    "repeat_share_spoken": 0.0,
+    "mark_leak": false,
+    "question": true,
+    "own_words": 29,
+    "error": null
+   },
+   {
+    "id": "I3",
+    "rep": 1,
+    "what": "ученик ответил раньше вопроса",
+    "first_student": "I like summer.",
+    "first_reply": "Summer is warm, and many people swim outside. Children often play in parks during summer. What do you like doing outside in summer?",
+    "groups": 6,
+    "spoken": "Summer is warm, and many people swim outside.",
+    "then": "Because I like swimming.",
+    "reply": "Swimming feels good on a warm summer day. Many people swim in lakes or pools. Some people swim at the beach. Where do you like to swim?",
+    "repeat_share": 0.0,
+    "repeat_share_spoken": 0.0,
+    "mark_leak": false,
+    "question": true,
+    "own_words": 27,
+    "error": null
+   },
+   {
+    "id": "I3",
+    "rep": 2,
+    "what": "ученик ответил раньше вопроса",
+    "first_student": "I like summer.",
+    "first_reply": "Summer is warm, and the days are long. Many people swim in lakes or pools. Some families eat dinner outside in summer. What do many people swim in?",
+    "groups": 7,
+    "spoken": "Summer is warm, and the days are long.",
+    "then": "Because I like swimming.",
+    "reply": "Swimming feels nice when the water is cool. Many people swim in pools during summer. Some swim at the beach with friends. Where do you like to swim?",
+    "repeat_share": 0.0,
+    "repeat_share_spoken": 0.0,
+    "mark_leak": false,
+    "question": true,
+    "own_words": 28,
+    "error": null
+   }
+  ],
+  "full_repeats": 0,
+  "mark_leaks": 0,
+  "questions": 6,
+  "date": "2026-11-27T01:10:24"
+ },
+ "spend_runs": [
+  {
+   "date": "2026-11-27T01:10:24",
+   "parts": [
+    "corrector-long",
+    "interrupted"
+   ],
+   "spend": {
+    "synth": 0.0,
+    "live": 0.0,
+    "tutor": 0.00155,
+    "corrector": 0.00064
+   },
+   "elapsed_s": 30.1
+  },
+  {
+   "date": "2026-11-27T01:12:50",
+   "parts": [
+    "commands",
+    "slower"
+   ],
+   "spend": {
+    "synth": 0.06611,
+    "live": 0.07452,
+    "tutor": 0.0,
+    "corrector": 0.0
+   },
+   "elapsed_s": 128.8
+  }
+ ],
+ "commands": {
+  "teacher": "Do you like hot weather or cold weather?",
+  "voices": [
+   "alloy",
+   "ash",
+   "coral"
+  ],
+  "rows": [
+   {
+    "voice": "alloy",
+    "said": "Stop.",
+    "want": "stop",
+    "synth_transcript": "Stop.",
+    "heard": "Stop.",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Wait.",
+    "want": "stop",
+    "synth_transcript": "Wait.",
+    "heard": "Wait,",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Stop, please.",
+    "want": "stop",
+    "synth_transcript": "Stop, please.",
+    "heard": "Stop please.",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Wait a moment.",
+    "want": "stop",
+    "synth_transcript": "Wait a moment.",
+    "heard": "Wait, a moment.",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Again.",
+    "want": "again",
+    "synth_transcript": "Again.",
+    "heard": "Again,",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Repeat.",
+    "want": "again",
+    "synth_transcript": "Repeat.",
+    "heard": "Repeat:",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Say again.",
+    "want": "again",
+    "synth_transcript": "Say again.",
+    "heard": "Say again.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "One more time.",
+    "want": "again",
+    "synth_transcript": "One more time.",
+    "heard": "One more time.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Again, please.",
+    "want": "again",
+    "synth_transcript": "Again, please.",
+    "heard": "Again, please.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Repeat, please.",
+    "want": "again",
+    "synth_transcript": "Repeat, please.",
+    "heard": "Repeat please.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Say it again.",
+    "want": "again",
+    "synth_transcript": "Say it again.",
+    "heard": "Say it again.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Slower.",
+    "want": "slower",
+    "synth_transcript": "Slower.",
+    "heard": "Slower,",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Slow down.",
+    "want": "slower",
+    "synth_transcript": "Slow down.",
+    "heard": "Slow down.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "More slowly.",
+    "want": "slower",
+    "synth_transcript": "More slowly.",
+    "heard": "",
+    "got": null,
+    "ok": false,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Slower, please.",
+    "want": "slower",
+    "synth_transcript": "Slower, please.",
+    "heard": "Slower. Please.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Speak slowly.",
+    "want": "slower",
+    "synth_transcript": "Speak slowly.",
+    "heard": "Speak slowly",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "What?",
+    "want": null,
+    "synth_transcript": "What?",
+    "heard": "What?",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "I don't understand.",
+    "want": null,
+    "synth_transcript": "I don't understand.",
+    "heard": "I don't understand.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "At noon.",
+    "want": null,
+    "synth_transcript": "At noon.",
+    "heard": "At noon,",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "I stopped.",
+    "want": null,
+    "synth_transcript": "I stopped.",
+    "heard": "I stopped.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Wait for me here.",
+    "want": null,
+    "synth_transcript": "Wait for me here.",
+    "heard": "Wait for me here.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Yes, again tomorrow.",
+    "want": null,
+    "synth_transcript": "Yes, again tomorrow.",
+    "heard": "Yes. Again tomorrow.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Slow food.",
+    "want": null,
+    "synth_transcript": "Slow food.",
+    "heard": "Slow food.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "alloy",
+    "said": "Stop the car now.",
+    "want": null,
+    "synth_transcript": "Stop the car now.",
+    "heard": "Stop the car now.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Stop.",
+    "want": "stop",
+    "synth_transcript": "Stop.",
+    "heard": "Stop,",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Wait.",
+    "want": "stop",
+    "synth_transcript": "Wait.",
+    "heard": "Wait,",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Stop, please.",
+    "want": "stop",
+    "synth_transcript": "Stop, please.",
+    "heard": "Stop. Please.",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Wait a moment.",
+    "want": "stop",
+    "synth_transcript": "Wait a moment.",
+    "heard": "Wait a moment.",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Again.",
+    "want": "again",
+    "synth_transcript": "Again.",
+    "heard": "Again,",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Repeat.",
+    "want": "again",
+    "synth_transcript": "Repeat.",
+    "heard": "Repeat:",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Say again.",
+    "want": "again",
+    "synth_transcript": "Say again.",
+    "heard": "Say again",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "One more time.",
+    "want": "again",
+    "synth_transcript": "One more time.",
+    "heard": "One more time.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Again, please.",
+    "want": "again",
+    "synth_transcript": "Again, please.",
+    "heard": "Again, please.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Repeat, please.",
+    "want": "again",
+    "synth_transcript": "Repeat, please.",
+    "heard": "Repeat, please.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Say it again.",
+    "want": "again",
+    "synth_transcript": "Say it again.",
+    "heard": "Say it again.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Slower.",
+    "want": "slower",
+    "synth_transcript": "Slower.",
+    "heard": "Slower.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Slow down.",
+    "want": "slower",
+    "synth_transcript": "Slow down.",
+    "heard": "Slow down.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "More slowly.",
+    "want": "slower",
+    "synth_transcript": "More slowly.",
+    "heard": "More slowly.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Slower, please.",
+    "want": "slower",
+    "synth_transcript": "Slower, please.",
+    "heard": "Slower please.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Speak slowly.",
+    "want": "slower",
+    "synth_transcript": "Speak slowly.",
+    "heard": "Speak slowly",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "What?",
+    "want": null,
+    "synth_transcript": "What?",
+    "heard": "What?",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "I don't understand.",
+    "want": null,
+    "synth_transcript": "I don't understand.",
+    "heard": "I don't understand.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "At noon.",
+    "want": null,
+    "synth_transcript": "At noon.",
+    "heard": "At noon",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "I stopped.",
+    "want": null,
+    "synth_transcript": "I stopped.",
+    "heard": "I stopped.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Wait for me here.",
+    "want": null,
+    "synth_transcript": "Wait for me here.",
+    "heard": "Wait for me here.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Yes, again tomorrow.",
+    "want": null,
+    "synth_transcript": "Yes, again tomorrow.",
+    "heard": "Yes, again tomorrow.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Slow food.",
+    "want": null,
+    "synth_transcript": "Slow food.",
+    "heard": "Slow food.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "ash",
+    "said": "Stop the car now.",
+    "want": null,
+    "synth_transcript": "Stop the car now.",
+    "heard": "Stop the car now.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Stop.",
+    "want": "stop",
+    "synth_transcript": "Stop.",
+    "heard": "Stop.",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Wait.",
+    "want": "stop",
+    "synth_transcript": "Wait.",
+    "heard": "Wait,",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Stop, please.",
+    "want": "stop",
+    "synth_transcript": "Stop, please.",
+    "heard": "Stop. Please,",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Wait a moment.",
+    "want": "stop",
+    "synth_transcript": "Wait a moment.",
+    "heard": "Wait a moment.",
+    "got": "stop",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Again.",
+    "want": "again",
+    "synth_transcript": "Again.",
+    "heard": "Again,",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Repeat.",
+    "want": "again",
+    "synth_transcript": "Repeat.",
+    "heard": "Repeat:",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Say again.",
+    "want": "again",
+    "synth_transcript": "Say again.",
+    "heard": "Say again.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "One more time.",
+    "want": "again",
+    "synth_transcript": "One more time.",
+    "heard": "One more time.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Again, please.",
+    "want": "again",
+    "synth_transcript": "Again, please.",
+    "heard": "Again, please.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Repeat, please.",
+    "want": "again",
+    "synth_transcript": "Repeat, please.",
+    "heard": "Repeat please:",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Say it again.",
+    "want": "again",
+    "synth_transcript": "Say it again.",
+    "heard": "Say it again.",
+    "got": "again",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Slower.",
+    "want": "slower",
+    "synth_transcript": "Slower.",
+    "heard": "Slower.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Slow down.",
+    "want": "slower",
+    "synth_transcript": "Slow down.",
+    "heard": "Slow down.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "More slowly.",
+    "want": "slower",
+    "synth_transcript": "More slowly.",
+    "heard": "More slowly.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Slower, please.",
+    "want": "slower",
+    "synth_transcript": "Slower, please.",
+    "heard": "Slower, please.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Speak slowly.",
+    "want": "slower",
+    "synth_transcript": "Speak slowly.",
+    "heard": "Speak slowly.",
+    "got": "slower",
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "What?",
+    "want": null,
+    "synth_transcript": "What?",
+    "heard": "What?",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "I don't understand.",
+    "want": null,
+    "synth_transcript": "I don't understand.",
+    "heard": "I don't understand.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "At noon.",
+    "want": null,
+    "synth_transcript": "At noon.",
+    "heard": "At noon",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "I stopped.",
+    "want": null,
+    "synth_transcript": "I stopped.",
+    "heard": "I stopped.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Wait for me here.",
+    "want": null,
+    "synth_transcript": "Wait for me here.",
+    "heard": "Wait for me here.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Yes, again tomorrow.",
+    "want": null,
+    "synth_transcript": "Yes, again tomorrow.",
+    "heard": "Yes, again tomorrow.",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Slow food.",
+    "want": null,
+    "synth_transcript": "Slow food.",
+    "heard": "Sweet food",
+    "got": null,
+    "ok": true,
+    "error": null
+   },
+   {
+    "voice": "coral",
+    "said": "Stop the car now.",
+    "want": null,
+    "synth_transcript": "Stop the car now.",
+    "heard": "Stop the car now.",
+    "got": null,
+    "ok": true,
+    "error": null
+   }
+  ],
+  "commands_ok": 47,
+  "commands_total": 48,
+  "false_commands": 0,
+  "non_commands_total": 24,
+  "date": "2026-11-27T01:12:37"
+ },
+ "slower": {
+  "voice": "verse",
+  "normal": 0.88,
+  "slow": 0.7,
+  "rows": [
+   {
+    "group": "Yesterday I went",
+    "speed": 0.88,
+    "update_s": null,
+    "audio_s": 1.792,
+    "first_audio_s": 0.4740994619999128,
+    "transcript": "Yesterday I went",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 137,
+     "input_tokens": 81,
+     "output_tokens": 56,
+     "input_token_details": {
+      "text_tokens": 81,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 0,
+      "cached_tokens_details": {
+       "text_tokens": 0,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 23,
+      "audio_tokens": 33,
+      "reasoning_tokens": 10
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "Yesterday I went",
+    "speed": 0.7,
+    "update_s": 0.09042373200009024,
+    "audio_s": 2.4,
+    "first_audio_s": 0.43959670799995365,
+    "transcript": "Yesterday I went",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 141,
+     "input_tokens": 81,
+     "output_tokens": 60,
+     "input_token_details": {
+      "text_tokens": 81,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 25,
+      "audio_tokens": 35,
+      "reasoning_tokens": 12
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "to the market.",
+    "speed": 0.88,
+    "update_s": 0.09324201100002938,
+    "audio_s": 1.6746666666666667,
+    "first_audio_s": 0.49710562099994604,
+    "transcript": "to the market.",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 144,
+     "input_tokens": 82,
+     "output_tokens": 62,
+     "input_token_details": {
+      "text_tokens": 82,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 0,
+      "cached_tokens_details": {
+       "text_tokens": 0,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 31,
+      "audio_tokens": 31,
+      "reasoning_tokens": 17
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "to the market.",
+    "speed": 0.7,
+    "update_s": 0.08201982500008853,
+    "audio_s": 1.472,
+    "first_audio_s": 0.4604346749999877,
+    "transcript": "to the market.",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 133,
+     "input_tokens": 82,
+     "output_tokens": 51,
+     "input_token_details": {
+      "text_tokens": 82,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 29,
+      "audio_tokens": 22,
+      "reasoning_tokens": 15
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "I bought apples",
+    "speed": 0.88,
+    "update_s": 0.08757323999998334,
+    "audio_s": 1.4506666666666668,
+    "first_audio_s": 0.4090853980001157,
+    "transcript": "I bought apples",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 131,
+     "input_tokens": 81,
+     "output_tokens": 50,
+     "input_token_details": {
+      "text_tokens": 81,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 23,
+      "audio_tokens": 27,
+      "reasoning_tokens": 10
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "I bought apples",
+    "speed": 0.7,
+    "update_s": 0.08184332399991945,
+    "audio_s": 2.1866666666666665,
+    "first_audio_s": 0.44318412899997384,
+    "transcript": "I bought apples",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 139,
+     "input_tokens": 81,
+     "output_tokens": 58,
+     "input_token_details": {
+      "text_tokens": 81,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 26,
+      "audio_tokens": 32,
+      "reasoning_tokens": 13
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "and some bread.",
+    "speed": 0.88,
+    "update_s": 0.08882469299987861,
+    "audio_s": 1.2266666666666666,
+    "first_audio_s": 0.7988081670000611,
+    "transcript": "and some bread.",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 134,
+     "input_tokens": 82,
+     "output_tokens": 52,
+     "input_token_details": {
+      "text_tokens": 82,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 29,
+      "audio_tokens": 23,
+      "reasoning_tokens": 15
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "and some bread.",
+    "speed": 0.7,
+    "update_s": 0.0805639739999151,
+    "audio_s": 1.76,
+    "first_audio_s": 0.4714700350000385,
+    "transcript": "and some bread.",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 142,
+     "input_tokens": 82,
+     "output_tokens": 60,
+     "input_token_details": {
+      "text_tokens": 82,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 34,
+      "audio_tokens": 26,
+      "reasoning_tokens": 20
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "The weather was warm,",
+    "speed": 0.88,
+    "update_s": 0.08865601200000128,
+    "audio_s": 1.8453333333333333,
+    "first_audio_s": 0.4222733290000633,
+    "transcript": "The weather was warm,",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 143,
+     "input_tokens": 83,
+     "output_tokens": 60,
+     "input_token_details": {
+      "text_tokens": 83,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 26,
+      "audio_tokens": 34,
+      "reasoning_tokens": 11
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "The weather was warm,",
+    "speed": 0.7,
+    "update_s": 0.07829632699986178,
+    "audio_s": 2.2613333333333334,
+    "first_audio_s": 0.578638600000204,
+    "transcript": "The weather was warm,",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 168,
+     "input_tokens": 83,
+     "output_tokens": 85,
+     "input_token_details": {
+      "text_tokens": 83,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 52,
+      "audio_tokens": 33,
+      "reasoning_tokens": 35
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "so I walked home.",
+    "speed": 0.88,
+    "update_s": 0.08968676699987554,
+    "audio_s": 1.568,
+    "first_audio_s": 0.436340545000121,
+    "transcript": "so I walked home.",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 138,
+     "input_tokens": 83,
+     "output_tokens": 55,
+     "input_token_details": {
+      "text_tokens": 83,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 0,
+      "cached_tokens_details": {
+       "text_tokens": 0,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 26,
+      "audio_tokens": 29,
+      "reasoning_tokens": 11
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "so I walked home.",
+    "speed": 0.7,
+    "update_s": 0.08255046499994023,
+    "audio_s": 2.2613333333333334,
+    "first_audio_s": 0.4309292750001532,
+    "transcript": "so I walked home.",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 146,
+     "input_tokens": 83,
+     "output_tokens": 63,
+     "input_token_details": {
+      "text_tokens": 83,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 30,
+      "audio_tokens": 33,
+      "reasoning_tokens": 15
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "What did you do",
+    "speed": 0.88,
+    "update_s": 0.09318137600007503,
+    "audio_s": 1.8453333333333333,
+    "first_audio_s": 0.5310491950001506,
+    "transcript": "What did you do",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 149,
+     "input_tokens": 82,
+     "output_tokens": 67,
+     "input_token_details": {
+      "text_tokens": 82,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 33,
+      "audio_tokens": 34,
+      "reasoning_tokens": 19
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "What did you do",
+    "speed": 0.7,
+    "update_s": 0.08858497000005627,
+    "audio_s": 2.048,
+    "first_audio_s": 0.45003719600003933,
+    "transcript": "What did you do",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 141,
+     "input_tokens": 82,
+     "output_tokens": 59,
+     "input_token_details": {
+      "text_tokens": 82,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 29,
+      "audio_tokens": 30,
+      "reasoning_tokens": 15
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "yesterday?",
+    "speed": 0.88,
+    "update_s": 0.0933449470001051,
+    "audio_s": 1.1626666666666667,
+    "first_audio_s": 0.3925941859999966,
+    "transcript": "yesterday?",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 116,
+     "input_tokens": 81,
+     "output_tokens": 35,
+     "input_token_details": {
+      "text_tokens": 81,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 13,
+      "audio_tokens": 22
+     }
+    },
+    "error": null
+   },
+   {
+    "group": "yesterday?",
+    "speed": 0.7,
+    "update_s": 0.09190973399995528,
+    "audio_s": 1.2586666666666666,
+    "first_audio_s": 0.48353982200001155,
+    "transcript": "yesterday?",
+    "check": "verbatim",
+    "usage": {
+     "total_tokens": 128,
+     "input_tokens": 81,
+     "output_tokens": 47,
+     "input_token_details": {
+      "text_tokens": 81,
+      "audio_tokens": 0,
+      "image_tokens": 0,
+      "cached_tokens": 64,
+      "cached_tokens_details": {
+       "text_tokens": 64,
+       "audio_tokens": 0,
+       "image_tokens": 0
+      }
+     },
+     "output_token_details": {
+      "text_tokens": 28,
+      "audio_tokens": 19,
+      "reasoning_tokens": 17
+     }
+    },
+    "error": null
+   }
+  ],
+  "ratio_median": 1.2823596201486374,
+  "verbatim_normal": 8,
+  "verbatim_slow": 8,
+  "groups": 8,
+  "update_s_max": 0.0933449470001051,
+  "date": "2026-11-27T01:12:50"
+ }
+}
