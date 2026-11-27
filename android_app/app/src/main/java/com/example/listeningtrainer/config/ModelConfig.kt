@@ -15,6 +15,30 @@ object ModelConfig {
     /** Сколько знаков последнего предложения учителя класть в `prompt` распознавания. */
     const val TRANSCRIBE_PROMPT_TEACHER_CHARS = 200
 
+    /**
+     * Потоковое распознавание во время записи (S03d, D67): сессия транскрипции Realtime по WebSocket, звук —
+     * PCM 24 кГц (другого сессия не принимает), конец реплики решает Silero на устройстве (`turn_detection: null`,
+     * серверного VAD у модели нет), затем `commit`. Документация OpenAI «Realtime transcription» (прочитана
+     * 2026-11-26): `prompt` модель принимает и его можно менять перед каждой репликой (`session.update`; проверено
+     * пробой), сессия живёт до 60 мин. Сбой потока — запасной путь файлом ([TRANSCRIBE_MODEL]).
+     */
+    const val LIVE_TRANSCRIBE_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
+    const val LIVE_TRANSCRIBE_MODEL = "gpt-live-transcribe"
+    /** `low`: в пробе S03b — 92 % слов, текст через 0,46 с после `commit` (`minimal` — 90 %, 0,44 с). */
+    const val LIVE_TRANSCRIBE_DELAY = "low"
+    const val LIVE_TRANSCRIBE_SAMPLE_RATE = 24_000
+    /** Сколько ждать текст после `commit` (в пробе S03b p90 0,58 с); дольше — запасной путь файлом. */
+    const val LIVE_TEXT_TIMEOUT_MS = 2_500L
+    /** Сессия живёт не больше 60 мин — между репликами она обновляется раньше. */
+    const val LIVE_SESSION_RENEW_MS = 50 * 60_000L
+    /** Цена: $ за минуту звука (страница модели `gpt-live-transcribe`, 2026-11-26). */
+    const val LIVE_TRANSCRIBE_PRICE_PER_MIN = 0.017
+    /**
+     * Только в debug-сборке (в release не действует): для каждой реплики параллельно идёт и файл, в журнал —
+     * похожесть текстов (S03d, п. 3), сами тексты — в `files/diagnostics/` на телефоне.
+     */
+    const val LIVE_COMPARE_WITH_FILE_IN_DEBUG = true
+
     // --- Запись ученика (S02b, D6) ---
     /** Микрофон: PCM 16 бит, моно, 16 кГц. */
     const val RECORD_SAMPLE_RATE = 16_000
