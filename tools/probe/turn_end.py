@@ -734,12 +734,26 @@ def accuracy(reference: str, hypothesis: str) -> float | None:
     return endpoint.accuracy(expand(reference), expand(hypothesis))
 
 
+FOREIGN = re.compile(r"[^\x00-\u024f\u2010-\u2027\u2026’“”«»]")
+
+
+def extra_words(reference: str, hypothesis: str) -> int:
+    """Слова текста, которых нет в сценарии (после выравнивания; сокращения = полная форма, «um» не считается)."""
+    import difflib
+
+    def expand(t: str) -> list[str]:
+        return [w for w in " ".join(CONTRACTIONS.get(w, w) for w in norm_words(t)).split() if w not in endpoint.FILLERS]
+    ref, hyp = expand(reference), expand(hypothesis)
+    sm = difflib.SequenceMatcher(a=ref, b=hyp, autojunk=False)
+    return len(hyp) - sum(b.size for b in sm.get_matching_blocks())
+
+
 def block_metrics(trecs: list[TRec], per: dict[str, TurnResult]) -> dict:
     trecs = [t for t in trecs if t.base in per]
     speech = [t for t in trecs if t.speech and t.last_word_end is not None]
     silent = [t for t in trecs if not t.speech]
     paused = [t for t in speech if t.rec.kind in ("pause", "long")]
-    lat, acc, long_end, no_end, inter, inter_p, canc, canc_turns, by = [], [], [], [], [], [], 0, 0, {}
+    lat, acc, long_end, no_end, inter, inter_p, canc, canc_turns, by, extra = [], [], [], [], [], [], 0, 0, {}, []
     for t in speech:
         r = per[t.base]
         canc += len(r.cancels)
@@ -761,6 +775,8 @@ def block_metrics(trecs: list[TRec], per: dict[str, TurnResult]) -> dict:
         a = accuracy(t.rec.text, r.text) if r.text is not None else None
         if a is not None:
             acc.append(a)
+        if r.text:
+            extra.append(extra_words(t.rec.text, r.text) + (99 if FOREIGN.search(r.text) else 0))
     false_speech = [t.base for t in silent if per[t.base].heard]
     n = len(speech)
     return {
@@ -771,6 +787,8 @@ def block_metrics(trecs: list[TRec], per: dict[str, TurnResult]) -> dict:
         "long_end": len(long_end), "long_end_pct": 100 * len(long_end) / n if n else None,
         "no_end": len(no_end), "false_speech": len(false_speech),
         "accuracy": statistics.mean(acc) if acc else None, "ended_by": by,
+        "extra_words": sum(x % 99 for x in extra), "extra_lines": sum(1 for x in extra if x % 99),
+        "foreign_lines": sum(1 for x in extra if x >= 99),
     }
 
 
@@ -1006,11 +1024,11 @@ def row(s: Setting, m: dict, ok: bool) -> str:
             f"{a['interrupted_paused']} из {a['paused_lines']}" + (f" (+{a['interrupted'] - a['interrupted_paused']})" if a['interrupted'] > a['interrupted_paused'] else "")
             + f" | {a['cancelled_turns']} ({a['cancels']}) | {f2(a['latency_med'])} | {f2(a['latency_p90'])} | "
             f"{a['long_end']} ({a['long_end_pct']:.0f} %) | {a['no_end']} | {a['false_speech']} из {a['silent_lines']} | "
-            f"{pct_s(a['accuracy'])} | {by.get('judge', 0)} / {by.get('limit', 0)} |")
+            f"{pct_s(a['accuracy'])} | {a['extra_lines']} ({a['foreign_lines']}) | {by.get('judge', 0)} / {by.get('limit', 0)} |")
 
 
-HEAD = ["| Вариант | кандидат, мс | предел, мс | шаг, мс | перебил | отменено (раз) | задержка мед, с | p90, с | долгий конец | нет конца | ложная речь | точность | конец: судья / предел |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+HEAD = ["| Вариант | кандидат, мс | предел, мс | шаг, мс | перебил | отменено (раз) | задержка мед, с | p90, с | долгий конец | нет конца | ложная речь | точность | реплик с лишними словами (чужой алфавит) | конец: судья / предел |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
 
 
 def cond_table(m: dict) -> list[str]:
@@ -1110,8 +1128,15 @@ def render_md(trecs, graded, good, lag, jt, tc, data, results) -> str:
         g = good[0]
         L += [f"**Годных вариантов: {len(good)} из {len(graded)}.** Самый простой — **{g[1].name}** ({JUDGE_RU[g[1].judge]}).", ""]
     else:
-        L += [f"**Годных вариантов нет** ({len(graded)} проверено). Лучшие два и что им мешает:", ""]
-        for g in graded[:2]:
+        L += [f"**Годных вариантов нет** ({len(graded)} проверено). Лучшие два (разные способ и судья) и что им мешает:", ""]
+        two, seen2 = [], set()
+        for g in graded:
+            if (g[1].mode, g[1].judge) not in seen2:
+                seen2.add((g[1].mode, g[1].judge))
+                two.append(g)
+            if len(two) == 2:
+                break
+        for g in two:
             L.append(f"- **{g[1].name}**: " + "; ".join(g[4]))
         L.append("")
     L += ["### Лучшие варианты каждого судьи и способа", ""] + HEAD
@@ -1125,7 +1150,12 @@ def render_md(trecs, graded, good, lag, jt, tc, data, results) -> str:
     L += ["", "«(+N)» в «перебил» — ещё на коротких репликах. «Отменено» — реплик с отменой (всего отмен).", ""]
     if good:
         L += ["### Годные варианты (до 15)", ""] + HEAD + [row(g[1], g[2], g[3]) for g in good[:15]] + [""]
-    for g in (good[:1] or graded[:2]):
+    firsts, seen3 = [], set()
+    for g in graded:
+        if (g[1].mode, g[1].judge) not in seen3:
+            seen3.add((g[1].mode, g[1].judge))
+            firsts.append(g)
+    for g in (good[:1] or firsts[:2]):
         L += [f"### По условиям: {g[1].name}", ""] + cond_table(g[2]) + [""]
     # Текст
     L += ["## Текст на момент кандидата", "",

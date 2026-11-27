@@ -1,0 +1,8242 @@
+{
+ "date": "2026-11-26 21:45",
+ "elapsed_s": 5,
+ "offline": false,
+ "sessions": {
+  "a": 40,
+  "b": 40,
+  "u": 40
+ },
+ "settings": {
+  "candidate_ms": [
+   500,
+   700,
+   1000,
+   1250,
+   1500
+  ],
+  "limit_ms": [
+   5000,
+   6000,
+   7000,
+   8000
+  ],
+  "rejudge_ms": [
+   500,
+   1000
+  ],
+  "teacher_audible_s": 2.4,
+  "stt_s": 0.47,
+  "commit_every_ms": 500,
+  "pad_after_last_word_s": 10.5,
+  "judge_model": "gpt-6-luna",
+  "live_model": "gpt-live-transcribe",
+  "live_delay": "low",
+  "j2_words": [
+   "a",
+   "about",
+   "after",
+   "ah",
+   "although",
+   "am",
+   "an",
+   "and",
+   "are",
+   "around",
+   "at",
+   "be",
+   "because",
+   "been",
+   "before",
+   "being",
+   "between",
+   "but",
+   "by",
+   "can",
+   "can't",
+   "could",
+   "did",
+   "didn't",
+   "do",
+   "does",
+   "don't",
+   "eh",
+   "er",
+   "erm",
+   "for",
+   "from",
+   "going",
+   "gonna",
+   "had",
+   "has",
+   "have",
+   "her",
+   "his",
+   "hmm",
+   "i",
+   "i'd",
+   "i'll",
+   "i'm",
+   "i've",
+   "if",
+   "in",
+   "into",
+   "is",
+   "it's",
+   "its",
+   "may",
+   "might",
+   "mm",
+   "must",
+   "my",
+   "near",
+   "of",
+   "on",
+   "or",
+   "our",
+   "over",
+   "really",
+   "shall",
+   "should",
+   "so",
+   "some",
+   "than",
+   "that",
+   "the",
+   "their",
+   "then",
+   "these",
+   "this",
+   "those",
+   "through",
+   "to",
+   "uh",
+   "uhm",
+   "um",
+   "umm",
+   "under",
+   "until",
+   "very",
+   "wanna",
+   "was",
+   "were",
+   "when",
+   "while",
+   "will",
+   "with",
+   "without",
+   "would",
+   "your"
+  ],
+  "j3_instructions": "You decide whether a beginner English learner has finished speaking. You get the live speech-to-text transcript of what the learner has said so far; the learner has just gone quiet. The learner is a slow speaker and often pauses in the middle of a sentence to think.\nAnswer \"complete\" if this is a finished answer or thought that a teacher could reply to now. Short answers such as \"At noon.\", \"Yes, I do.\" or \"Pizza.\" are complete.\nAnswer \"incomplete\" if the learner has stopped in the middle of a sentence and will probably go on: for example, it ends with a conjunction, a preposition, an article, \"um\", or the sentence is grammatically unfinished (\"Yesterday I\", \"My favorite food is\").\nPunctuation in the transcript is unreliable. Answer with one word: complete or incomplete."
+ },
+ "best": [
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 500,
+    "limit_ms": 6000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 4,
+     "latency_med": 1.335800493000045,
+     "latency_p90": 2.095473543499822,
+     "latency_max": 5.707999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.4294386625000004,
+     "latency_p90": 1.8085487761998784,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 3,
+     "latency_med": 1.0402667849999923,
+     "latency_p90": 1.714672843899993,
+     "latency_max": 1.724806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.6164358479997958,
+     "latency_p90": 3.029428909600006,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.344382739000105,
+     "latency_p90": 1.8809376135999036,
+     "latency_max": 2.3776910040000088,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 500,
+    "limit_ms": 6000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 4,
+     "latency_med": 1.335800493000045,
+     "latency_p90": 2.095473543499822,
+     "latency_max": 5.707999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.4294386625000004,
+     "latency_p90": 1.8085487761998784,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 3,
+     "latency_med": 1.0402667849999923,
+     "latency_p90": 1.714672843899993,
+     "latency_max": 1.724806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.6164358479997958,
+     "latency_p90": 3.029428909600006,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.344382739000105,
+     "latency_p90": 1.8809376135999036,
+     "latency_max": 2.3776910040000088,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 500,
+    "limit_ms": 7000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.335800493000045,
+     "latency_p90": 2.095473543499822,
+     "latency_max": 6.7,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.4294386625000004,
+     "latency_p90": 1.8085487761998784,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.0402667849999923,
+     "latency_p90": 1.714672843899993,
+     "latency_max": 1.724806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6164358479997958,
+     "latency_p90": 3.2278289096000066,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.344382739000105,
+     "latency_p90": 1.8809376135999036,
+     "latency_max": 2.3776910040000088,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 500,
+    "limit_ms": 7000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.335800493000045,
+     "latency_p90": 2.095473543499822,
+     "latency_max": 6.7,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.4294386625000004,
+     "latency_p90": 1.8085487761998784,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.0402667849999923,
+     "latency_p90": 1.714672843899993,
+     "latency_max": 1.724806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6164358479997958,
+     "latency_p90": 3.2278289096000066,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.344382739000105,
+     "latency_p90": 1.8809376135999036,
+     "latency_max": 2.3776910040000088,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 500,
+    "limit_ms": 8000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.335800493000045,
+     "latency_p90": 2.095473543499822,
+     "latency_max": 7.691999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.4294386625000004,
+     "latency_p90": 1.8085487761998784,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.0402667849999923,
+     "latency_p90": 1.714672843899993,
+     "latency_max": 1.724806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6164358479997958,
+     "latency_p90": 3.426228909600007,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.344382739000105,
+     "latency_p90": 1.8809376135999036,
+     "latency_max": 2.3776910040000088,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 500,
+    "limit_ms": 8000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.335800493000045,
+     "latency_p90": 2.095473543499822,
+     "latency_max": 7.691999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.4294386625000004,
+     "latency_p90": 1.8085487761998784,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.0402667849999923,
+     "latency_p90": 1.714672843899993,
+     "latency_max": 1.724806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6164358479997958,
+     "latency_p90": 3.426228909600007,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.344382739000105,
+     "latency_p90": 1.8809376135999036,
+     "latency_max": 2.3776910040000088,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 700,
+    "limit_ms": 6000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.54 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.5358004930000444,
+     "latency_p90": 2.295473543499825,
+     "latency_max": 5.707999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6294386625000006,
+     "latency_p90": 2.0085487761998793,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.2402667849999924,
+     "latency_p90": 1.9146728438999923,
+     "latency_max": 1.9248063260001214,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.816435847999795,
+     "latency_p90": 3.189428909600006,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5443827390001044,
+     "latency_p90": 2.0809376135999034,
+     "latency_max": 2.577691004000009,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 700,
+    "limit_ms": 6000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.54 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.5358004930000444,
+     "latency_p90": 2.295473543499825,
+     "latency_max": 5.707999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6294386625000006,
+     "latency_p90": 2.0085487761998793,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.2402667849999924,
+     "latency_p90": 1.9146728438999923,
+     "latency_max": 1.9248063260001214,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.816435847999795,
+     "latency_p90": 3.189428909600006,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5443827390001044,
+     "latency_p90": 2.0809376135999034,
+     "latency_max": 2.577691004000009,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 700,
+    "limit_ms": 7000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.54 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5358004930000444,
+     "latency_p90": 2.295473543499825,
+     "latency_max": 6.7,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6294386625000006,
+     "latency_p90": 2.0085487761998793,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.2402667849999924,
+     "latency_p90": 1.9146728438999923,
+     "latency_max": 1.9248063260001214,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.816435847999795,
+     "latency_p90": 3.3878289096000063,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5443827390001044,
+     "latency_p90": 2.0809376135999034,
+     "latency_max": 2.577691004000009,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 700,
+    "limit_ms": 7000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.54 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5358004930000444,
+     "latency_p90": 2.295473543499825,
+     "latency_max": 6.7,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6294386625000006,
+     "latency_p90": 2.0085487761998793,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.2402667849999924,
+     "latency_p90": 1.9146728438999923,
+     "latency_max": 1.9248063260001214,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.816435847999795,
+     "latency_p90": 3.3878289096000063,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5443827390001044,
+     "latency_p90": 2.0809376135999034,
+     "latency_max": 2.577691004000009,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 700,
+    "limit_ms": 8000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.54 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5358004930000444,
+     "latency_p90": 2.295473543499825,
+     "latency_max": 7.691999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6294386625000006,
+     "latency_p90": 2.0085487761998793,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.2402667849999924,
+     "latency_p90": 1.9146728438999923,
+     "latency_max": 1.9248063260001214,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.816435847999795,
+     "latency_p90": 3.586228909600006,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5443827390001044,
+     "latency_p90": 2.0809376135999034,
+     "latency_max": 2.577691004000009,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 700,
+    "limit_ms": 8000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.54 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5358004930000444,
+     "latency_p90": 2.295473543499825,
+     "latency_max": 7.691999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6294386625000006,
+     "latency_p90": 2.0085487761998793,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.2402667849999924,
+     "latency_p90": 1.9146728438999923,
+     "latency_max": 1.9248063260001214,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.816435847999795,
+     "latency_p90": 3.586228909600006,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5443827390001044,
+     "latency_p90": 2.0809376135999034,
+     "latency_max": 2.577691004000009,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 500,
+    "limit_ms": 6000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.191970907199918,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.8231888074999416,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 500,
+    "limit_ms": 6000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.191970907199918,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.8231888074999416,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 500,
+    "limit_ms": 7000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.390370907199918,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.9223888074999413,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 500,
+    "limit_ms": 7000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.390370907199918,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.9223888074999413,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 500,
+    "limit_ms": 8000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.588770907199918,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 3.0247888074999407,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 500,
+    "limit_ms": 8000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.588770907199918,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 3.0247888074999407,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 500,
+    "limit_ms": 6000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.191970907199918,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.8231888074999416,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 500,
+    "limit_ms": 6000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.191970907199918,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.8231888074999416,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 500,
+    "limit_ms": 7000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.390370907199918,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.9223888074999413,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 500,
+    "limit_ms": 7000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.390370907199918,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 2.9223888074999413,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 500,
+    "limit_ms": 8000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.588770907199918,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 3.0247888074999407,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 500,
+    "limit_ms": 8000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.62 с",
+    "задержка p90 2.50 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6179121800000313,
+     "latency_p90": 2.5005850669999385,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5601465990000118,
+     "latency_p90": 2.3042080054999095,
+     "latency_max": 2.349062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6221992594999322,
+     "latency_p90": 2.019151604999959,
+     "latency_max": 2.5208146549999424,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6717130209999294,
+     "latency_p90": 3.588770907199918,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.6224216235001343,
+     "latency_p90": 3.0247888074999407,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 700,
+    "limit_ms": 6000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.351970907199919,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.003188807499943,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 700,
+    "limit_ms": 6000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.351970907199919,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.003188807499943,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 700,
+    "limit_ms": 7000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.550370907199919,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.102388807499943,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 700,
+    "limit_ms": 7000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.550370907199919,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.102388807499943,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 700,
+    "limit_ms": 8000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.748770907199919,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.204788807499942,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J3",
+    "cand_ms": 700,
+    "limit_ms": 8000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.748770907199919,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.204788807499942,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 700,
+    "limit_ms": 6000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.351970907199919,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.003188807499943,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 700,
+    "limit_ms": 6000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 5.8480000000000025,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.351970907199919,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.003188807499943,
+     "latency_max": 5.8480000000000025,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 700,
+    "limit_ms": 7000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.550370907199919,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.102388807499943,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 700,
+    "limit_ms": 7000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 6.840000000000003,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.550370907199919,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.102388807499943,
+     "latency_max": 6.840000000000003,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 700,
+    "limit_ms": 8000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.748770907199919,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.204788807499942,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J2>J3",
+    "cand_ms": 700,
+    "limit_ms": 8000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "задержка медиана 1.82 с",
+    "задержка p90 2.70 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 2,
+     "interrupted_paused": 2,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8179121800000306,
+     "latency_p90": 2.7005850669999396,
+     "latency_max": 7.864000000000001,
+     "long_end": 3,
+     "long_end_pct": 7.5,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 37,
+      "limit": 2
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.7601465990000094,
+     "latency_p90": 2.5042080054999105,
+     "latency_max": 2.549062812999825,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8221992594999323,
+     "latency_p90": 2.2191516049999587,
+     "latency_max": 2.7208146549999435,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8717130209999286,
+     "latency_p90": 3.748770907199919,
+     "latency_max": 7.691999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.8224216235001336,
+     "latency_p90": 3.204788807499942,
+     "latency_max": 7.864000000000001,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 9,
+      "limit": 1
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 1000,
+    "limit_ms": 6000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.84 с",
+    "задержка p90 2.60 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.835800493000045,
+     "latency_p90": 2.595473543499823,
+     "latency_max": 5.707999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.9294386625000004,
+     "latency_p90": 2.308548776199878,
+     "latency_max": 2.849062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.5402667849999923,
+     "latency_p90": 2.2146728438999927,
+     "latency_max": 2.224806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 2.116435847999796,
+     "latency_p90": 3.4294289096000066,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.844382739000105,
+     "latency_p90": 2.3809376135999036,
+     "latency_max": 2.8776910040000083,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 1000,
+    "limit_ms": 6000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.84 с",
+    "задержка p90 2.60 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 3,
+     "cancels": 3,
+     "latency_med": 1.835800493000045,
+     "latency_p90": 2.595473543499823,
+     "latency_max": 5.707999999999999,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.9294386625000004,
+     "latency_p90": 2.308548776199878,
+     "latency_max": 2.849062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 2,
+     "cancels": 2,
+     "latency_med": 1.5402667849999923,
+     "latency_p90": 2.2146728438999927,
+     "latency_max": 2.224806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 1,
+     "cancels": 1,
+     "latency_med": 2.116435847999796,
+     "latency_p90": 3.4294289096000066,
+     "latency_max": 5.707999999999999,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.844382739000105,
+     "latency_p90": 2.3809376135999036,
+     "latency_max": 2.8776910040000083,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 1000,
+    "limit_ms": 7000,
+    "rejudge_ms": 500
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.84 с",
+    "задержка p90 2.60 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.835800493000045,
+     "latency_p90": 2.595473543499823,
+     "latency_max": 6.7,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.9294386625000004,
+     "latency_p90": 2.308548776199878,
+     "latency_max": 2.849062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5402667849999923,
+     "latency_p90": 2.2146728438999927,
+     "latency_max": 2.224806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 2.116435847999796,
+     "latency_p90": 3.627828909600007,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.844382739000105,
+     "latency_p90": 2.3809376135999036,
+     "latency_max": 2.8776910040000083,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  },
+  {
+   "setting": {
+    "mode": "b",
+    "judge": "J1|J3",
+    "cand_ms": 1000,
+    "limit_ms": 7000,
+    "rejudge_ms": 1000
+   },
+   "ok": false,
+   "why": [
+    "перебил 3 из 24",
+    "задержка медиана 1.84 с",
+    "задержка p90 2.60 с",
+    "нет конца 1"
+   ],
+   "metrics": {
+    "all": {
+     "speech_lines": 40,
+     "paused_lines": 24,
+     "silent_lines": 8,
+     "interrupted": 3,
+     "interrupted_paused": 3,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09",
+      "ep_1795735605106_street_09",
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.835800493000045,
+     "latency_p90": 2.595473543499823,
+     "latency_max": 6.7,
+     "long_end": 2,
+     "long_end_pct": 5.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9386460761460762,
+     "ended_by": {
+      "judge": 38,
+      "limit": 1
+     },
+     "extra_words": 14,
+     "extra_lines": 6,
+     "foreign_lines": 3
+    },
+    "silence": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 0,
+     "interrupted_paused": 0,
+     "interrupted_lines": [],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.9294386625000004,
+     "latency_p90": 2.308548776199878,
+     "latency_max": 2.849062812999824,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.98,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 6,
+     "extra_lines": 1,
+     "foreign_lines": 1
+    },
+    "water": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795734952903_water_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.5402667849999923,
+     "latency_p90": 2.2146728438999927,
+     "latency_max": 2.224806326000122,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 1,
+     "false_speech": 0,
+     "accuracy": 0.9851851851851852,
+     "ended_by": {
+      "judge": 9
+     },
+     "extra_words": 2,
+     "extra_lines": 1,
+     "foreign_lines": 0
+    },
+    "street": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795735605106_street_09"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 2.116435847999796,
+     "latency_p90": 3.627828909600007,
+     "latency_max": 6.7,
+     "long_end": 1,
+     "long_end_pct": 10.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.8566666666666667,
+     "ended_by": {
+      "limit": 1,
+      "judge": 9
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    },
+    "steady_noise": {
+     "speech_lines": 10,
+     "paused_lines": 6,
+     "silent_lines": 2,
+     "interrupted": 1,
+     "interrupted_paused": 1,
+     "interrupted_lines": [
+      "ep_1795736076453_steady_noise_05"
+     ],
+     "cancelled_turns": 0,
+     "cancels": 0,
+     "latency_med": 1.844382739000105,
+     "latency_p90": 2.3809376135999036,
+     "latency_max": 2.8776910040000083,
+     "long_end": 0,
+     "long_end_pct": 0.0,
+     "no_end": 0,
+     "false_speech": 0,
+     "accuracy": 0.9373863636363636,
+     "ended_by": {
+      "judge": 10
+     },
+     "extra_words": 3,
+     "extra_lines": 2,
+     "foreign_lines": 1
+    }
+   }
+  }
+ ],
+ "good_count": 0,
+ "delta_lag": {
+  "mid": {
+   "n": 38,
+   "med": 0.35325140200000704,
+   "p90": 0.48538404130001533,
+   "max": 0.7024370500000039,
+   "ready_by": {
+    "500": 34,
+    "700": 37,
+    "1000": 38,
+    "1250": 38,
+    "1500": 38
+   }
+  },
+  "final": {
+   "n": 41,
+   "med": 0.43096351099993413,
+   "p90": 0.584999173000083,
+   "max": 0.8819069090000187,
+   "ready_by": {
+    "500": 26,
+    "700": 39,
+    "1000": 41,
+    "1250": 41,
+    "1500": 41
+   }
+  }
+ },
+ "judges_at_pauses_c1000": {
+  "a|J1": {
+   "mid_ok": 28,
+   "mid_n": 29,
+   "final_ok": 14,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "a|J2": {
+   "mid_ok": 16,
+   "mid_n": 29,
+   "final_ok": 41,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "a|J1+J2": {
+   "mid_ok": 29,
+   "mid_n": 29,
+   "final_ok": 14,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "a|J3": {
+   "mid_ok": 18,
+   "mid_n": 29,
+   "final_ok": 38,
+   "final_n": 41,
+   "lat_med": 0.9632422170000154,
+   "lat_p90": 1.6704836588000036
+  },
+  "a|J1|J3": {
+   "mid_ok": 17,
+   "mid_n": 29,
+   "final_ok": 38,
+   "final_n": 41,
+   "lat_med": 0.9632422170000154,
+   "lat_p90": 1.4133768169999712
+  },
+  "a|J2>J3": {
+   "mid_ok": 18,
+   "mid_n": 29,
+   "final_ok": 38,
+   "final_n": 41,
+   "lat_med": 0.9632422170000154,
+   "lat_p90": 1.6967340657999557
+  },
+  "b|J1": {
+   "mid_ok": 27,
+   "mid_n": 29,
+   "final_ok": 17,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "b|J2": {
+   "mid_ok": 17,
+   "mid_n": 29,
+   "final_ok": 41,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "b|J1+J2": {
+   "mid_ok": 28,
+   "mid_n": 29,
+   "final_ok": 17,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "b|J3": {
+   "mid_ok": 26,
+   "mid_n": 29,
+   "final_ok": 37,
+   "final_n": 41,
+   "lat_med": 1.003439172999947,
+   "lat_p90": 1.6686503309999807
+  },
+  "b|J1|J3": {
+   "mid_ok": 25,
+   "mid_n": 29,
+   "final_ok": 37,
+   "final_n": 41,
+   "lat_med": 1.0325108110000656,
+   "lat_p90": 1.1887369230000786
+  },
+  "b|J2>J3": {
+   "mid_ok": 26,
+   "mid_n": 29,
+   "final_ok": 37,
+   "final_n": 41,
+   "lat_med": 0.9831488309998804,
+   "lat_p90": 1.6944603325998744
+  },
+  "u|J1": {
+   "mid_ok": 26,
+   "mid_n": 29,
+   "final_ok": 11,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "u|J2": {
+   "mid_ok": 17,
+   "mid_n": 29,
+   "final_ok": 41,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "u|J1+J2": {
+   "mid_ok": 27,
+   "mid_n": 29,
+   "final_ok": 11,
+   "final_n": 41,
+   "lat_med": null,
+   "lat_p90": null
+  },
+  "u|J3": {
+   "mid_ok": 19,
+   "mid_n": 29,
+   "final_ok": 37,
+   "final_n": 41,
+   "lat_med": 0.9996150279998801,
+   "lat_p90": 1.6193734815000882
+  },
+  "u|J1|J3": {
+   "mid_ok": 18,
+   "mid_n": 29,
+   "final_ok": 37,
+   "final_n": 41,
+   "lat_med": 0.9996150279998801,
+   "lat_p90": 1.4133768169999712
+  },
+  "u|J2>J3": {
+   "mid_ok": 19,
+   "mid_n": 29,
+   "final_ok": 37,
+   "final_n": 41,
+   "lat_med": 0.9632422170000154,
+   "lat_p90": 1.6686503309999807
+  }
+ },
+ "text_check": {
+  "J2": {
+   "n": 36,
+   "wrong": [
+    "i like playing",
+    "yesterday i went to the shop and bought",
+    "i would like",
+    "i have two",
+    "my favorite color"
+   ]
+  },
+  "J3": {
+   "n": 36,
+   "wrong": []
+  }
+ },
+ "j3_latency": {
+  "n": 120,
+  "med": 0.982319643999972,
+  "p90": 1.3267710014000393,
+  "max": 3.927385058000027
+ },
+ "commit_to_text_b": {
+  "n": 76,
+  "med": 0.5224699430000328,
+  "p90": 0.6185813480000206
+ },
+ "live_audio_min": {
+  "a": 12.19,
+  "b": 12.19,
+  "u": 12.19
+ },
+ "spend": {
+  "spent_now": 0.0,
+  "by_now": {},
+  "run_cost": 0.6216,
+  "run_cost_by": {
+   "gpt-live-transcribe (а) дельты без commit)": 0.20719592916666665,
+   "gpt-live-transcribe (б) commit на каждой паузе)": 0.20719592916666665,
+   "gpt-live-transcribe (в) как а, «um» в тексте)": 0.20719592916666665
+  },
+  "judge_cost_all": 0.00257
+ },
+ "recordings": [
+  {
+   "base": "ep_1795734476218_silence_01",
+   "condition": "silence",
+   "line": 1,
+   "kind": "short",
+   "text": "At noon.",
+   "last_word_end_s": 1.74,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 14.90 с, шум с 2.34 с, хвост до 12.2 с",
+   "end_s": 4.559062812999825,
+   "equiv_end_s": 4.089062812999824,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.304,
+     "At noon",
+     true,
+     1.701
+    ]
+   ],
+   "final_text": "At noon",
+   "text_a": "Add nogen"
+  },
+  {
+   "base": "ep_1795734494624_silence_02",
+   "condition": "silence",
+   "line": 2,
+   "kind": "short",
+   "text": "Yes, I do.",
+   "last_word_end_s": 1.37,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 5.34 с, шум с 1.97 с, хвост до 11.9 с",
+   "end_s": 2.483078780999963,
+   "equiv_end_s": 2.013078780999963,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     1.952,
+     "Yes, I do.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yes, I do.",
+   "text_a": "Yes, I do."
+  },
+  {
+   "base": "ep_1795734503198_silence_03",
+   "condition": "silence",
+   "line": 3,
+   "kind": "short",
+   "text": "My dog is five.",
+   "last_word_end_s": 2.19,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 4.28 с, шум с 2.79 с, хвост до 12.7 с",
+   "end_s": 3.126593564000048,
+   "equiv_end_s": 2.656593564000048,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.72,
+     "My dog is five.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "My dog is five.",
+   "text_a": "My dog is five."
+  },
+  {
+   "base": "ep_1795734510141_silence_04",
+   "condition": "silence",
+   "line": 4,
+   "kind": "short",
+   "text": "I like to read books in the evening.",
+   "last_word_end_s": 3.27,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 5.57 с, шум с 3.87 с, хвост до 13.8 с",
+   "end_s": 4.271724805999977,
+   "equiv_end_s": 3.8017248059999766,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.84,
+     "I like to read books in the evening.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "I like to read books in the evening.",
+   "text_a": "I like to read books in the evening."
+  },
+  {
+   "base": "ep_1795734518467_silence_05",
+   "condition": "silence",
+   "line": 5,
+   "kind": "pause",
+   "text": "I wanted to tell you about … my trip to the mountains.",
+   "last_word_end_s": 8.31,
+   "mid_pauses_s": [
+    [
+     2.75,
+     5.38
+    ]
+   ],
+   "pad": "до кнопки 9.80 с, шум с 8.91 с, хвост до 18.8 с",
+   "end_s": 10.332737034999948,
+   "equiv_end_s": 9.862737034999947,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.328,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     4.64,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     8.864,
+     "I wanted to tell you about My trip to the mountains",
+     true,
+     1.124
+    ]
+   ],
+   "final_text": "I wanted to tell you about My trip to the mountains",
+   "text_a": "I wanted to tell you about my trip to the mountains"
+  },
+  {
+   "base": "ep_1795734532153_silence_06",
+   "condition": "silence",
+   "line": 6,
+   "kind": "pause",
+   "text": "Yesterday I … went to the shop.",
+   "last_word_end_s": 7.34,
+   "mid_pauses_s": [
+    [
+     1.54,
+     5.23
+    ]
+   ],
+   "pad": "до кнопки 8.42 с, шум с 7.94 с, хвост до 17.8 с",
+   "end_s": 9.492657268000041,
+   "equiv_end_s": 9.02265726800004,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.08,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     3.552,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     4.512,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     5.472,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     7.84,
+     "Yesterday I Went to the shop",
+     true,
+     1.099
+    ]
+   ],
+   "final_text": "Yesterday I Went to the shop",
+   "text_a": "Yesterday I went to the shop"
+  },
+  {
+   "base": "ep_1795734545500_silence_07",
+   "condition": "silence",
+   "line": 7,
+   "kind": "pause",
+   "text": "My favorite food is … pizza.",
+   "last_word_end_s": 6.8,
+   "mid_pauses_s": [
+    [
+     2.13,
+     6.36
+    ]
+   ],
+   "pad": "до кнопки 7.87 с, шум с 7.40 с, хвост до 17.3 с",
+   "end_s": 8.576140290000055,
+   "equiv_end_s": 8.106140290000054,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.688,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     4.288,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     5.344,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     7.36,
+     "My favorite food is Pizza",
+     true,
+     0.839
+    ]
+   ],
+   "final_text": "My favorite food is Pizza",
+   "text_a": "My favorite food is pizza"
+  },
+  {
+   "base": "ep_1795734557933_silence_08",
+   "condition": "silence",
+   "line": 8,
+   "kind": "pause",
+   "text": "I think that … it is a good idea.",
+   "last_word_end_s": 7.19,
+   "mid_pauses_s": [
+    [
+     2.16,
+     6.0
+    ]
+   ],
+   "pad": "до кнопки 8.75 с, шум с 7.79 с, хвост до 17.7 с",
+   "end_s": 9.408491660999886,
+   "equiv_end_s": 8.938491660999885,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.72,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     4.352,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     5.408,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     7.744,
+     "I think that It's a good idea",
+     true,
+     1.051
+    ]
+   ],
+   "final_text": "I think that It's a good idea",
+   "text_a": "I think that it's a good idea"
+  },
+  {
+   "base": "ep_1795734569555_silence_09",
+   "condition": "silence",
+   "line": 9,
+   "kind": "long",
+   "text": "Yesterday I got up early. Um… I made coffee and walked with my dog in the park.",
+   "last_word_end_s": 13.62,
+   "mid_pauses_s": [
+    [
+     5.05,
+     8.37
+    ]
+   ],
+   "pad": "до кнопки 15.74 с, шум с 14.22 с, хвост до 24.1 с",
+   "end_s": 14.608807108999992,
+   "equiv_end_s": 14.138807108999993,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.936,
+     "Yesterday  I got up early",
+     true,
+     1.204
+    ],
+    [
+     5.568,
+     "Yesterday  I got up early Hmm",
+     false,
+     1.189
+    ],
+    [
+     7.136,
+     "Yesterday  I got up early Hmm",
+     false,
+     1.189
+    ],
+    [
+     8.352,
+     "Yesterday  I got up early Hmm",
+     false,
+     1.189
+    ],
+    [
+     14.144,
+     "Yesterday  I got up early Hmm I made coffee and walked with my dog in the park.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yesterday  I got up early Hmm I made coffee and walked with my dog in the park.",
+   "text_a": "Yesterday  I got up early. I made coffee and walked with my dog in the park."
+  },
+  {
+   "base": "ep_1795734589789_silence_10",
+   "condition": "silence",
+   "line": 10,
+   "kind": "long",
+   "text": "Last weekend I visited my friend. We cooked dinner, um… and then we watched a movie.",
+   "last_word_end_s": 13.85,
+   "mid_pauses_s": [
+    [
+     4.89,
+     5.99
+    ],
+    [
+     6.58,
+     10.98
+    ]
+   ],
+   "pad": "до кнопки 14.75 с, шум с 14.45 с, хвост до 24.4 с",
+   "end_s": 15.887556163000076,
+   "equiv_end_s": 15.417556163000077,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.488,
+     "Last weekend, I visited my friend",
+     false,
+     0.87
+    ],
+    [
+     5.44,
+     "Last weekend, I visited my friend Viết cũng dina",
+     false,
+     0.983
+    ],
+    [
+     7.168,
+     "Last weekend, I visited my friend Viết cũng dina Mhm,",
+     false,
+     1.064
+    ],
+    [
+     8.704,
+     "Last weekend, I visited my friend Viết cũng dina Mhm,",
+     false,
+     1.064
+    ],
+    [
+     9.792,
+     "Last weekend, I visited my friend Viết cũng dina Mhm,",
+     false,
+     1.064
+    ],
+    [
+     10.88,
+     "Last weekend, I visited my friend Viết cũng dina Mhm,",
+     false,
+     1.064
+    ],
+    [
+     14.496,
+     "Last weekend, I visited my friend Viết cũng dina Mhm, And then we watched a movie",
+     true,
+     0.881
+    ]
+   ],
+   "final_text": "Last weekend, I visited my friend Viết cũng dina Mhm, And then we watched a movie",
+   "text_a": "Last weekend, I visited my friend. We cooked dinner and then we watched a movie"
+  },
+  {
+   "base": "ep_1795734608854_silence_11",
+   "condition": "silence",
+   "line": 11,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  },
+  {
+   "base": "ep_1795734637993_silence_12",
+   "condition": "silence",
+   "line": 12,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "silence_start",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  },
+  {
+   "base": "ep_1795734813757_water_01",
+   "condition": "water",
+   "line": 1,
+   "kind": "short",
+   "text": "At noon.",
+   "last_word_end_s": 1.45,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 10.26 с, шум с 2.05 с, хвост до 11.9 с",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.08,
+     "F nun",
+     false,
+     1.669
+    ],
+    [
+     4.288,
+     "F nun",
+     false,
+     1.669
+    ],
+    [
+     5.984,
+     "F nun",
+     false,
+     1.669
+    ],
+    [
+     7.264,
+     "F nun",
+     false,
+     1.669
+    ],
+    [
+     8.96,
+     "F nun",
+     false,
+     1.669
+    ],
+    [
+     10.656,
+     "F nun",
+     false,
+     1.669
+    ]
+   ],
+   "final_text": "",
+   "text_a": "F nun"
+  },
+  {
+   "base": "ep_1795734833169_water_02",
+   "condition": "water",
+   "line": 2,
+   "kind": "short",
+   "text": "Yes, I do.",
+   "last_word_end_s": 2.38,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 6.50 с, шум с 2.98 с, хвост до 12.9 с",
+   "end_s": 3.400303458999948,
+   "equiv_end_s": 2.930303458999948,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.008,
+     "Yes, I do.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yes, I do.",
+   "text_a": "Yes, I do."
+  },
+  {
+   "base": "ep_1795734846888_water_03",
+   "condition": "water",
+   "line": 3,
+   "kind": "short",
+   "text": "My dog is five.",
+   "last_word_end_s": 3.22,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 6.40 с, шум с 3.82 с, хвост до 13.7 с",
+   "end_s": 4.381071763000012,
+   "equiv_end_s": 3.911071763000012,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.776,
+     "My dog is five.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "My dog is five.",
+   "text_a": "My dog is five."
+  },
+  {
+   "base": "ep_1795734857753_water_04",
+   "condition": "water",
+   "line": 4,
+   "kind": "short",
+   "text": "I like to read books in the evening.",
+   "last_word_end_s": 3.9,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 8.11 с, шум с 4.50 с, хвост до 14.4 с",
+   "end_s": 5.123315323,
+   "equiv_end_s": 4.653315322999999,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     4.64,
+     "I like to read books in the evening.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "I like to read books in the evening.",
+   "text_a": "I like to read books in the evening."
+  },
+  {
+   "base": "ep_1795734875792_water_05",
+   "condition": "water",
+   "line": 5,
+   "kind": "pause",
+   "text": "I wanted to tell you about … my trip to the mountains.",
+   "last_word_end_s": 9.41,
+   "mid_pauses_s": [
+    [
+     3.91,
+     7.16
+    ]
+   ],
+   "pad": "до кнопки 13.40 с, шум с 10.01 с, хвост до 19.9 с",
+   "end_s": 10.623019647999945,
+   "equiv_end_s": 10.153019647999944,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     4.608,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     6.176,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     7.136,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     10.112,
+     "I wanted to tell you about My trip to the mountains.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "I wanted to tell you about My trip to the mountains.",
+   "text_a": "I wanted to tell you about my trip to the mountains"
+  },
+  {
+   "base": "ep_1795734892686_water_06",
+   "condition": "water",
+   "line": 6,
+   "kind": "pause",
+   "text": "Yesterday I … went to the shop.",
+   "last_word_end_s": 10.4,
+   "mid_pauses_s": [
+    [
+     3.62,
+     8.91
+    ]
+   ],
+   "pad": "до кнопки 14.98 с, шум с 11.00 с, хвост до 20.9 с",
+   "end_s": 12.594806326000123,
+   "equiv_end_s": 12.124806326000122,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     4.224,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     5.696,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     6.656,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     7.616,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     8.576,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     10.944,
+     "Yesterday I Went to the shop",
+     true,
+     1.099
+    ]
+   ],
+   "final_text": "Yesterday I Went to the shop",
+   "text_a": "Yesterday I went to the shop"
+  },
+  {
+   "base": "ep_1795734916270_water_07",
+   "condition": "water",
+   "line": 7,
+   "kind": "pause",
+   "text": "My favorite food is … pizza.",
+   "last_word_end_s": 9.06,
+   "mid_pauses_s": [
+    [
+     3.08,
+     8.52
+    ]
+   ],
+   "pad": "до кнопки 13.23 с, шум с 9.66 с, хвост до 19.6 с",
+   "end_s": 10.857218246999986,
+   "equiv_end_s": 10.387218246999986,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.68,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     5.12,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     6.176,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     7.232,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     8.288,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     9.632,
+     "My favorite food is Pizza",
+     true,
+     0.839
+    ]
+   ],
+   "final_text": "My favorite food is Pizza",
+   "text_a": "My favorite food is pizza"
+  },
+  {
+   "base": "ep_1795734933012_water_08",
+   "condition": "water",
+   "line": 8,
+   "kind": "pause",
+   "text": "I think that … it is a good idea.",
+   "last_word_end_s": 11.55,
+   "mid_pauses_s": [
+    [
+     3.23,
+     9.79
+    ]
+   ],
+   "pad": "до кнопки 15.34 с, шум с 12.15 с, хвост до 22.1 с",
+   "end_s": 13.730329922999939,
+   "equiv_end_s": 13.260329922999938,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [
+    [
+     9.28,
+     10.016
+    ]
+   ],
+   "decisions": [
+    [
+     3.776,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     5.376,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     6.432,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     7.488,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     8.544,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     12.096,
+     "I think that It's a good idea",
+     true,
+     1.051
+    ]
+   ],
+   "final_text": "I think that It's a good idea",
+   "text_a": "I think that it's a good idea"
+  },
+  {
+   "base": "ep_1795734952903_water_09",
+   "condition": "water",
+   "line": 9,
+   "kind": "long",
+   "text": "Yesterday I got up early. Um… I made coffee and walked with my dog in the park.",
+   "last_word_end_s": 17.11,
+   "mid_pauses_s": [
+    [
+     5.89,
+     12.92
+    ]
+   ],
+   "pad": "до кнопки 21.01 с, шум с 17.71 с, хвост до 27.6 с",
+   "end_s": 7.909073978999833,
+   "equiv_end_s": 7.439073978999833,
+   "ended_by": "judge",
+   "interrupted": true,
+   "cancels": [],
+   "decisions": [
+    [
+     6.624,
+     "Yesterday, I got up early",
+     true,
+     0.898
+    ]
+   ],
+   "final_text": "Yesterday, I got up early I made coffee and walked with my dog in the park",
+   "text_a": "Yesterday, I got up early I made coffee and walked with my dog in the park"
+  },
+  {
+   "base": "ep_1795734977152_water_10",
+   "condition": "water",
+   "line": 10,
+   "kind": "long",
+   "text": "Last weekend I visited my friend. We cooked dinner, um… and then we watched a movie.",
+   "last_word_end_s": 17.52,
+   "mid_pauses_s": [
+    [
+     4.58,
+     5.71
+    ],
+    [
+     7.78,
+     14.72
+    ]
+   ],
+   "pad": "до кнопки 21.24 с, шум с 18.12 с, хвост до 28.0 с",
+   "end_s": 19.41829879799989,
+   "equiv_end_s": 18.94829879799989,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [
+    [
+     5.625,
+     5.888
+    ],
+    [
+     13.888,
+     14.944
+    ]
+   ],
+   "decisions": [
+    [
+     5.184,
+     "Last weekend I visited my friend.",
+     true,
+     0.0
+    ],
+    [
+     8.384,
+     "Last weekend I visited my friend. We cooked dinner amb",
+     false,
+     1.049
+    ],
+    [
+     10.016,
+     "Last weekend I visited my friend. We cooked dinner amb",
+     false,
+     1.049
+    ],
+    [
+     11.072,
+     "Last weekend I visited my friend. We cooked dinner amb",
+     false,
+     1.049
+    ],
+    [
+     12.128,
+     "Last weekend I visited my friend. We cooked dinner amb",
+     false,
+     1.049
+    ],
+    [
+     13.184,
+     "Last weekend I visited my friend. We cooked dinner amb",
+     false,
+     1.049
+    ],
+    [
+     16.0,
+     "Last weekend I visited my friend. We cooked dinner amb And then",
+     false,
+     0.978
+    ],
+    [
+     18.112,
+     "Last weekend I visited my friend. We cooked dinner amb And then Watch a movie",
+     true,
+     0.924
+    ]
+   ],
+   "final_text": "Last weekend I visited my friend. We cooked dinner amb And then Watch a movie",
+   "text_a": "Last weekend I visited my friend. We cooked dinner  and then we watched a movie"
+  },
+  {
+   "base": "ep_1795735029480_water_11",
+   "condition": "water",
+   "line": 11,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "silence_start",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  },
+  {
+   "base": "ep_1795735057927_water_12",
+   "condition": "water",
+   "line": 12,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "silence_start",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  },
+  {
+   "base": "ep_1795735474193_street_01",
+   "condition": "street",
+   "line": 1,
+   "kind": "short",
+   "text": "At noon.",
+   "last_word_end_s": 1.47,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 6.38 с, шум с 2.07 с, хвост до 12.0 с",
+   "end_s": 7.648,
+   "equiv_end_s": 7.177999999999999,
+   "ended_by": "limit",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.144,
+     "Add nun",
+     false,
+     1.595
+    ],
+    [
+     4.256,
+     "Add nun",
+     false,
+     1.595
+    ],
+    [
+     5.856,
+     "Add nun",
+     false,
+     1.595
+    ],
+    [
+     7.456,
+     "Add nun",
+     false,
+     1.595
+    ]
+   ],
+   "final_text": "Add nun",
+   "text_a": "At noon"
+  },
+  {
+   "base": "ep_1795735492060_street_02",
+   "condition": "street",
+   "line": 2,
+   "kind": "short",
+   "text": "Yes, I do.",
+   "last_word_end_s": 1.73,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 11.27 с, шум с 2.33 с, хвост до 12.2 с",
+   "end_s": 2.815373167999992,
+   "equiv_end_s": 2.3453731679999916,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.432,
+     "Yes, I do.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yes, I do.",
+   "text_a": "Yes, I do."
+  },
+  {
+   "base": "ep_1795735511666_street_03",
+   "condition": "street",
+   "line": 3,
+   "kind": "short",
+   "text": "My dog is five.",
+   "last_word_end_s": 2.33,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 9.89 с, шум с 2.93 с, хвост до 12.8 с",
+   "end_s": 3.628716188000014,
+   "equiv_end_s": 3.1587161880000143,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.104,
+     "My dog is five.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "My dog is five.",
+   "text_a": "My dog is five."
+  },
+  {
+   "base": "ep_1795735524121_street_04",
+   "condition": "street",
+   "line": 4,
+   "kind": "short",
+   "text": "I like to read books in the evening.",
+   "last_word_end_s": 3.54,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 6.77 с, шум с 4.14 с, хвост до 14.0 с",
+   "end_s": 4.805464301999955,
+   "equiv_end_s": 4.335464301999954,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     4.192,
+     "I like to read books in the evening.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "I like to read books in the evening.",
+   "text_a": "I like to read books in the evening."
+  },
+  {
+   "base": "ep_1795735535701_street_05",
+   "condition": "street",
+   "line": 5,
+   "kind": "pause",
+   "text": "I wanted to tell you about … my trip to the mountains.",
+   "last_word_end_s": 8.93,
+   "mid_pauses_s": [
+    [
+     2.77,
+     6.26
+    ]
+   ],
+   "pad": "до кнопки 13.63 с, шум с 9.53 с, хвост до 19.4 с",
+   "end_s": 11.759786137000008,
+   "equiv_end_s": 11.289786137000007,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.552,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     4.864,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     5.824,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     6.784,
+     "I wanted to tell you about",
+     false,
+     0.942
+    ],
+    [
+     10.08,
+     "I wanted to tell you about My trip to the mountains",
+     true,
+     1.124
+    ]
+   ],
+   "final_text": "I wanted to tell you about My trip to the mountains",
+   "text_a": "I wanted to tell you about my trip to the mountains"
+  },
+  {
+   "base": "ep_1795735552653_street_06",
+   "condition": "street",
+   "line": 6,
+   "kind": "pause",
+   "text": "Yesterday I … went to the shop.",
+   "last_word_end_s": 8.8,
+   "mid_pauses_s": [
+    [
+     1.59,
+     2.86
+    ],
+    [
+     3.07,
+     7.53
+    ]
+   ],
+   "pad": "до кнопки 13.48 с, шум с 9.40 с, хвост до 19.3 с",
+   "end_s": 9.89472083300003,
+   "equiv_end_s": 9.424720833000029,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     2.272,
+     "Yesterday",
+     false,
+     0.849
+    ],
+    [
+     3.744,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     5.056,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     6.016,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     6.976,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     9.472,
+     "Yesterday I When to the shop.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yesterday I When to the shop.",
+   "text_a": "Yesterday, I went to the shop"
+  },
+  {
+   "base": "ep_1795735570647_street_07",
+   "condition": "street",
+   "line": 7,
+   "kind": "pause",
+   "text": "My favorite food is … pizza.",
+   "last_word_end_s": 7.91,
+   "mid_pauses_s": [
+    [
+     3.87,
+     7.38
+    ]
+   ],
+   "pad": "до кнопки 13.16 с, шум с 8.51 с, хвост до 18.4 с",
+   "end_s": 9.997912180000032,
+   "equiv_end_s": 9.527912180000031,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.52,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     5.088,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     6.144,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     7.2,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     8.544,
+     "My favorite food is Pizza",
+     true,
+     0.839
+    ]
+   ],
+   "final_text": "My favorite food is Pizza",
+   "text_a": "My favorite food is pizza"
+  },
+  {
+   "base": "ep_1795735588874_street_08",
+   "condition": "street",
+   "line": 8,
+   "kind": "pause",
+   "text": "I think that … it is a good idea.",
+   "last_word_end_s": 8.76,
+   "mid_pauses_s": [
+    [
+     1.27,
+     3.36
+    ],
+    [
+     3.38,
+     6.21
+    ]
+   ],
+   "pad": "до кнопки 13.64 с, шум с 9.36 с, хвост до 19.3 с",
+   "end_s": 10.846435847999796,
+   "equiv_end_s": 10.376435847999796,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [
+    [
+     7.36,
+     7.968
+    ]
+   ],
+   "decisions": [
+    [
+     1.856,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     3.328,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     4.384,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     5.44,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     6.496,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     9.376,
+     "I think that It's a good idea",
+     true,
+     1.051
+    ]
+   ],
+   "final_text": "I think that It's a good idea",
+   "text_a": "I think that It's a good idea."
+  },
+  {
+   "base": "ep_1795735605106_street_09",
+   "condition": "street",
+   "line": 9,
+   "kind": "long",
+   "text": "Yesterday I got up early. Um… I made coffee and walked with my dog in the park.",
+   "last_word_end_s": 12.79,
+   "mid_pauses_s": [
+    [
+     3.47,
+     8.8
+    ]
+   ],
+   "pad": "до кнопки 17.14 с, шум с 13.39 с, хвост до 23.3 с",
+   "end_s": 4.760397757999812,
+   "equiv_end_s": 4.290397757999811,
+   "ended_by": "judge",
+   "interrupted": true,
+   "cancels": [],
+   "decisions": [
+    [
+     4.256,
+     "Yesterday I got up early.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yesterday I got up early. I made coffee and walked with my dog in the park.",
+   "text_a": "Yesterday I got up early. I made coffee and worked with my dog in the park"
+  },
+  {
+   "base": "ep_1795735624576_street_10",
+   "condition": "street",
+   "line": 10,
+   "kind": "long",
+   "text": "Last weekend I visited my friend. We cooked dinner, um… and then we watched a movie.",
+   "last_word_end_s": 14.12,
+   "mid_pauses_s": [
+    [
+     1.02,
+     2.22
+    ],
+    [
+     5.88,
+     11.76
+    ]
+   ],
+   "pad": "до кнопки 19.39 с, шум с 14.72 с, хвост до 24.6 с",
+   "end_s": 16.43188427399982,
+   "equiv_end_s": 15.96188427399982,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     1.792,
+     "Last weekend",
+     false,
+     0.944
+    ],
+    [
+     4.224,
+     "Last weekend Visited my friend.",
+     true,
+     0.0
+    ],
+    [
+     6.656,
+     "Last weekend Visited my friend. بدينا",
+     false,
+     0.943
+    ],
+    [
+     8.0,
+     "Last weekend Visited my friend. بدينا",
+     false,
+     0.943
+    ],
+    [
+     8.96,
+     "Last weekend Visited my friend. بدينا",
+     false,
+     0.943
+    ],
+    [
+     9.92,
+     "Last weekend Visited my friend. بدينا",
+     false,
+     0.943
+    ],
+    [
+     10.496,
+     "Last weekend Visited my friend. بدينا",
+     false,
+     0.943
+    ],
+    [
+     11.456,
+     "Last weekend Visited my friend. بدينا",
+     false,
+     0.943
+    ],
+    [
+     14.912,
+     "Last weekend Visited my friend. بدينا And then we watched a movie",
+     true,
+     0.905
+    ]
+   ],
+   "final_text": "Last weekend Visited my friend. بدينا And then we watched a movie",
+   "text_a": "Last weekend I visited my friend. We cooked dinner and then we watched a movie"
+  },
+  {
+   "base": "ep_1795735648555_street_11",
+   "condition": "street",
+   "line": 11,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "silence_start",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  },
+  {
+   "base": "ep_1795735664675_street_12",
+   "condition": "street",
+   "line": 12,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "silence_start",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  },
+  {
+   "base": "ep_1795736034771_steady_noise_01",
+   "condition": "steady_noise",
+   "line": 1,
+   "kind": "short",
+   "text": "At noon.",
+   "last_word_end_s": 1.4,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 5.30 с, шум с 2.00 с, хвост до 11.9 с",
+   "end_s": 4.247691004000009,
+   "equiv_end_s": 3.7776910040000087,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     1.984,
+     "At noon,",
+     true,
+     1.751
+    ]
+   ],
+   "final_text": "At noon,",
+   "text_a": "At noon,"
+  },
+  {
+   "base": "ep_1795736043270_steady_noise_02",
+   "condition": "steady_noise",
+   "line": 2,
+   "kind": "short",
+   "text": "Yes, I do.",
+   "last_word_end_s": 3.09,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 6.88 с, шум с 3.69 с, хвост до 13.6 с",
+   "end_s": 4.077046081000042,
+   "equiv_end_s": 3.607046081000042,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.68,
+     "Yes, I do.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yes, I do.",
+   "text_a": "Yes, I do."
+  },
+  {
+   "base": "ep_1795736053122_steady_noise_03",
+   "condition": "steady_noise",
+   "line": 3,
+   "kind": "short",
+   "text": "My dog is five.",
+   "last_word_end_s": 4.35,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 9.00 с, шум с 4.95 с, хвост до 14.8 с",
+   "end_s": 5.42543523300013,
+   "equiv_end_s": 4.955435233000129,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     4.896,
+     "My dog is five.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "My dog is five.",
+   "text_a": "My dog is five"
+  },
+  {
+   "base": "ep_1795736065156_steady_noise_04",
+   "condition": "steady_noise",
+   "line": 4,
+   "kind": "short",
+   "text": "I like to read books in the evening.",
+   "last_word_end_s": 3.34,
+   "mid_pauses_s": [],
+   "pad": "до кнопки 8.16 с, шум с 3.94 с, хвост до 13.8 с",
+   "end_s": 4.529599342999994,
+   "equiv_end_s": 4.059599342999993,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.936,
+     "I like to read books in the evening.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "I like to read books in the evening.",
+   "text_a": "I like to read books in the evening."
+  },
+  {
+   "base": "ep_1795736076453_steady_noise_05",
+   "condition": "steady_noise",
+   "line": 5,
+   "kind": "pause",
+   "text": "I wanted to tell you about … my trip to the mountains.",
+   "last_word_end_s": 10.61,
+   "mid_pauses_s": [
+    [
+     4.12,
+     8.85
+    ]
+   ],
+   "pad": "до кнопки 14.88 с, шум с 11.21 с, хвост до 21.1 с",
+   "end_s": 5.696,
+   "equiv_end_s": 5.225999999999999,
+   "ended_by": "judge",
+   "interrupted": true,
+   "cancels": [],
+   "decisions": [
+    [
+     4.736,
+     "I wanted to tell you about.",
+     true,
+     0.0
+    ],
+    [
+     5.696,
+     "I wanted to tell you about.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "I wanted to tell you about. Mai triptove Mountains",
+   "text_a": "I wanted to tell you about. My trip to the mountains"
+  },
+  {
+   "base": "ep_1795736094395_steady_noise_06",
+   "condition": "steady_noise",
+   "line": 6,
+   "kind": "pause",
+   "text": "Yesterday I … went to the shop.",
+   "last_word_end_s": 12.33,
+   "mid_pauses_s": [
+    [
+     3.3,
+     4.5
+    ],
+    [
+     4.81,
+     10.68
+    ]
+   ],
+   "pad": "до кнопки 16.76 с, шум с 12.93 с, хвост до 22.8 с",
+   "end_s": 14.438578082000191,
+   "equiv_end_s": 13.96857808200019,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.872,
+     "Yesterday",
+     false,
+     0.849
+    ],
+    [
+     5.44,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     6.72,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     7.68,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     8.64,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     9.6,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     10.56,
+     "Yesterday I",
+     false,
+     0.929
+    ],
+    [
+     12.768,
+     "Yesterday I Went to the shop",
+     true,
+     1.099
+    ]
+   ],
+   "final_text": "Yesterday I Went to the shop",
+   "text_a": "Yesterday I went to the shop"
+  },
+  {
+   "base": "ep_1795736114309_steady_noise_07",
+   "condition": "steady_noise",
+   "line": 7,
+   "kind": "pause",
+   "text": "My favorite food is … pizza.",
+   "last_word_end_s": 9.1,
+   "mid_pauses_s": [
+    [
+     3.91,
+     8.67
+    ]
+   ],
+   "pad": "до кнопки 12.80 с, шум с 9.70 с, хвост до 19.6 с",
+   "end_s": 10.914382739000105,
+   "equiv_end_s": 10.444382739000105,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     4.64,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     6.08,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     7.136,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     8.192,
+     "My favorite food is",
+     false,
+     1.033
+    ],
+    [
+     9.696,
+     "My favorite food is Pizza",
+     true,
+     0.839
+    ]
+   ],
+   "final_text": "My favorite food is Pizza",
+   "text_a": "My favorite food is pizza"
+  },
+  {
+   "base": "ep_1795736129980_steady_noise_08",
+   "condition": "steady_noise",
+   "line": 8,
+   "kind": "pause",
+   "text": "I think that … it is a good idea.",
+   "last_word_end_s": 10.6,
+   "mid_pauses_s": [
+    [
+     3.47,
+     9.49
+    ]
+   ],
+   "pad": "до кнопки 15.46 с, шум с 11.20 с, хвост до 21.1 с",
+   "end_s": 12.826749265999878,
+   "equiv_end_s": 12.356749265999877,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     4.096,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     5.536,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     6.592,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     7.648,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     8.704,
+     "I think that",
+     false,
+     1.045
+    ],
+    [
+     11.2,
+     "I think that It's a good idea",
+     true,
+     1.051
+    ]
+   ],
+   "final_text": "I think that It's a good idea",
+   "text_a": "I think that it's a good idea"
+  },
+  {
+   "base": "ep_1795736148289_steady_noise_09",
+   "condition": "steady_noise",
+   "line": 9,
+   "kind": "long",
+   "text": "Yesterday I got up early. Um… I made coffee and walked with my dog in the park.",
+   "last_word_end_s": 17.85,
+   "mid_pauses_s": [
+    [
+     5.45,
+     7.11
+    ],
+    [
+     7.63,
+     13.35
+    ]
+   ],
+   "pad": "до кнопки 21.39 с, шум с 18.45 с, хвост до 28.4 с",
+   "end_s": 18.81372487199982,
+   "equiv_end_s": 18.34372487199982,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     3.872,
+     "Yesterday",
+     false,
+     0.849
+    ],
+    [
+     6.048,
+     "Yesterday Got up early",
+     true,
+     1.043
+    ],
+    [
+     8.192,
+     "Yesterday Got up early Mmm,",
+     false,
+     1.025
+    ],
+    [
+     9.824,
+     "Yesterday Got up early Mmm,",
+     false,
+     1.025
+    ],
+    [
+     10.88,
+     "Yesterday Got up early Mmm,",
+     false,
+     1.025
+    ],
+    [
+     11.936,
+     "Yesterday Got up early Mmm,",
+     false,
+     1.025
+    ],
+    [
+     12.992,
+     "Yesterday Got up early Mmm,",
+     false,
+     1.025
+    ],
+    [
+     18.4,
+     "Yesterday Got up early Mmm, I made coffee and walked with my dog in the park.",
+     true,
+     0.0
+    ]
+   ],
+   "final_text": "Yesterday Got up early Mmm, I made coffee and walked with my dog in the park.",
+   "text_a": "Yesterday, I got up early I made coffee and walked with my dog in the park."
+  },
+  {
+   "base": "ep_1795736172634_steady_noise_10",
+   "condition": "steady_noise",
+   "line": 10,
+   "kind": "long",
+   "text": "Last weekend I visited my friend. We cooked dinner, um… and then we watched a movie.",
+   "last_word_end_s": 16.55,
+   "mid_pauses_s": [
+    [
+     7.81,
+     13.51
+    ]
+   ],
+   "pad": "до кнопки 21.74 с, шум с 17.15 с, хвост до 27.1 с",
+   "end_s": 18.626265165000078,
+   "equiv_end_s": 18.15626516500008,
+   "ended_by": "judge",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [
+    [
+     5.728,
+     "Last weekend I visited my friend",
+     true,
+     0.968
+    ],
+    [
+     8.384,
+     "Last weekend I visited my friend قمنا",
+     false,
+     1.013
+    ],
+    [
+     9.92,
+     "Last weekend I visited my friend قمنا",
+     false,
+     1.013
+    ],
+    [
+     10.944,
+     "Last weekend I visited my friend قمنا",
+     false,
+     1.013
+    ],
+    [
+     11.968,
+     "Last weekend I visited my friend قمنا",
+     false,
+     1.013
+    ],
+    [
+     12.992,
+     "Last weekend I visited my friend قمنا",
+     false,
+     1.013
+    ],
+    [
+     17.152,
+     "Last weekend I visited my friend قمنا And then we watched a movie",
+     true,
+     0.929
+    ]
+   ],
+   "final_text": "Last weekend I visited my friend قمنا And then we watched a movie",
+   "text_a": "Last weekend I visited my friend. We cooked dinner and then we watched a movie"
+  },
+  {
+   "base": "ep_1795736197368_steady_noise_11",
+   "condition": "steady_noise",
+   "line": 11,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "silence_start",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  },
+  {
+   "base": "ep_1795736211809_steady_noise_12",
+   "condition": "steady_noise",
+   "line": 12,
+   "kind": "no_speech",
+   "text": "",
+   "last_word_end_s": null,
+   "mid_pauses_s": [],
+   "pad": "",
+   "end_s": null,
+   "equiv_end_s": null,
+   "ended_by": "silence_start",
+   "interrupted": false,
+   "cancels": [],
+   "decisions": [],
+   "final_text": "",
+   "text_a": null
+  }
+ ]
+}
