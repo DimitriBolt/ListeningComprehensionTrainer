@@ -74,8 +74,36 @@ def cmd_normalize(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
-def command_of(text: str, phrases: dict[str, list[str]] | None = None, max_words: int | None = None) -> str | None:
-    """Копия VoiceCommand.of: имя команды или None."""
+def edits(a: str, b: str) -> int:
+    """Копия VoiceCommand.edits (Левенштейн)."""
+    prev = list(range(len(b) + 1))
+    for i in range(1, len(a) + 1):
+        cur = [i] + [0] * len(b)
+        for j in range(1, len(b) + 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] != b[j - 1]))
+        prev = cur
+    return prev[len(b)]
+
+
+def tolerant_of(word: str, strict: bool = True) -> str | None:
+    """Копия VoiceCommand.tolerant (S05b, D84). `strict=False` — правило брифа без условий на буквы (для пробы)."""
+    if not word or " " in word:
+        return None
+    w = word.replace("'", "")
+    slow = kotlin_const("SLOW_PREFIX", VOICE_COMMAND_KT)
+    if w.startswith(slow):
+        return "slower"
+    if (not strict or (w[0] in "aeiou" and "g" in w)) and edits(w, "again") <= int(kotlin_const("AGAIN_MAX_EDITS", VOICE_COMMAND_KT)):
+        return "again"
+    if (not strict or w.startswith("st")) and edits(w, "stop") <= int(kotlin_const("STOP_MAX_EDITS", VOICE_COMMAND_KT)):
+        return "stop"
+    return None
+
+
+def command_of(text: str, phrases: dict[str, list[str]] | None = None, max_words: int | None = None,
+               tolerant: str | None = "strict") -> str | None:
+    """Копия VoiceCommand.of: имя команды или None. `tolerant`: "strict" — как приложение (S05b), "brief" — правило
+    брифа без условий на буквы, None — только список (как в S05)."""
     phrases = phrases or command_phrases()
     max_words = max_words or command_max_words()
     n = cmd_normalize(text)
@@ -84,7 +112,9 @@ def command_of(text: str, phrases: dict[str, list[str]] | None = None, max_words
     for name, lst in phrases.items():
         if n in lst:
             return name
-    return None
+    if tolerant is None:
+        return None
+    return tolerant_of(n, strict=tolerant == "strict")
 
 
 # ---- 1. команды -------------------------------------------------------------------------------------------------

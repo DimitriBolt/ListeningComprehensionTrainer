@@ -37,3 +37,24 @@ def test_repeat_share():
     assert s05.repeat_share(prev, "Coffee is nice. What did you see?") == 0
     assert s05.repeat_share(prev, prev) == 1
     assert abs(s05.repeat_share(prev, "Many birds sing before the sun comes up. Nice.") - 1 / 3) < 1e-9
+
+
+# S05b (D84): те же слова, что VoiceCommandTest.kt
+TOLERANT_CASES = {
+    "slower": ["Slowware.", "Slowlyer.", "Slow.", "slows", "Slowly!"],
+    "again": ["Igain.", "Agane", "Agin.", "Again!", "Egain"],
+    "stop": ["Stap.", "Stops.", "Stup", "Stoop.", "Stomp"],
+    None: ["Stopped.", "Spot.", "Shop.", "Top.", "Step on it.", "A gain of five.", "Rain.", "Spain.", "Gain.", "Brain.",
+           "Again tomorrow, yes.", "Green.", "Agent.", "Slow food.", "It is slow.", "Stop the car.", "Stone."],
+}
+
+
+def test_tolerant_copy_like_kotlin():
+    for want, texts in TOLERANT_CASES.items():
+        for t in texts:
+            assert s05.command_of(t) == want, t
+    # правило брифа без условий на буквы — то, от чего защищают условия
+    assert s05.command_of("Rain.", tolerant="brief") == "again"
+    assert s05.command_of("Shop.", tolerant="brief") == "stop"
+    assert s05.command_of("Igain.", tolerant=None) is None
+    assert s05.edits("agane", "again") == 2

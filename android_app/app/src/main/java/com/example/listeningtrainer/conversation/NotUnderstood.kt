@@ -9,7 +9,7 @@ package com.example.listeningtrainer.conversation
  * добавляет его к запросу учителя служебной строкой [note].
  *
  * Явные маркеры: «What?», «Pardon?», «Sorry?», «I don't understand…», «I don't know what…», «What do you
- * mean?», «Can you repeat?», «Again, please», пустая реплика или «...». Ответ не по теме без маркера
+ * mean?», «Can you repeat?», пустая реплика или «...». «Again» и «Repeat» — команды (D82), не «не понял» (D88). Ответ не по теме без маркера
  * оценивает сам учитель и русского слова не даёт. Молчание до учителя не доходит и счёт не меняет.
  */
 object NotUnderstood {
@@ -21,7 +21,7 @@ object NotUnderstood {
     private val TRAIL = Regex("""(?:\s+(?:please|sorry|teacher|again))+$""")
 
     private val WHOLE = setOf(
-        "", "what", "pardon", "pardon me", "sorry", "huh", "excuse me", "again", "repeat", "what what",
+        "", "what", "pardon", "pardon me", "sorry", "huh", "excuse me", "what what",
         "say", "say it", "say that", "say it again", "one more time", "slower", "slowly", "more slowly", "i m lost",
     )
     private val START = Regex(
@@ -33,7 +33,6 @@ object NotUnderstood {
             """|what is (?:that|this) word""" +
             """|what does .+ mean""" +
             """|(?:can|could) you (?:repeat|say (?:it|that)|speak (?:more )?slowly|say it slower)""" +
-            """|(?:please )?repeat""" +
             ")(?:\\s|$)",
     )
 

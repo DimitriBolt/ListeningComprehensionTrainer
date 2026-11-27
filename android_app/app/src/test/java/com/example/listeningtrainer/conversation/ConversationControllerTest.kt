@@ -473,7 +473,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
         assertEquals(
-            listOf("${TranscriptionPrompt.CONTEXT} The teacher just said: \"How are you today?\""),
+            listOf("${TranscriptionPrompt.CONTEXT} ${TranscriptionPrompt.COMMANDS_HINT} The teacher just said: \"How are you today?\""),
             rig.transcriber.prompts,
         )
     }
@@ -1735,7 +1735,7 @@ class ConversationControllerTest {
         advanceUntilIdle()
 
         assertEquals(3, live.prepares)
-        assertEquals(TranscriptionPrompt.CONTEXT, live.prompts[0])
+        assertEquals(TranscriptionPrompt.build(null, 200), live.prompts[0])
         assertEquals(TranscriptionPrompt.build("Good. Do you like tea?", 200), live.prompts[1])
         assertTrue(rig.log.lines.any { "live transcription: session open in 0 ms (reused)" in it })
     }

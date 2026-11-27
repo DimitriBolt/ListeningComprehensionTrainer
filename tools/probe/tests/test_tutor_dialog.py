@@ -283,11 +283,12 @@ def test_not_understood_like_kotlin():
               "I don't understand.", "I don’t understand", "Sorry, I don't understand.", "I do not understand you.",
               "I didn't understand.", "I don't understand the word noon.", "I don't get it.",
               "I don't know what you mean.", "I don't know what is noon.", "What do you mean?", "What did you say?",
-              "Can you repeat, please?", "Could you say it again?", "Repeat, please.", "Please repeat.", "Again, please.",
+              "Can you repeat, please?", "Could you say it again?",
               "Say it again.", "One more time.", "Slowly, please.", "What does noon mean?", "...", "", "  "]:
         assert td.is_marker(t), t
     for t in ["I like to cook.", "At noon.", "I don't know.", "Yes.", "No.", "What is the temperature in Tucson?",
-              "What time is it?", "Sorry, I was late.", "I understand.", "Pasta.", "I know what you mean."]:
+              "What time is it?", "Sorry, I was late.", "I understand.", "Pasta.", "I know what you mean.",
+              "Again.", "Again, please.", "Repeat.", "Repeat, please.", "Please repeat."]:  # команды (D88)
         assert not td.is_marker(t), t
     assert td.streak(["I like to cook.", "What?", "I don't understand.", "Sorry, I don't understand."]) == 3
     assert td.streak(["What?", "What?", "Pasta.", "Sorry?"]) == 1
@@ -454,3 +455,17 @@ def test_summary_goals_s02i():
                                    sc("S3", 1, [_step(2, 21, "after_nu")], ok=False)])
     assert not any(bad["goals_02i"][k] for k in ("after_nu", "s3_russian_step4", "numbers", "titles_quoted", "l5_median"))
     assert bad["numbers_over"] == 1 and not bad["goals_met"]
+
+
+def test_not_understood_lists_match_kotlin():
+    """S05b (D88): списки «не понял» в копии — те же, что в NotUnderstood.kt (WHOLE и шаблоны START)."""
+    kt = (probe.REPO_ROOT / "android_app" / "app" / "src" / "main" / "java" / "com" / "example" / "listeningtrainer"
+          / "conversation" / "NotUnderstood.kt").read_text(encoding="utf-8")
+    whole = re.search(r"WHOLE = setOf\((.*?)\)", kt, re.S).group(1)
+    assert set(re.findall(r'"([^"]*)"', whole)) == td._NU_WHOLE
+    start = re.search(r"START = Regex\((.*?)\n    \)", kt, re.S).group(1)
+    kt_inner = "".join(re.findall(r'"""(.*?)"""', start))
+    py = td._NU_START.pattern
+    assert py.startswith("^(?:") and py.endswith(r")(?:\s|$)")
+    assert py[len("^(?:"):-len(r")(?:\s|$)")] == kt_inner
+    assert "again" not in td._NU_WHOLE and "repeat" not in td._NU_WHOLE

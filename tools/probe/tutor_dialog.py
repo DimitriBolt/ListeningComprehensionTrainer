@@ -298,12 +298,12 @@ def _norm(s: str) -> str:
 
 
 # --------------------------------------------------------------------------------------------------
-# Счёт «не понял» подряд (копия NotUnderstood.kt, S02f)
+# Счёт «не понял» подряд (копия NotUnderstood.kt, S02f; S05b — без «again», «repeat», D88)
 # --------------------------------------------------------------------------------------------------
 
 _NU_LEAD = re.compile(r"^(?:(?:sorry|excuse me|oh|um|uh|hmm|teacher|please|but|i m sorry)\s+)+")
 _NU_TRAIL = re.compile(r"(?:\s+(?:please|sorry|teacher|again))+$")
-_NU_WHOLE = {"", "what", "pardon", "pardon me", "sorry", "huh", "excuse me", "again", "repeat", "what what",
+_NU_WHOLE = {"", "what", "pardon", "pardon me", "sorry", "huh", "excuse me", "what what",
              "say", "say it", "say that", "say it again", "one more time", "slower", "slowly", "more slowly",
              "i m lost"}
 _NU_START = re.compile(
@@ -315,7 +315,6 @@ _NU_START = re.compile(
     r"|what is (?:that|this) word"
     r"|what does .+ mean"
     r"|(?:can|could) you (?:repeat|say (?:it|that)|speak (?:more )?slowly|say it slower)"
-    r"|(?:please )?repeat"
     r")(?:\s|$)")
 
 

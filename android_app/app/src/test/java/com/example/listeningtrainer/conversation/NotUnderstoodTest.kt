@@ -15,7 +15,7 @@ class NotUnderstoodTest {
             "I don't understand.", "I don’t understand", "Sorry, I don't understand.", "I do not understand you.",
             "I didn't understand.", "I don't understand the word noon.", "I don't get it.",
             "I don't know what you mean.", "I don't know what is noon.", "What do you mean?", "What did you say?",
-            "Can you repeat, please?", "Could you say it again?", "Repeat, please.", "Please repeat.", "Again, please.",
+            "Can you repeat, please?", "Could you say it again?",
             "Say it again.", "One more time.", "Slowly, please.", "What does noon mean?", "...", "", "  ",
         )) assertTrue(t, NotUnderstood.isMarker(t))
     }
@@ -26,6 +26,14 @@ class NotUnderstoodTest {
             "I like to cook.", "At noon.", "I don't know.", "Yes.", "No.", "What is the temperature in Tucson?",
             "What time is it?", "Sorry, I was late.", "I understand.", "Pasta.", "I know what you mean.",
         )) assertFalse(t, NotUnderstood.isMarker(t))
+    }
+
+    @Test
+    fun `again and repeat are commands, not markers (D88)`() {
+        for (t in listOf("Again.", "Again, please.", "Repeat.", "Repeat, please.", "Please repeat.")) {
+            assertFalse(t, NotUnderstood.isMarker(t))
+            assertEquals(t, VoiceCommand.AGAIN, VoiceCommand.of(t))
+        }
     }
 
     @Test

@@ -8,8 +8,9 @@ class TranscriptionPromptTest {
 
     @Test
     fun `start of conversation - only the context`() {
-        assertEquals(TranscriptionPrompt.CONTEXT, TranscriptionPrompt.build(null, 200))
-        assertEquals(TranscriptionPrompt.CONTEXT, TranscriptionPrompt.build("   ", 200))
+        val head = "${TranscriptionPrompt.CONTEXT} ${TranscriptionPrompt.COMMANDS_HINT}"
+        assertEquals(head, TranscriptionPrompt.build(null, 200))
+        assertEquals(head, TranscriptionPrompt.build("   ", 200))
     }
 
     @Test
@@ -17,9 +18,14 @@ class TranscriptionPromptTest {
         val text = "There was a big **outage** today.\n\nHave you heard about the outage?"
         assertEquals("Have you heard about the outage?", TranscriptionPrompt.lastSentence(text, 200))
         assertEquals(
-            "${TranscriptionPrompt.CONTEXT} The teacher just said: \"Have you heard about the outage?\"",
+            "${TranscriptionPrompt.CONTEXT} ${TranscriptionPrompt.COMMANDS_HINT} The teacher just said: \"Have you heard about the outage?\"",
             TranscriptionPrompt.build(text, 200),
         )
+    }
+
+    @Test
+    fun `command words are in the hint (D84)`() {
+        for (w in listOf("Stop", "Again", "Slower")) assertTrue(w, TranscriptionPrompt.COMMANDS_HINT.contains(w))
     }
 
     @Test

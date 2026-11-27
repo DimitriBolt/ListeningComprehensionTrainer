@@ -35,4 +35,29 @@ class VoiceCommandTest {
         val all = VoiceCommand.PHRASES.values.flatten()
         assertEquals(all.size, all.toSet().size)
     }
+
+    /** Слова на правило терпимости (S05b, D84); тот же список — `TOLERANT_CASES` в `tools/probe/tests/test_s05.py`. */
+    @Test
+    fun `one misheard word is a command (D84)`() {
+        for (t in listOf("Slowware.", "Slowlyer.", "Slow.", "slows", "Slowly!")) assertEquals(t, VoiceCommand.SLOWER, VoiceCommand.of(t))
+        for (t in listOf("Igain.", "Agane", "Agin.", "Again!", "Egain")) assertEquals(t, VoiceCommand.AGAIN, VoiceCommand.of(t))
+        for (t in listOf("Stap.", "Stops.", "Stup", "Stoop.", "Stomp")) assertEquals(t, VoiceCommand.STOP, VoiceCommand.of(t))
+    }
+
+    @Test
+    fun `ordinary short answers stay replies (D84)`() {
+        for (t in listOf("Stopped.", "Spot.", "Shop.", "Top.", "Step on it.", "A gain of five.", "Rain.", "Spain.", "Gain.",
+            "Brain.", "Again tomorrow, yes.", "Green.", "Agent.", "Slow food.", "It is slow.", "Stop the car.", "Stone.")) {
+            assertNull(t, VoiceCommand.of(t))
+        }
+    }
+
+    @Test
+    fun `edit distance`() {
+        assertEquals(0, VoiceCommand.edits("again", "again"))
+        assertEquals(1, VoiceCommand.edits("igain", "again"))
+        assertEquals(2, VoiceCommand.edits("agane", "again"))
+        assertEquals(2, VoiceCommand.edits("spot", "stop"))
+        assertEquals(3, VoiceCommand.edits("stopped", "stop"))
+    }
 }

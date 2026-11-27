@@ -14,10 +14,17 @@ object TranscriptionPrompt {
     const val CONTEXT =
         "An adult beginner English learner is answering an English teacher in a spoken conversation."
 
+    /**
+     * Подсказка со словами команд (S05b, D84): короткие команды распознавание писало с ошибками («Slowware», «Igain»).
+     * Одна и та же для потока и файла. Проба `s05b --part commands` читает её отсюда.
+     */
+    const val COMMANDS_HINT = "The student may also say a short command: Stop, Again, Slower."
+
     /** [lastTeacherText] — весь последний ответ учителя (может быть `null` в начале разговора). */
     fun build(lastTeacherText: String?, maxTeacherChars: Int): String {
         val sentence = lastTeacherText?.let { lastSentence(it, maxTeacherChars) }.orEmpty()
-        return if (sentence.isEmpty()) CONTEXT else "$CONTEXT The teacher just said: \"$sentence\""
+        val head = "$CONTEXT $COMMANDS_HINT"
+        return if (sentence.isEmpty()) head else "$head The teacher just said: \"$sentence\""
     }
 
     /**
