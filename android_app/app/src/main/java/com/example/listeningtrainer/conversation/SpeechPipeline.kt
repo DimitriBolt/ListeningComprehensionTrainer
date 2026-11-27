@@ -54,13 +54,26 @@ class SpeechPipeline(
      * ошибкой. Отмена [scope] обрывает синтез.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun start(scope: CoroutineScope, chunks: ReceiveChannel<SpeechChunk>): ReceiveChannel<SpeechAudio> =
+    fun start(
+        scope: CoroutineScope,
+        chunks: ReceiveChannel<SpeechChunk>,
+        /** Скорость речи (S05: «Slower» медленнее эталона). */
+        speed: Float = ModelConfig.SPEECH_SPEED,
+        /** Готовый звук группы по номеру с 0 (S05: «Again» — звук прошлой реплики); `null` — синтезировать. */
+        ready: (Int) -> SpeechAudio? = { null },
+    ): ReceiveChannel<SpeechAudio> =
         // Ёмкость lookahead - 1: пока звучит группа i, в канале лежат i+1 … i+lookahead-1, а группа
         // i+lookahead готова и ждёт места — всего lookahead готовых вперёд.
         scope.produce(capacity = lookahead - 1) {
             var primaryAvailable = true
             var index = 0
             for (chunk in chunks) {
+                val cached = ready(index)
+                if (cached != null) {
+                    index++
+                    send(cached) // тот же звук, уже приведённый к громкости
+                    continue
+                }
                 val number = "${++index}"
                 val text = chunk.text.replace("**", "") // ** нужны только на экране
                 if (!hasWords(text)) {
@@ -69,7 +82,7 @@ class SpeechPipeline(
                     continue
                 }
                 val started = clock()
-                val (speech, how) = synthesizeGroup(number, text, primaryAvailable) { primaryAvailable = false }
+                val (speech, how) = synthesizeGroup(number, text, primaryAvailable, speed) { primaryAvailable = false }
                 val readyMs = clock() - started
                 val audio = speech.audio
                 val norm = normalize(audio)
@@ -123,19 +136,20 @@ class SpeechPipeline(
         number: String,
         text: String,
         primaryAvailable: Boolean,
+        speed: Float,
         markUnavailable: () -> Unit,
     ): Pair<SynthesizedSpeech, String> {
         if (primaryAvailable) {
             for (attempt in 1..ATTEMPTS) {
                 val speech = try {
-                    primary.synthesize(text)
+                    primary.synthesize(text, speed)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: SynthesisException) {
                     if (e.unavailable) {
                         log.event(SOURCE, "${primary.name} unavailable (${e.message}): group $number and the rest of the reply via ${fallback.name}")
                         markUnavailable()
-                        return fallbackGroup(number, text)
+                        return fallbackGroup(number, text, speed)
                     }
                     log.event(SOURCE, "group $number: ${primary.name} error (${e.message}), attempt $attempt of $ATTEMPTS")
                     continue
@@ -157,10 +171,10 @@ class SpeechPipeline(
             }
             log.event(SOURCE, "group $number: fallback to ${fallback.name} after $ATTEMPTS attempts")
         }
-        return fallbackGroup(number, text)
+        return fallbackGroup(number, text, speed)
     }
 
-    private suspend fun fallbackGroup(number: String, text: String): Pair<SynthesizedSpeech, String> {
+    private suspend fun fallbackGroup(number: String, text: String, speed: Float): Pair<SynthesizedSpeech, String> {
         // Голос телефона английский: русское слово (D43) он не прочтёт — пропускаем слово, а не группу.
         val spoken = if (ReplyText.hasRussian(text)) ReplyText.withoutRussian(text) else text
         if (spoken != text) {
@@ -168,7 +182,7 @@ class SpeechPipeline(
             if (!hasWords(spoken)) return SynthesizedSpeech(SpeechAudio(ShortArray(0), ModelConfig.SPEECH_SAMPLE_RATE), null) to fallback.name
         }
         val speech = try {
-            fallback.synthesize(spoken)
+            fallback.synthesize(spoken, speed)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

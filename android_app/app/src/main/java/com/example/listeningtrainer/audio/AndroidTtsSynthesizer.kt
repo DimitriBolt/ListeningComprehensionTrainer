@@ -90,7 +90,7 @@ class AndroidTtsSynthesizer(
         }
     }
 
-    override suspend fun synthesize(text: String): SynthesizedSpeech = mutex.withLock {
+    override suspend fun synthesize(text: String, speed: Float): SynthesizedSpeech = mutex.withLock {
         val init = synchronized(this) {
             // Движок не поднялся — пробуем заново (могли поставить голос, пока шёл разговор).
             if (ready?.isCompleted == true && initFailed) release()
@@ -104,6 +104,8 @@ class AndroidTtsSynthesizer(
         }
         if (problem != null) throw SynthesisException("android tts: $problem", unavailable = true)
 
+        // Скорость — в той же доле от эталона, что у основного синтеза (S05: «Slower»).
+        tts!!.setSpeechRate(ModelConfig.FALLBACK_SPEECH_RATE * speed / ModelConfig.SPEECH_SPEED)
         val id = "group-${counter.incrementAndGet()}"
         val file = File(context.cacheDir, "fallback_tts.wav")
         val done = CompletableDeferred<String?>()

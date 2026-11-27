@@ -1,6 +1,7 @@
 package com.example.listeningtrainer.openai
 
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.conversation.BargeIn
 import com.example.listeningtrainer.conversation.FailureKind
 import com.example.listeningtrainer.conversation.ServiceException
 import com.example.listeningtrainer.conversation.NotUnderstood
@@ -417,5 +418,29 @@ class ResponsesTutorTest {
         t.replaceLastReply("I think you meant \"I have a dog\", right? Hello there.")
         assertEquals("I think you meant \"I have a dog\", right? Hello there.", t.lastTeacherText)
         assertEquals(2, t.turns.size)
+    }
+
+    @Test
+    fun `interrupted (S05) - a whole reply is replaced by the spoken part with the mark, a cut stream adds the pair`() = runTest {
+        val mark = BargeIn.INTERRUPTED_MARK
+        val transport = FakeTransport().apply {
+            streams += sse(delta("Many birds sing early. What do birds do?"), completed)
+            streams += sse(delta("Half an ans")) // поток оборван (ученик перебил раньше конца)
+            streams += sse(delta("Good."), completed)
+        }
+        val t = tutor(transport)
+        t.reply("I got up early.", null) {}
+        t.interrupted("I got up early.", BargeIn.marked("Many birds sing"))
+        assertEquals(listOf("I got up early.", "Many birds sing $mark"), t.turns.map { it.text })
+        assertEquals("Many birds sing", t.lastTeacherText) // подсказке распознаванию — без пометки
+
+        try { t.reply("I made coffee.", null) {} } catch (e: ServiceException) {}
+        t.interrupted("I made coffee.", BargeIn.marked(""))
+        assertEquals(3, t.turns.size) // ничего не прозвучало: реплика ученика есть, ответа нет
+        assertEquals("I made coffee.", t.turns.last().text)
+
+        t.reply("And tea.", null) {}
+        val input = transport.bodies[2]["input"]!!.jsonArray.map { it.jsonObject["content"]!!.jsonPrimitive.content }
+        assertEquals(listOf("I got up early.", "Many birds sing $mark", "I made coffee.", "And tea."), input)
     }
 }

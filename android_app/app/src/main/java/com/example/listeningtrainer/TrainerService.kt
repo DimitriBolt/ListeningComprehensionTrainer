@@ -33,6 +33,7 @@ import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.SpeechPlanner
 import com.example.listeningtrainer.conversation.TurnDetector
 import com.example.listeningtrainer.conversation.TurnEndRule
+import com.example.listeningtrainer.conversation.MicWatch
 import com.example.listeningtrainer.conversation.VadTurnDetector
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.config.ModelConfig
@@ -99,11 +100,23 @@ class TrainerService : Service() {
             altFiles = File(cacheDir, "user_speech_b.wav") to File(cacheDir, "user_upload_b.m4a"),
         )
         // Копия каждой записи в общую папку Music — только в debug-сборке, последние 20 файлов.
+        // Каждый кусок реплики — своей копией (S05): продолжение после объявленного конца (S04) и запись после перебивания.
         val input: AudioInput = if (!BuildConfig.DEBUG) recorder else object : AudioInput by recorder {
+            private fun export(audio: RecordedAudio) =
+                scope.launch(Dispatchers.IO) { exportToPublicMusic(this@TrainerService, audio.file) }
+
             override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
-                recorder.record(turnDetector, sink, onLevel).also { audio ->
-                    scope.launch(Dispatchers.IO) { exportToPublicMusic(this@TrainerService, audio.file) }
-                }
+                recorder.record(turnDetector, sink, onLevel).also { export(it) }
+
+            override suspend fun recordContinuation(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit) =
+                recorder.recordContinuation(turnDetector, sink, onLevel).also { export(it) }
+
+            override suspend fun recordBargeIn(
+                watch: MicWatch,
+                turnDetector: TurnDetector,
+                onBargeIn: () -> AudioSink?,
+                onLevel: (Float) -> Unit,
+            ) = recorder.recordBargeIn(watch, turnDetector, onBargeIn, onLevel).also { export(it) }
         }
 
         val output = AudioTrackOutput(this, AppLog, pulseMarks)
@@ -129,6 +142,8 @@ class TrainerService : Service() {
             onLiveVsFile = if (!BuildConfig.DEBUG) null else LiveVsFileStore(
                 File(File(filesDir, LiveVsFileStore.DIR), LiveVsFileStore.NAME),
             )::add,
+            // Перебивание (S05, D81): свой Silero для микрофона, пока звучит учитель (модель та же, состояние своё).
+            bargeInVad = SileroVad(vadModel),
         )
         // Режим записи для пробы S03b (только debug): свой микрофон без сжатия; моменты пульсов — от проигрывателя
         // сигналов; эмуляция Silero — со своим состоянием модели.

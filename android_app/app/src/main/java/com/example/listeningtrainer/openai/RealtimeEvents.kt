@@ -21,8 +21,11 @@ import java.io.ByteArrayOutputStream
  */
 object RealtimeEvents {
 
-    /** Сессия читающего движка: только звук PCM 24 кГц, голос, скорость, «Промпт 1», без VAD. */
-    fun sessionUpdate(): String = buildJsonObject {
+    /**
+     * Сессия читающего движка: только звук PCM 24 кГц, голос, скорость, «Промпт 1», без VAD. [speed] — с S05 («Slower»):
+     * скорость в Realtime — настройка сессии, её меняет новый `session.update` между ответами.
+     */
+    fun sessionUpdate(speed: Float = ModelConfig.SPEECH_SPEED): String = buildJsonObject {
         put("type", "session.update")
         putJsonObject("session") {
             put("type", "realtime")
@@ -36,7 +39,7 @@ object RealtimeEvents {
                         put("rate", ModelConfig.SPEECH_SAMPLE_RATE)
                     }
                     put("voice", ModelConfig.SPEECH_VOICE)
-                    put("speed", ModelConfig.SPEECH_SPEED)
+                    put("speed", speed)
                 }
             }
         }

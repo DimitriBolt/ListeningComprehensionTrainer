@@ -65,7 +65,7 @@ class RealtimeSynthesizer(
         connect()
     }
 
-    override suspend fun synthesize(text: String): SynthesizedSpeech = mutex.withLock {
+    override suspend fun synthesize(text: String, speed: Float): SynthesizedSpeech = mutex.withLock {
         val c = connect()
         try {
             withTimeout(ModelConfig.SPEECH_CONNECT_TIMEOUT_MS) { c.ready.await() }
@@ -74,6 +74,7 @@ class RealtimeSynthesizer(
             throw SynthesisException("connect timeout", unavailable = true)
         }
         while (c.events.tryReceive().isSuccess) { /* старые события — не наши */ }
+        if (speed != c.speed) setSpeed(c, speed)
 
         val tag = "g${counter.incrementAndGet()}"
         val started = clock()
@@ -119,6 +120,37 @@ class RealtimeSynthesizer(
         }
     }
 
+    /**
+     * Скорость речи — настройка сессии (S05, «Slower»): `session.update` между ответами и ждать `session.updated`
+     * (документация OpenAI: `audio.output.speed` 0,25–1,5, меняется только между ответами).
+     */
+    private suspend fun setSpeed(c: Connection, speed: Float) {
+        val started = clock()
+        if (!c.ws.send(RealtimeEvents.sessionUpdate(speed))) {
+            c.close("send failed")
+            throw SynthesisException("send failed", unavailable = true)
+        }
+        try {
+            withTimeout(ModelConfig.SPEECH_RESPONSE_TIMEOUT_MS) {
+                while (true) {
+                    val event = c.events.receive()
+                    when (RealtimeEvents.type(event)) {
+                        "session.updated" -> break
+                        "error" -> {
+                            val reason = (RealtimeEvents.ResponseCollector("").onEvent(event) as? RealtimeEvents.Outcome.Failed)?.reason
+                            throw SynthesisException("speed update failed: $reason", unavailable = false)
+                        }
+                    }
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            c.close("speed update timeout")
+            throw SynthesisException("speed update timeout", unavailable = true)
+        }
+        c.speed = speed
+        log.event(SOURCE, "realtime speed $speed in ${clock() - started} ms")
+    }
+
     override fun release() {
         synchronized(lock) { connection?.close("service stopped") }
     }
@@ -133,6 +165,9 @@ class RealtimeSynthesizer(
         val openedAt = clock()
         val ready = CompletableDeferred<Unit>()
         val events = Channel<JsonObject>(Channel.UNLIMITED)
+        /** Скорость речи сессии (S05): первый `session.update` ставит эталон. */
+        @Volatile
+        var speed = ModelConfig.SPEECH_SPEED
         @Volatile
         private var closed = false
         val ws: WebSocket = client.newWebSocket(
@@ -153,6 +188,8 @@ class RealtimeSynthesizer(
                 "session.updated" -> if (!ready.isCompleted) {
                     log.event(SOURCE, "realtime session ready in ${clock() - openedAt} ms")
                     ready.complete(Unit)
+                } else {
+                    events.trySend(event) // смена скорости (S05) — её ждёт setSpeed
                 }
                 "session.created" -> {}
                 else -> if (!ready.isCompleted && RealtimeEvents.type(event) == "error") {

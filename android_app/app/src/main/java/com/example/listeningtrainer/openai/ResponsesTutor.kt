@@ -1,6 +1,7 @@
 package com.example.listeningtrainer.openai
 
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.conversation.BargeIn
 import com.example.listeningtrainer.conversation.FailureKind
 import com.example.listeningtrainer.conversation.NotUnderstood
 import com.example.listeningtrainer.conversation.ReplyText
@@ -68,6 +69,8 @@ class ResponsesTutor(
 
     private val history = mutableListOf<Turn>()
     private var requests = 0
+    /** Последний запрос дошёл до `response.completed`: его пара «реплика — ответ» уже в истории (S05). */
+    private var lastReplyDone = true
 
     override suspend fun reply(studentText: String, levelNote: String?, onEvent: suspend (TutorEvent) -> Unit) {
         // Служебная строка идёт только в этот запрос, в историю реплика ученика пишется как есть. Одна из
@@ -87,8 +90,24 @@ class ResponsesTutor(
         if (i >= 0 && history[i].role == ROLE_ASSISTANT) history[i] = Turn(ROLE_ASSISTANT, text)
     }
 
+    /** S05 (D81): ответ дошёл целиком — заменить его прозвучавшей частью (или убрать); поток оборван — дописать пару. */
+    override fun interrupted(studentText: String, spoken: String) {
+        if (lastReplyDone) {
+            val i = history.lastIndex
+            if (i >= 0 && history[i].role == ROLE_ASSISTANT) {
+                if (spoken.isBlank()) history.removeAt(i) else history[i] = Turn(ROLE_ASSISTANT, spoken)
+            }
+        } else {
+            history += Turn(ROLE_USER, studentText)
+            if (spoken.isNotBlank()) history += Turn(ROLE_ASSISTANT, spoken)
+            trim()
+            lastReplyDone = true
+        }
+        log.event(SOURCE, "tutor history: reply interrupted, ${if (spoken.isBlank()) "nothing" else "spoken part"} kept")
+    }
+
     override val lastTeacherText: String?
-        get() = history.lastOrNull { it.role == ROLE_ASSISTANT && it.text.isNotBlank() }?.text
+        get() = history.lastOrNull { it.role == ROLE_ASSISTANT && it.text.isNotBlank() }?.text?.let(BargeIn::unmarked)
 
     /** История (для тестов). */
     val turns: List<Turn> get() = history.toList()
@@ -102,6 +121,7 @@ class ResponsesTutor(
         requests++
         log.event(SOURCE, "tutor request $requests: history ${input.size} messages")
         val stream = Stream(userText, onEvent)
+        lastReplyDone = false
         try {
             transport.stream(OpenAiClient.bearer(apiKey()), requestBody(input).toString(), stream::line)
             stream.end()
@@ -310,6 +330,7 @@ class ResponsesTutor(
                 truncated, endedAtQuestion = stoppedEarly,
             )
             val answer = SpeechText.clean(text.toString()).trim()
+            lastReplyDone = true
             history += Turn(ROLE_USER, userText)
             // Обрезанный ответ запоминается так, как он прозвучал: без незаконченной фразы.
             history += Turn(ROLE_ASSISTANT, if (truncated) ReplyText.dropUnfinished(answer) else answer)

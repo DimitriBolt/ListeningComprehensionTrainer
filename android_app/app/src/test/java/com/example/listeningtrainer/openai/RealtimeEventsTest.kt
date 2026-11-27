@@ -35,6 +35,13 @@ class RealtimeEventsTest {
     }
 
     @Test
+    fun `session - Slower changes only the speed (S05)`() {
+        val out = json(RealtimeEvents.sessionUpdate(0.7f)).obj("session").obj("audio").obj("output")
+        assertEquals("0.7", out.text("speed"))
+        assertEquals("verse", out.text("voice"))
+    }
+
+    @Test
     fun `group - out of band response, only this text, only audio`() {
         val r = json(RealtimeEvents.responseCreate("Tell me \"more\".", "g7")).obj("response")
         assertEquals("none", r.text("conversation"))

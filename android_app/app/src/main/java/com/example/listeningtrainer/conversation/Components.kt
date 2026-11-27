@@ -44,6 +44,20 @@ interface AudioInput {
     suspend fun recordContinuation(turnDetector: TurnDetector, sink: AudioSink? = null, onLevel: (Float) -> Unit): RecordedAudio =
         record(turnDetector, sink, onLevel)
 
+    /**
+     * Слушать, пока звучит учитель (S05, D81). Каждый кусок микрофона — в [watch]; пока он не сказал «перебил», ничего не
+     * пишется в файл и не уходит в распознавание. «Перебил» — [onBargeIn] (сразу, из потока записи) отдаёт поток
+     * распознавания, и дальше это обычная запись реплики, как [record]: сначала звук до решения ([MicWatch.preroll]),
+     * затем микрофон, пока [turnDetector] не скажет «закончил» или не вызван [finish]. Отмена — без результата.
+     * По умолчанию (подделки в тестах) — никогда не перебивает.
+     */
+    suspend fun recordBargeIn(
+        watch: MicWatch,
+        turnDetector: TurnDetector,
+        onBargeIn: () -> AudioSink?,
+        onLevel: (Float) -> Unit,
+    ): RecordedAudio = kotlinx.coroutines.awaitCancellation()
+
     /** Ученик сам закончил реплику (кнопка «Stop Recording» или гарнитура): запись завершается и отдаётся. */
     fun finish()
 }
@@ -184,6 +198,13 @@ interface Tutor {
      * собственной поправки учителя. Если последнего ответа в истории нет — ничего.
      */
     fun replaceLastReply(text: String) {}
+
+    /**
+     * Ученик перебил ответ на [studentText] (S05, D81): в истории — только [spoken], то, что прозвучало, уже с пометкой
+     * [BargeIn.INTERRUPTED_MARK]; пустая строка — ничего не прозвучало, ответа в истории нет (реплика ученика остаётся).
+     * Пришёл ответ целиком или поток оборван — решает учитель.
+     */
+    fun interrupted(studentText: String, spoken: String) {}
 }
 
 /** Ответ поправщика: [text] — как пришёл (исправленная фраза или `OK`); [costUsd] — оценка цены. */
@@ -228,9 +249,13 @@ interface Synthesizer {
 
     /**
      * Звук группы. Вызывается по одной группе за раз. Ошибка — [SynthesisException]
-     * (или любое другое исключение — тогда это ошибка только этой группы).
+     * (или любое другое исключение — тогда это ошибка только этой группы). [speed] — скорость речи (S05: «Slower» —
+     * [com.example.listeningtrainer.config.ModelConfig.SLOWER_SPEECH_SPEED]), обычно — эталон озвучки.
      */
-    suspend fun synthesize(text: String): SynthesizedSpeech
+    suspend fun synthesize(
+        text: String,
+        speed: Float = com.example.listeningtrainer.config.ModelConfig.SPEECH_SPEED,
+    ): SynthesizedSpeech
 
     /** Закрыть сессию и движок (сервис останавливается). */
     fun release() {}
@@ -286,7 +311,13 @@ interface AudioOutput {
     /** Ждёт, пока прозвучат все сигналы из очереди. */
     suspend fun awaitCues()
 
-    /** Остановить текущую речь (play завершится). */
+    /**
+     * Звучит ли сейчас сигнал (с запасом на задержку вывода, S05): пока звучит сигнал, микрофон не слушает перебивание.
+     * Вызывается из потока записи.
+     */
+    fun cueSounding(): Boolean = false
+
+    /** Остановить текущую речь (play завершится); с S05 — коротким затуханием, без щелчка. */
     fun stop()
 
     fun release()

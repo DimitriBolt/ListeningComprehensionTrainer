@@ -89,6 +89,55 @@ class ConversationControllerTest {
             finishes++
             pending?.complete(Unit)
         }
+
+        /** Слушание, пока звучит учитель (S05): сколько раз открыто и сколько раз брошено без перебивания. */
+        var listens = 0
+        var listensCancelled = 0
+        /** Сколько «говорит» ученик после перебивания, пока не замолчит. */
+        var bargeSpeechMs = 1_500L
+
+        override suspend fun recordBargeIn(
+            watch: MicWatch,
+            turnDetector: TurnDetector,
+            onBargeIn: () -> AudioSink?,
+            onLevel: (Float) -> Unit,
+        ): RecordedAudio {
+            listens++
+            timeline.events += "listen"
+            val frame = ShortArray(512) // 32 мс при 16 кГц
+            try {
+                while (true) {
+                    delay(32)
+                    if (watch.onAudio(frame, frame.size)) break
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                listensCancelled++
+                throw e
+            }
+            val sink = onBargeIn()
+            timeline.events += "barge-in"
+            records++
+            sink?.onPcm(watch.preroll(), watch.preroll().size)
+            delay(bargeSpeechMs)
+            sink?.onEnd(true)
+            return audio(true)
+        }
+    }
+
+    /** Silero для перебивания (S05): вероятность речи по времени теста. */
+    private class FakeVad(private val clock: () -> Long) : SpeechProbability {
+        override val frameSamples = 512
+        /** С какого момента (часы теста) ученик говорит и до какого; `null` — молчит. */
+        var speakFrom: Long? = null
+        var speakUntil: Long = Long.MAX_VALUE
+        var speechP = 0.95f
+        var silenceP = 0.05f
+        override fun reset() {}
+        override fun probability(frame: ShortArray): Float {
+            val t = clock()
+            val from = speakFrom
+            return if (from != null && t >= from && t < speakUntil) speechP else silenceP
+        }
     }
 
     private class FakeTranscriber(private val ui: () -> ConversationUi, vararg answers: Any) : Transcriber {
@@ -166,6 +215,12 @@ class ConversationControllerTest {
         override fun newConversation() { newConversations++ }
         val replaced = mutableListOf<String>()
         override fun replaceLastReply(text: String) { replaced += text }
+        /** Перебитые ответы (S05): реплика ученика и что прозвучало с пометкой. */
+        val interrupted = mutableListOf<Pair<String, String>>()
+        override fun interrupted(studentText: String, spoken: String) {
+            interrupted += studentText to spoken
+            lastTeacherText = BargeIn.unmarked(spoken).ifBlank { lastTeacherText }
+        }
     }
 
     /** Подставной поправщик: ответ [answer] через [delayMs]; [error] — сбой. */
@@ -185,6 +240,7 @@ class ConversationControllerTest {
      * какой текст играет (нормализация громкости длину не меняет).
      */
     private class FakeSynth(override val name: String, private val sounds: MutableMap<Int, String>) : Synthesizer {
+        val speeds = mutableListOf<Float>()
         val texts = mutableListOf<String>()
         val textTimes = mutableListOf<Long>()
         var error: Exception? = null
@@ -194,7 +250,8 @@ class ConversationControllerTest {
         var clock: () -> Long = { 0L }
         override fun prepare() { prepares++ }
         override fun release() { releases++ }
-        override suspend fun synthesize(text: String): SynthesizedSpeech {
+        override suspend fun synthesize(text: String, speed: Float): SynthesizedSpeech {
+            speeds += speed
             texts += text
             textTimes += clock()
             delay(delayMs)
@@ -306,6 +363,7 @@ class ConversationControllerTest {
     private class Rig(
         scope: TestScope, vararg transcripts: Any, filler: String? = null, val corrector: FakeCorrector? = null,
         val level: StudentLevel? = null, val live: FakeLive? = null, compare: Boolean = false,
+        bargeIn: Boolean = false,
     ) {
         val compared = mutableListOf<Triple<String, String, Double>>()
         lateinit var controller: ConversationController
@@ -320,6 +378,8 @@ class ConversationControllerTest {
         val fallback = FakeSynth("android", sounds).also { it.clock = clock }
         val output = FakeOutput(ui, clock, timeline).also { it.sounds = sounds }
         val log = FakeLog()
+        /** Перебивание (S05): своя подделка Silero; `null` — микрофон во время учителя закрыт. */
+        val vad: FakeVad? = if (bargeIn) FakeVad(clock) else null
         val timing get() = log.lines.filter { it.startsWith("[Timing] ") }.map { it.removePrefix("[Timing] ") }
         val circleEnds get() = log.lines.filter { "circle end: " in it }.map { it.substringAfter("circle end: ").substringBefore(' ') }
 
@@ -342,6 +402,7 @@ class ConversationControllerTest {
                 liveTranscriber = live,
                 compareLiveWithFile = compare,
                 onLiveVsFile = { a, b, sim -> compared += Triple(a, b, sim) },
+                bargeInVad = vad,
             )
         }
 
@@ -1915,6 +1976,205 @@ class ConversationControllerTest {
         val rig = Rig(this, live = live)
         rig.controller.release()
         assertTrue(live.released)
+    }
+    // ---- перебивание и команды голосом (S05) -------------------------------------------------
+
+    private val longReply = "Yesterday I went to the market. I bought apples and bread. Then I walked home. Do you like apples?"
+
+    @Test
+    fun `silent listening - the mic hears the teacher, no barge-in, the leak goes to the log`() = runTest {
+        val rig = Rig(this, "I am fine", bargeIn = true)
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played)
+        assertEquals(1, rig.input.listens)
+        assertEquals(1, rig.input.listensCancelled) // учитель договорил — микрофон закрыт
+        val mic = rig.log.lines.single { it.startsWith("[Audio] mic during teacher: ") }
+        assertTrue(mic, Regex("""mic during teacher: \d+ ms, max p 0.05, speech frames 0 \(p ≥ 0.5\), longest speech 0 ms""").matches(mic.removePrefix("[Audio] ")))
+        assertTrue(rig.log.lines.none { "barge-in" in it })
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `barge-in - the teacher stops, the rest is cancelled, history keeps the spoken part, the student's turn is new`() = runTest {
+        val level = StudentLevel(MemoryLevelStore())
+        val rig = Rig(this, "I went shopping", "What is a market", bargeIn = true, level = level)
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        // первый звук ≈ 1500 мс; ученик заговорил во второй группе
+        rig.vad!!.speakFrom = 2_700
+        rig.vad.speakUntil = 3_200
+        advanceUntilIdle()
+
+        val firstReplyGroups = SpeechPlanner().plan(longReply).map { it.text }
+        // прозвучали первые группы, остальные нет; второй ответ — целиком
+        val info = "played ${rig.output.played}, groups $firstReplyGroups\n" + rig.log.lines.joinToString("\n")
+        // ученик заговорил в паузе после первой группы: из первого ответа прозвучала одна группа, второй — целиком
+        val spoken = firstReplyGroups.take(1)
+        assertEquals(info, spoken + firstReplyGroups, rig.output.played)
+        assertTrue(info, rig.output.stops >= 1)
+        assertEquals(listOf("I went shopping", "What is a market"), rig.tutor.replies)
+        val (student, history) = rig.tutor.interrupted.single()
+        assertEquals("I went shopping", student)
+        assertTrue(history, history.endsWith(" ${BargeIn.INTERRUPTED_MARK}"))
+        assertEquals(spoken.joinToString(" "), BargeIn.unmarked(history))
+        // без «говори» перед второй репликой; «обрабатываю» — на каждую
+        assertEquals(1, rig.output.cues.count { it == Cue.LISTEN })
+        assertEquals(2, rig.output.cues.count { it == Cue.PROCESSING })
+        val line = rig.log.lines.single { it.startsWith("[Turn] barge-in at +") }
+        assertTrue(info, Regex("""\[Turn] barge-in at \+\d+ ms of teacher audio \(p 0.95, speech 320 ms\) → stopped, spoken ${spoken.size} of \d+ groups""").matches(line))
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Audio] mic during teacher: ") && "speech frames 10" in it })
+        assertEquals(info, 2, rig.timing.size) // замер прерванного ответа тоже в журнале
+        assertEquals(info, 2, level.state.value.turns) // ход ученика — новый, окно уровня как обычно
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `short noise does not barge in - the rule needs 300 ms in a row`() = runTest {
+        val rig = Rig(this, "I am fine", bargeIn = true)
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = 2_700
+        rig.vad.speakUntil = 2_700 + 250 // 8 кадров — мало
+        advanceUntilIdle()
+
+        assertEquals(SpeechPlanner().plan(longReply).map { it.text }, rig.output.played)
+        assertTrue(rig.log.lines.none { "barge-in" in it })
+        assertTrue(rig.log.lines.any { "mic during teacher" in it && "longest speech 256 ms" in it })
+    }
+
+    @Test
+    fun `barge-in during the correction - only the correction was heard`() = runTest {
+        val rig = Rig(this, "I go shopping yesterday", "Yes", corrector = FakeCorrector("I went shopping yesterday.", 300), bargeIn = true)
+        rig.output.playMs = 2_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = 1_600
+        rig.vad.speakUntil = 2_100
+        advanceUntilIdle()
+
+        val heard = BargeIn.unmarked(rig.tutor.interrupted.single().second)
+        assertTrue(heard, heard.startsWith("I think you meant") && "Hello" !in heard)
+        assertTrue(rig.output.played.first().startsWith("I think you meant"))
+        assertEquals(listOf("I go shopping yesterday", "Yes"), rig.tutor.replies)
+    }
+
+    @Test
+    fun `barge-in during the search filler - nothing of the reply was heard, no reply in history`() = runTest {
+        val rig = Rig(this, "Weather in Tucson", "Never mind", filler = "Let me check.", bargeIn = true)
+        rig.tutor.searchMs = 3_000
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        advanceTimeBy(1_000) // фраза готова заранее
+        rig.vad!!.speakFrom = 1_700
+        rig.vad.speakUntil = 2_200
+        advanceUntilIdle()
+
+        assertEquals("Let me check.", rig.output.played.first())
+        assertEquals("Weather in Tucson" to "", rig.tutor.interrupted.single())
+        assertTrue(rig.log.lines.any { it.startsWith("[Turn] barge-in at +") && "spoken 0 of 0 groups" in it })
+        assertEquals(listOf("Weather in Tucson", "Never mind"), rig.tutor.replies)
+    }
+
+    @Test
+    fun `command again - the last reply, the same sound, nothing goes to the teacher or the corrector`() = runTest {
+        val corrector = FakeCorrector()
+        val level = StudentLevel(MemoryLevelStore())
+        val rig = Rig(this, "I am fine", "Again!", corrector = corrector, level = level, bargeIn = true)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        val synthesized = rig.synth.texts.size
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hello there.", "How are you?", "Hello there.", "How are you?"), rig.output.played)
+        assertEquals(synthesized, rig.synth.texts.size) // тот же звук, без нового синтеза
+        assertEquals(listOf("I am fine"), rig.tutor.replies)
+        assertEquals(listOf("I am fine"), corrector.calls)
+        assertEquals(1, level.state.value.turns)
+        assertTrue(rig.log.lines.contains("[Turn] command again (2 groups)"))
+        assertEquals(listOf("REPLY_FINISHED", "REPLY_FINISHED"), rig.circleEnds) // ручной режим: как после ответа
+        assertEquals(2, rig.input.listens) // и во время повтора микрофон слушает
+    }
+
+    @Test
+    fun `command slower - synthesized again at the slower speed with longer pauses, once`() = runTest {
+        val rig = Rig(this, "I am fine", "Slower, please.", "Thanks")
+        rig.controller.setAutoMode(true)
+        rig.controller.startTurn()
+        advanceTimeBy(20_000)
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+
+        assertEquals(listOf("I am fine", "Thanks"), rig.tutor.replies)
+        assertEquals(listOf(0.88f, 0.88f, 0.7f, 0.7f, 0.88f, 0.88f), rig.synth.speeds.take(6))
+        assertEquals(2, rig.synth.speeds.count { it == 0.7f })
+        val t = rig.output.startTimes
+        assertEquals(1_000L, t[1] - t[0]) // пауза после «Hello there.» — 1000 мс
+        assertEquals(1_500L, t[3] - t[2]) // медленнее: × 1,5
+        assertEquals(1_000L, t[5] - t[4]) // дальше — обычная скорость
+        assertTrue(rig.log.lines.contains("[Turn] command slower (2 groups)"))
+    }
+
+    @Test
+    fun `command stop - nothing to the teacher, listening again even in manual mode`() = runTest {
+        val rig = Rig(this, "Stop.")
+        rig.input.speech += listOf(true, false)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertTrue(rig.tutor.replies.isEmpty())
+        assertEquals(2, rig.output.cues.count { it == Cue.LISTEN })
+        assertTrue(rig.log.lines.contains("[Turn] command stop (0 groups)"))
+        assertEquals(listOf("SILENCE_MANUAL"), rig.circleEnds)
+    }
+
+    @Test
+    fun `command again before any reply - nothing to repeat, listening`() = runTest {
+        val rig = Rig(this, "Repeat")
+        rig.input.speech += listOf(true, false)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        assertTrue(rig.tutor.replies.isEmpty())
+        assertTrue(rig.log.lines.contains("[Turn] command again: nothing to repeat yet → listening"))
+        assertEquals(2, rig.output.cues.count { it == Cue.LISTEN })
+    }
+
+    @Test
+    fun `barge-in with again - the whole interrupted reply is repeated, unheard groups are synthesized`() = runTest {
+        val rig = Rig(this, "I went shopping", "Again", bargeIn = true)
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = 1_600
+        rig.vad.speakUntil = 2_100
+        advanceUntilIdle()
+
+        val groups = SpeechPlanner().plan(longReply).map { it.text }
+        assertEquals(groups, rig.output.played.drop(rig.output.played.size - groups.size))
+        assertEquals(listOf("I went shopping"), rig.tutor.replies)
+        assertTrue(rig.log.lines.contains("[Turn] command again (${groups.size} groups)"))
+    }
+
+    @Test
+    fun `stop button during listening for barge-in ends everything`() = runTest {
+        val rig = Rig(this, "I am fine", bargeIn = true)
+        rig.output.playMs = 5_000
+        rig.controller.startTurn()
+        advanceTimeBy(2_000)
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+
+        assertEquals(1, rig.input.listensCancelled)
+        assertEquals(listOf("STOP_BUTTON"), rig.circleEnds)
     }
 }
 

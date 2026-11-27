@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.AudioOutput
 import com.example.listeningtrainer.conversation.Cue
 import com.example.listeningtrainer.conversation.SpeechAudio
@@ -31,7 +32,7 @@ class AudioTrackOutput(
 ) : AudioOutput {
 
     private val audioManager = context.getSystemService(AudioManager::class.java)
-    private val cues = CuePlayer(log, pulseMarks)
+    private val cues = CuePlayer(log, pulseMarks).apply { marginMs = ModelConfig.BARGE_IN_CUE_MARGIN_MS }
 
     @Volatile
     private var current: AudioTrack? = null
@@ -113,10 +114,30 @@ class AudioTrackOutput(
 
     override suspend fun awaitCues() = cues.awaitAll()
 
+    override fun cueSounding(): Boolean = cues.sounding()
+
+    /**
+     * Остановить речь (S05): громкость за [ModelConfig.SPEECH_FADE_OUT_MS] плавно до нуля, затем пауза и сброс буфера —
+     * без щелчка. Вызывается и из потока записи (перебивание), и из главного («Stop»): ждёт само затухание, ≤ 50 мс.
+     */
     override fun stop() {
         stopped = true
         current?.let { track ->
-            try { track.pause(); track.flush() } catch (e: IllegalStateException) {}
+            try {
+                if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                    val steps = FADE_STEPS
+                    val stepMs = maxOf(1L, ModelConfig.SPEECH_FADE_OUT_MS / steps)
+                    for (i in steps - 1 downTo 0) {
+                        track.setVolume(i.toFloat() / steps)
+                        Thread.sleep(stepMs)
+                    }
+                }
+                track.pause()
+                track.flush()
+            } catch (e: IllegalStateException) {
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
         }
     }
 
@@ -128,6 +149,7 @@ class AudioTrackOutput(
     private companion object {
         const val SOURCE = "Audio"
         const val END_MARGIN_MS = 500L
+        const val FADE_STEPS = 6
 
         val SPEECH_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)

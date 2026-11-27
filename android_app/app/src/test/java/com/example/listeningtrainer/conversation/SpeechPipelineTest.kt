@@ -25,11 +25,13 @@ class SpeechPipelineTest {
 
     /** Подставной синтез: [transcripts] — что «прочитано» на каждый вызов (по умолчанию — дословно). */
     private class Fake(override val name: String, private val withTranscript: Boolean = true) : Synthesizer {
+        val speeds = mutableListOf<Float>()
         val texts = mutableListOf<String>()
         val transcripts = ArrayDeque<String?>()
         val errors = ArrayDeque<Exception?>()
         var delayMs = 100L
-        override suspend fun synthesize(text: String): SynthesizedSpeech {
+        override suspend fun synthesize(text: String, speed: Float): SynthesizedSpeech {
+            speeds += speed
             texts += text
             delay(delayMs)
             errors.removeFirstOrNull()?.let { throw it }
@@ -252,5 +254,26 @@ class SpeechPipelineTest {
         assertTrue(got[1].pcm.isEmpty()) // только русское слово — тишина, группа не ломается
         assertTrue(got[2].pcm.isNotEmpty())
         assertEquals(2, log.lines.count { it.endsWith(": russian word skipped by android") })
+    }
+
+    @Test
+    fun `S05 - ready audio is sent as is, the rest is synthesized at the given speed, fallback too`() = runTest {
+        val primary = Fake("realtime")
+        val fallback = Fake("android", withTranscript = false)
+        val pipeline = SpeechPipeline(primary, fallback, Log(), { testScheduler.currentTime }, lookahead = 3)
+        val cached = SpeechAudio(ShortArray(777), 24_000)
+        coroutineScope {
+            val groups = pipeline.start(this, chunks("a", "b", "c"), speed = 0.7f, ready = { if (it == 1) cached else null })
+            val out = List(3) { groups.receive() }
+            assertTrue(out[1] === cached)
+            assertEquals(listOf("a", "c"), primary.texts)
+            assertEquals(listOf(0.7f, 0.7f), primary.speeds)
+        }
+        primary.errors += SynthesisException("down", unavailable = true)
+        coroutineScope {
+            val groups = pipeline.start(this, chunks("d"), speed = 0.7f)
+            groups.receive()
+            assertEquals(listOf(0.7f), fallback.speeds)
+        }
     }
 }

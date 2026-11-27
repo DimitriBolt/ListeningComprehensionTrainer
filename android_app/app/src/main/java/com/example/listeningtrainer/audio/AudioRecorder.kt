@@ -7,6 +7,7 @@ import android.media.MediaRecorder
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.AudioInput
 import com.example.listeningtrainer.conversation.AudioSink
+import com.example.listeningtrainer.conversation.MicWatch
 import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.TurnDetector
 import com.example.listeningtrainer.conversation.TurnEnd
@@ -55,13 +56,29 @@ class AudioRecorder(
     override suspend fun record(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
         recordInto(0, turnDetector, sink, onLevel)
 
+    /** S05: слушать, пока звучит учитель; перебил — запись реплики в первую пару файлов (прошлые уже распознаны). */
+    override suspend fun recordBargeIn(
+        watch: MicWatch,
+        turnDetector: TurnDetector,
+        onBargeIn: () -> AudioSink?,
+        onLevel: (Float) -> Unit,
+    ): RecordedAudio = recordInto(0, turnDetector, null, onLevel, watch, onBargeIn)
+
     /** Продолжение реплики — в пару, которой не занята прошлая запись. */
     override suspend fun recordContinuation(turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
         recordInto((lastPair + 1) % pairs.size, turnDetector, sink, onLevel)
 
     @SuppressLint("MissingPermission") // разрешение проверяет экран до запуска сервиса
-    private suspend fun recordInto(pair: Int, turnDetector: TurnDetector, sink: AudioSink?, onLevel: (Float) -> Unit): RecordedAudio =
+    private suspend fun recordInto(
+        pair: Int,
+        turnDetector: TurnDetector,
+        firstSink: AudioSink?,
+        onLevel: (Float) -> Unit,
+        watch: MicWatch? = null,
+        onBargeIn: () -> AudioSink? = { null },
+    ): RecordedAudio =
         withContext(Dispatchers.IO) {
+            var sink = firstSink
             lastPair = pair
             val (wavFile, m4aFile) = pairs[pair]
             val window = SAMPLE_RATE * ModelConfig.RECORD_LEVEL_WINDOW_MS / 1000
@@ -90,38 +107,60 @@ class AudioRecorder(
             var totalSamples = 0L
             var ended: TurnEnd? = null
             var peakDb = 0f
-            turnDetector.reset()
+            /** Кусок записи реплики: файл, поток распознавания, сжатие, уровень, детектор. */
+            fun take(pcm: ShortArray, read: Int) {
+                for (i in 0 until read) {
+                    val v = pcm[i].toInt()
+                    bytes[i * 2] = (v and 0xFF).toByte()
+                    bytes[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
+                }
+                outputStream.write(bytes, 0, read * 2)
+                totalSamples += read
+                sink?.onPcm(pcm, read)
+                encoder?.let { enc ->
+                    try {
+                        enc.feed(pcm, read)
+                    } catch (e: Exception) {
+                        log.error(SOURCE, "m4a encoding failed during recording, uploading wav", e)
+                        enc.release()
+                        encoder = null
+                    }
+                }
+
+                val db = PcmLevel.db(pcm, read)
+                if (db > peakDb) peakDb = db
+                onLevel(db)
+                turnDetector.onAudio(pcm, read)?.let {
+                    ended = it
+                    isRecording = false
+                }
+            }
+            /** S05: пока учитель звучит — только [watch]; запись реплики начнётся с «перебил». */
+            var watching = watch != null
+            if (!watching) turnDetector.reset()
             isRecording = true
             try {
                 audioRecord.startRecording()
                 while (isRecording && isActive) {
                     val read = audioRecord.read(buffer, 0, buffer.size)
                     if (read <= 0) continue
-                    for (i in 0 until read) {
-                        val v = buffer[i].toInt()
-                        bytes[i * 2] = (v and 0xFF).toByte()
-                        bytes[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
-                    }
-                    outputStream.write(bytes, 0, read * 2)
-                    totalSamples += read
-                    sink?.onPcm(buffer, read)
-                    encoder?.let { enc ->
-                        try {
-                            enc.feed(buffer, read)
-                        } catch (e: Exception) {
-                            log.error(SOURCE, "m4a encoding failed during recording, uploading wav", e)
-                            enc.release()
-                            encoder = null
+                    if (watching) {
+                        if (!watch!!.onAudio(buffer, read)) continue
+                        watching = false
+                        sink = onBargeIn()
+                        turnDetector.reset()
+                        // Звук до решения (в нём и этот кусок) — в начало записи, кусками по окну уровня.
+                        val pre = watch.preroll()
+                        var at = 0
+                        while (at < pre.size && isRecording) {
+                            val n = minOf(window, pre.size - at)
+                            System.arraycopy(pre, at, buffer, 0, n)
+                            take(buffer, n)
+                            at += n
                         }
+                        continue
                     }
-
-                    val db = PcmLevel.db(buffer, read)
-                    if (db > peakDb) peakDb = db
-                    onLevel(db)
-                    turnDetector.onAudio(buffer, read)?.let {
-                        ended = it
-                        isRecording = false
-                    }
+                    take(buffer, read)
                 }
             } catch (e: Throwable) {
                 encoder?.release()

@@ -43,6 +43,16 @@ class CuePlayer(private val log: EventLog, private val pulseMarks: PulseMarks? =
 
     suspend fun awaitAll() = lastDone.await()
 
+    /** До какого времени (часы [System.currentTimeMillis]) звучит текущий сигнал, с запасом [marginMs] (S05). */
+    @Volatile
+    private var soundingUntil = 0L
+
+    /** Звучит ли сигнал сейчас (S05: микрофон не слушает перебивание). */
+    fun sounding(): Boolean = System.currentTimeMillis() < soundingUntil
+
+    /** Запас после конца сигнала: задержка вывода звука (S05). */
+    var marginMs = 0L
+
     fun release() = executor.shutdown()
 
     private fun playBlocking(cue: Cue) {
@@ -68,6 +78,7 @@ class CuePlayer(private val log: EventLog, private val pulseMarks: PulseMarks? =
                 .build()
             track.write(pcm, 0, pcm.size)
             if (cue == Cue.PULSE) pulseMarks?.pulseStarted(System.currentTimeMillis())
+            soundingUntil = System.currentTimeMillis() + CueTones.durationMs(cue) + TAIL_MS + marginMs
             track.play()
             if (cue != Cue.PULSE) log.event("Audio", "cue: ${cue.name}")
             Thread.sleep(CueTones.durationMs(cue) + TAIL_MS)

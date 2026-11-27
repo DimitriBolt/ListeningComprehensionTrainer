@@ -135,6 +135,11 @@ class ConversationController(
      */
     private val compareLiveWithFile: Boolean = false,
     private val onLiveVsFile: ((live: String, file: String, similarity: Double) -> Unit)? = null,
+    /**
+     * Перебивание (S05, D81): Silero со своим состоянием для микрофона, пока звучит учитель; `null` — микрофон во время
+     * речи учителя закрыт, как до S05.
+     */
+    private val bargeInVad: SpeechProbability? = null,
 ) {
     private val speech = SpeechPipeline(synthesizer, fallbackSynthesizer, log, clock, speechLookahead)
 
@@ -169,6 +174,11 @@ class ConversationController(
     /** Звук фразы на время поиска: синтезируется один раз за жизнь сервиса (D39). */
     private var fillerAudio: SpeechAudio? = null
     private var fillerJob: Job? = null
+    /** Последняя реплика учителя — для «Again» и «Slower» (S05, D82): группы, паузы и звук, что успел синтезироваться. */
+    private var lastReply: ReplyCache? = null
+    /** Слушание микрофона, пока звучит учитель (S05); ставится на время ответа или повтора. */
+    @Volatile
+    private var currentListen: TeacherListen? = null
 
     /** Кнопка «Talk» (или средняя кнопка гарнитуры — [why]): начать круг. Если круг уже идёт — ничего не делает. */
     fun startTurn(why: String = "Talk button") {
@@ -249,6 +259,7 @@ class ConversationController(
             return
         }
         tutor.newConversation()
+        lastReply = null
         silenceCount = 0
         _ui.update { it.copy(studentText = "", teacherText = "", currentChunk = "", status = "New conversation.") }
         log.event(SOURCE, "New conversation: tutor history cleared")
@@ -272,22 +283,53 @@ class ConversationController(
 
     private suspend fun runCircle(firstWhy: String) {
         var why = firstWhy
+        var barged: BargeStart? = null
         while (true) {
-            val end = try {
-                runOneTurn(why)
+            val next = try {
+                runOneTurn(why, barged)
             } finally {
                 stopWaitTicks()
             }
-            if (end != null) {
-                val kind = failure
-                if (end.isError && kind?.message != null) endWithMessage(end, kind) else endCircle(end)
-                return
+            barged = null
+            when (next) {
+                // Ученик перебил учителя (S05): запись уже идёт — сразу следующий ход, без паузы и без «говори».
+                is Next.Barged -> {
+                    barged = next.start
+                    why = "student barged in"
+                    continue
+                }
+                // Команда «Stop» или повторять нечего (S05): «говори» и слушание в любом режиме.
+                Next.Listen -> why = "voice command: listening"
+                is Next.End -> {
+                    val end = next.reason
+                    if (end != null) {
+                        val kind = failure
+                        if (end.isError && kind?.message != null) endWithMessage(end, kind) else endCircle(end)
+                        return
+                    }
+                    why = "auto-mode: next turn"
+                }
             }
-            // Авто-режим: пауза, затем «говори» и снова запись.
+            // Пауза, затем «говори» и снова запись.
             delay(autoListenDelayMs)
-            why = "auto-mode: next turn"
         }
     }
+
+    /** Что после хода (S05): конец круга или авто-режим ([End]), слушать снова ([Listen]), ученик перебил ([Barged]). */
+    private sealed interface Next {
+        /** `null` — авто-режим, следующий ход; иначе — конец круга. */
+        data class End(val reason: EndReason?) : Next
+        data object Listen : Next
+        class Barged(val start: BargeStart) : Next
+    }
+
+    /** Запись, начатая перебиванием (S05): её поток распознавания, `prompt` и реплика (новый ход). */
+    private class BargeStart(
+        val recording: Deferred<RecordedAudio>,
+        val live: LiveTurn?,
+        val prompt: String,
+        val utterance: Utterance,
+    )
 
     /** Конец круга: сигналы и строка в журнале с причиной. */
     private fun endCircle(reason: EndReason) {
@@ -318,8 +360,10 @@ class ConversationController(
         closing = false
     }
 
-    /** Один ход. `null` — продолжать (авто-режим), иначе — причина конца круга. */
-    private suspend fun runOneTurn(why: String): EndReason? {
+    /**
+     * Один ход. [barged] — ученик перебил учителя (S05): запись уже идёт, без «говори». Итог — [Next].
+     */
+    private suspend fun runOneTurn(why: String, barged: BargeStart? = null): Next {
         // --- Listening ---
         setState(ConversationState.Listening, why) {
             it.copy(studentText = "", teacherText = "", currentChunk = "")
@@ -329,27 +373,49 @@ class ConversationController(
         speech.prepare()
         liveTranscriber?.prepare()
         prepareFiller()
-        // Контекст распознавания — последнее предложение учителя; один и тот же для потока и файла.
-        val prompt = TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS)
-        _partialText.value = ""
-        val utterance = Utterance()
-        // Запись — после сигнала: микрофон его не слышит, и тишина отсчитывается от конца сигнала.
-        output.playCue(Cue.LISTEN)
-        output.awaitCues()
-        // Поток распознавания — с первого кадра записи (S03d).
-        val live = liveTranscriber?.begin(prompt) { partial -> _partialText.value = partial }
-        turnDetector.setContext(turnContext(utterance, continuation = false))
-        val pulses = startListenPulses()
-        val audio = try {
-            input.record(turnDetector, live) { db -> _ui.update { it.copy(levelDb = db) } }
-        } catch (e: CancellationException) {
-            live?.cancel()
-            throw e
-        } catch (e: Exception) {
-            live?.cancel()
-            return fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e)
-        } finally {
-            pulses?.cancel() // конец записи любым путём: тишина, судья, кнопка, «Stop Recording», предохранитель
+        val prompt: String
+        val utterance: Utterance
+        val live: LiveTurn?
+        val pulses: Job?
+        val audio = if (barged != null) {
+            prompt = barged.prompt
+            utterance = barged.utterance
+            live = barged.live
+            pulses = startListenPulses()
+            try {
+                barged.recording.await()
+            } catch (e: CancellationException) {
+                live?.cancel()
+                throw e
+            } catch (e: Exception) {
+                live?.cancel()
+                return Next.End(fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e))
+            } finally {
+                pulses?.cancel()
+            }
+        } else {
+            // Контекст распознавания — последнее предложение учителя; один и тот же для потока и файла.
+            prompt = TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS)
+            _partialText.value = ""
+            utterance = Utterance()
+            // Запись — после сигнала: микрофон его не слышит, и тишина отсчитывается от конца сигнала.
+            output.playCue(Cue.LISTEN)
+            output.awaitCues()
+            // Поток распознавания — с первого кадра записи (S03d).
+            live = liveTranscriber?.begin(prompt) { partial -> _partialText.value = partial }
+            turnDetector.setContext(turnContext(utterance, continuation = false))
+            pulses = startListenPulses()
+            try {
+                input.record(turnDetector, live) { db -> _ui.update { it.copy(levelDb = db) } }
+            } catch (e: CancellationException) {
+                live?.cancel()
+                throw e
+            } catch (e: Exception) {
+                live?.cancel()
+                return Next.End(fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e))
+            } finally {
+                pulses?.cancel() // конец записи любым путём: тишина, судья, кнопка, «Stop Recording», предохранитель
+            }
         }
         logRecording(audio)
 
@@ -358,7 +424,7 @@ class ConversationController(
         if (!audio.heardSpeech) {
             // Поток уже очищен (`clear` в конце записи): распознавать нечего.
             log.event(SOURCE, "counted as silence: yes (speech under ${ModelConfig.TURN_MIN_SPEECH_MS} ms, transcription skipped)")
-            return onSilence()
+            return Next.End(onSilence())
         }
 
         var segment = Segment(audio, live, prompt)
@@ -379,7 +445,12 @@ class ConversationController(
             }
             if (outcome !is TurnOutcome.Resumed) {
                 watch?.close()
-                return (outcome as TurnOutcome.End).reason
+                return when (outcome) {
+                    is TurnOutcome.End -> Next.End(outcome.reason)
+                    is TurnOutcome.Barged -> Next.Barged(outcome.start)
+                    is TurnOutcome.Command -> runCommand(outcome.command)
+                    is TurnOutcome.Resumed -> error("unreachable")
+                }
             }
             // Ученик продолжил: та же реплика, снова слушание с пульсом, без нового «говори».
             stopWaitTicks()
@@ -390,7 +461,7 @@ class ConversationController(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                return fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e)
+                return Next.End(fail(EndReason.RECORDING_ERROR, "Recording error: ${e.localizedMessage}", e))
             } finally {
                 more?.cancel()
             }
@@ -440,6 +511,10 @@ class ConversationController(
     private sealed interface TurnOutcome {
         class End(val reason: EndReason?) : TurnOutcome
         class Resumed(val afterEndMs: Long) : TurnOutcome
+        /** Ученик перебил учителя (S05): следующий ход — эта запись. */
+        class Barged(val start: BargeStart) : TurnOutcome
+        /** Реплика — команда голосом (S05, D82): учителю не уходит. */
+        class Command(val command: VoiceCommand) : TurnOutcome
     }
 
     /** Наблюдение за продолжением, пока идёт ответ (S04); ставится на время ответа, звук учителя его закрывает. */
@@ -492,10 +567,16 @@ class ConversationController(
         }
     }
 
-    /** Звучит учитель (поправка, фраза поиска, ответ): если ученик уже продолжил — не звучать (ответ отменяется). */
+    /**
+     * Звучит учитель (поправка, фраза поиска, ответ, повтор): если ученик уже продолжил (S04) или перебил (S05) — не
+     * звучать (ответ отменяется). Первый звук открывает микрофон для перебивания (S05).
+     */
     private suspend fun beforeTeacherSound() {
-        val watch = currentWatch ?: return
-        if (!watch.claimSound()) awaitCancellation()
+        val listen = currentListen
+        if (listen?.hit == true) awaitCancellation()
+        val watch = currentWatch
+        if (watch != null && !watch.claimSound()) awaitCancellation()
+        listen?.start(after = watch?.recording)
     }
 
     /** Текст куска, ответ на всю реплику; ученик продолжил раньше голоса учителя — [TurnOutcome.Resumed]. */
@@ -538,6 +619,8 @@ class ConversationController(
         }
         watch?.resumed?.takeIf { it.isCompleted }?.let { return resumedOutcome(it.getCompleted(), correction = false) }
         silenceCount = 0
+        // Команда голосом (S05, D82): учителю, поправщику и в окно уровня не идёт.
+        VoiceCommand.of(studentText)?.let { return TurnOutcome.Command(it) }
 
         // Реплика дошла до учителя: она идёт в окно уровня (D56) один раз — когда ответ не отменён (S04);
         // повтор запроса её не считает.
@@ -545,32 +628,165 @@ class ConversationController(
         val levelNote = levelStep?.let { studentLevel?.note(it.state.level) }
         if (watch == null) levelStep?.let { countTurn(it) }
 
-        return coroutineScope {
-            var correction: CorrectionTask? = null
-            val reply = async {
-                // Поправщик — сразу, одновременно с учителем (S02f).
-                correction = corrector?.let { CorrectionTask(it, studentText, this) }
-                try {
-                    answer(recordedAt, transcribedAt, correction = correction) { onEvent -> tutor.reply(studentText, levelNote, onEvent) }
-                        ?.let { return@async it }
-                } finally {
-                    correction?.finish()
+        val progress = ReplyProgress()
+        val listen = newListen { TranscriptionPrompt.build(progress.spokenText().ifBlank { null } ?: tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS) }
+        currentListen = listen
+        try {
+            return coroutineScope {
+                var correction: CorrectionTask? = null
+                val reply = async {
+                    // Поправщик — сразу, одновременно с учителем (S02f).
+                    correction = corrector?.let { CorrectionTask(it, studentText, this) }
+                    try {
+                        answer(recordedAt, transcribedAt, correction = correction, progress = progress) { onEvent ->
+                            tutor.reply(studentText, levelNote, onEvent)
+                        }?.let { return@async it }
+                    } finally {
+                        correction?.finish()
+                    }
+                    if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
                 }
-                if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED
+                val first = select<Any?> {
+                    reply.onAwait { it }
+                    watch?.resumed?.onAwait { ResumedAt(it) }
+                    listen?.bargedIn?.onAwait { it }
+                }
+                when {
+                    first is ResumedAt -> {
+                        correction?.cancelled()
+                        reply.cancel()
+                        resumedOutcome(first.afterMs, correction = correction != null)
+                    }
+                    first is BargeInHit || listen?.hit == true -> {
+                        // Ученик перебил (S05): учитель уже замолк, остальное ответа отменяется.
+                        val hit = first as? BargeInHit ?: listen!!.bargedIn.await()
+                        reply.cancel()
+                        reply.join()
+                        if (watch != null) levelStep?.let { countTurn(it) }
+                        // История: прозвучавшая часть с пометкой; ничего не прозвучало — ответа нет (D81).
+                        tutor.interrupted(studentText, BargeIn.marked(progress.spokenText()))
+                        TurnOutcome.Barged(bargedIn(listen!!, hit, progress.started, progress.total()))
+                    }
+                    else -> {
+                        listen?.stop()
+                        if (watch != null) levelStep?.let { countTurn(it) }
+                        @Suppress("UNCHECKED_CAST")
+                        TurnOutcome.End(first as EndReason?)
+                    }
+                }
             }
-            if (watch == null) return@coroutineScope TurnOutcome.End(reply.await())
-            select<TurnOutcome> {
-                reply.onAwait { r ->
-                    levelStep?.let { countTurn(it) }
-                    TurnOutcome.End(r)
-                }
-                watch.resumed.onAwait { afterMs ->
-                    correction?.cancelled()
-                    reply.cancel()
-                    resumedOutcome(afterMs, correction = correction != null)
-                }
+        } finally {
+            currentListen = null
+            listen?.release()
+        }
+    }
+
+    private class ResumedAt(val afterMs: Long)
+
+    /** Что из ответа успело прозвучать (S05): для истории с пометкой и строки журнала перебивания. */
+    private class ReplyProgress {
+        /** Группы, отданные в синтез, по порядку (как `sent` в [speakReply]). */
+        var groups: List<SpeechChunk> = emptyList()
+        /** Сколько групп начало звучать. */
+        var started = 0
+
+        fun total() = groups.size
+
+        /** Текст групп, которые начали звучать, без разметки экрана. */
+        fun spokenText(): String =
+            groups.take(started).joinToString(" ") { it.text.replace("**", "").trim() }.replace(SPACES, " ").trim()
+    }
+
+    // ---- перебивание (S05, D81) ----------------------------------------------------------
+
+    /** Слушание на время ответа или повтора; `null` — без перебивания (нет [bargeInVad]). */
+    private suspend fun newListen(prompt: () -> String): TeacherListen? =
+        bargeInVad?.let { TeacherListen(it, CoroutineScope(currentCoroutineContext()), prompt) }
+
+    /**
+     * Микрофон, пока звучит учитель (S05). Открывается первым звуком учителя ([start]); каждый кусок — в
+     * [BargeInDetector]. Ученик перебил — [onHit] (из потока записи): учитель замолкает сразу, поток распознавания
+     * новой реплики начинается со звука до решения, [bargedIn] — контроллеру. Учитель договорил — [stop].
+     */
+    private inner class TeacherListen(vad: SpeechProbability, private val scope: CoroutineScope, private val prompt: () -> String) {
+        private val detector = BargeInDetector(vad, muted = output::cueSounding)
+        val bargedIn = CompletableDeferred<BargeInHit>()
+        /** Перебил: ставится до того, как учитель замолк, — ни одна группа после этого не зазвучит. */
+        @Volatile
+        var hit = false
+            private set
+        private var recording: Deferred<RecordedAudio>? = null
+        val utterance = Utterance()
+        var live: LiveTurn? = null
+            private set
+        var livePrompt = ""
+            private set
+        private var logged = false
+
+        /** Первый звук учителя: открыть микрофон. [after] — запись-продолжение S04 (её микрофон освобождается). */
+        fun start(after: Job?) {
+            if (recording != null) return
+            recording = scope.async {
+                after?.join()
+                detector.reset()
+                input.recordBargeIn(detector, turnDetector, ::onHit) { db -> _ui.update { it.copy(levelDb = db) } }
             }
         }
+
+        /** Из потока записи. */
+        private fun onHit(): AudioSink? {
+            hit = true
+            output.stop() // затухание, ≤ 50 мс
+            logMic()
+            livePrompt = prompt()
+            _partialText.value = ""
+            turnDetector.setContext(turnContext(utterance, continuation = false))
+            live = liveTranscriber?.begin(livePrompt) { partial -> _partialText.value = partial }
+            bargedIn.complete(detector.hit ?: BargeInHit(detector.stats.listenedMs, 0f, 0))
+            return live
+        }
+
+        /** Запись реплики после перебивания (её ждёт следующий ход). */
+        fun takeRecording(): Deferred<RecordedAudio> = recording!!
+
+        /** Учитель договорил, ученик не перебил: микрофон закрыть, замер утечки — в журнал. */
+        suspend fun stop() {
+            if (hit) return
+            recording?.cancel()
+            recording?.join()
+            logMic()
+        }
+
+        /** Ход кончился любым путём: без перебивания запись не нужна. */
+        fun release() {
+            if (!hit) recording?.cancel()
+        }
+
+        private fun logMic() {
+            if (logged || recording == null) return
+            logged = true
+            val m = detector.stats
+            log.event(
+                AUDIO,
+                "mic during teacher: ${m.listenedMs} ms, max p ${p2(m.maxP)}, speech frames ${m.speechFrames} (p ≥ 0.5), " +
+                    "longest speech ${m.longestSpeechMs} ms" + if (m.mutedMs > 0) ", cues ${m.mutedMs} ms not counted" else "",
+            )
+        }
+    }
+
+    /** Строка журнала о перебивании и запись следующего хода (S05). */
+    private fun bargedIn(listen: TeacherListen, hit: BargeInHit, spoken: Int, total: Int): BargeStart {
+        val miss = if (lastEndedBy == TurnEnd.JUDGE && hit.atMs <= ModelConfig.BARGE_IN_J2_MISS_MS) {
+            "; within ${ModelConfig.BARGE_IN_J2_MISS_MS / 1000} s of teacher audio after the end by judge (J2 miss?)"
+        } else {
+            ""
+        }
+        log.event(
+            TURN,
+            "barge-in at +${hit.atMs} ms of teacher audio (p ${p2(hit.meanP)}, speech ${hit.speechMs} ms) → stopped, " +
+                "spoken $spoken of $total groups$miss",
+        )
+        return BargeStart(listen.takeRecording(), listen.live, listen.livePrompt, listen.utterance)
     }
 
     /** Ученик продолжил после объявленного конца, до голоса учителя: ответ отменён (строка журнала без текстов). */
@@ -766,6 +982,7 @@ class ConversationController(
         transcribedAt: Long,
         logTiming: Boolean = true,
         correction: CorrectionTask? = null,
+        progress: ReplyProgress? = null,
         ask: suspend (onEvent: suspend (TutorEvent) -> Unit) -> Unit,
     ): EndReason? {
         setState(ConversationState.Thinking, "asking the teacher") {
@@ -777,8 +994,10 @@ class ConversationController(
         var attempt = 1
         while (true) {
             val error = try {
-                speakReply(t, shieldMs, correction, ask)
+                speakReply(t, shieldMs, correction, progress, ask)
             } catch (e: CancellationException) {
+                // Ученик перебил (S05): замер ответа всё равно в журнал — голос учителя уже звучал.
+                if (logTiming && currentListen?.hit == true) logTimings(recordedAt, transcribedAt, t, shieldMs)
                 throw e
             } catch (e: Exception) {
                 return fail(EndReason.SPEECH_ERROR, "Error: ${e.localizedMessage}", e)
@@ -820,11 +1039,15 @@ class ConversationController(
         t: ReplyTiming,
         shieldMs: Long,
         correction: CorrectionTask?,
+        progress: ReplyProgress?,
         ask: suspend (onEvent: suspend (TutorEvent) -> Unit) -> Unit,
     ): Exception? {
         val stream = StreamingSpeechPlanner(planner::plan)
         /** Группы, отданные в синтез, по порядку: i-й звук из конвейера — это sent[i]. */
         val sent = mutableListOf<SpeechChunk>()
+        progress?.groups = sent
+        /** Звук групп по номеру — для «Again» (S05). */
+        val played = HashMap<Int, SpeechAudio>()
         /** Группы поправки поправщика: они первые в [sent]. */
         var prefix: List<SpeechChunk> = emptyList()
         var prefixText = ""
@@ -986,6 +1209,7 @@ class ConversationController(
                             break
                         }
                         val audio = next.getOrThrow()
+                        played[i] = audio
                         if (i > 0) {
                             // Пауза после прошлой группы — по самой свежей нарезке (D38). Опережающий
                             // запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
@@ -1006,12 +1230,14 @@ class ConversationController(
                             }
                             val teacherGroup = i >= prefix.size
                             beforeTeacherSound()
+                            val index = i
                             output.play(audio, shieldMs) {
                                 if (t.firstSound == null) {
                                     t.firstSound = clock()
                                     stopWaitTicks()
                                 }
                                 if (teacherGroup && t.teacherSound == null) t.teacherSound = clock()
+                                progress?.started = index + 1
                             }
                         }
                         lastEnd = clock()
@@ -1027,8 +1253,117 @@ class ConversationController(
             }
         } catch (e: AbortReply) {
             return e.error
+        } finally {
+            // «Again» (S05): реплика, которая начала звучать, — вся, что успела прийти, с паузами и готовым звуком.
+            if (t.firstSound != null) {
+                val more = if (stream.finished) emptyList() else stream.finish()
+                val groups = sent.mapIndexed { i, c ->
+                    SpeechChunk(c.text, if (i < prefix.size) prefix[i].pauseMs else stream.pauseAfter(i - prefix.size))
+                } + more
+                lastReply = ReplyCache(groups, played.toMap())
+            }
         }
         return tutorError
+    }
+
+    // ---- команды голосом (S05, D82) --------------------------------------------------------
+
+    /** Последняя реплика учителя: группы с паузами (как прозвучали бы) и звук тех, что синтезированы, по номеру. */
+    private class ReplyCache(val groups: List<SpeechChunk>, val audio: Map<Int, SpeechAudio>)
+
+    /**
+     * Команда вместо реплики. «Stop» — учитель уже молчит: «говори» и слушание. «Again» / «Slower» — последняя реплика
+     * учителя заново (из кэша / медленнее), пока звучит — микрофон слушает перебивание; дальше — как после ответа.
+     * Повторять нечего — «говори» и слушание. В историю учителя ничего не пишется.
+     */
+    private suspend fun runCommand(command: VoiceCommand): Next {
+        stopWaitTicks()
+        val cache = lastReply
+        val groups = if (command == VoiceCommand.STOP) 0 else cache?.groups?.size ?: 0
+        log.event(TURN, "command ${command.label} ($groups groups)")
+        if (command == VoiceCommand.STOP) {
+            setState(ConversationState.Idle, "voice command stop") { it.copy(status = "Listening again.") }
+            return Next.Listen
+        }
+        if (cache == null || cache.groups.isEmpty()) {
+            log.event(TURN, "command ${command.label}: nothing to repeat yet → listening")
+            setState(ConversationState.Idle, "nothing to repeat") { it.copy(status = "Nothing to repeat.") }
+            return Next.Listen
+        }
+        val slower = command == VoiceCommand.SLOWER
+        _ui.update { it.copy(teacherText = cache.groups.joinToString(" ") { g -> g.text }.replace(SPACES, " ").trim()) }
+        val progress = ReplyProgress().apply { this.groups = cache.groups }
+        val listen = newListen { TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS) }
+        currentListen = listen
+        try {
+            val barged = coroutineScope {
+                val job = async { playRepeat(cache, slower, progress) }
+                val first = select<Any?> {
+                    job.onAwait { null }
+                    listen?.bargedIn?.onAwait { it }
+                }
+                if (first is BargeInHit || listen?.hit == true) {
+                    val hit = first as? BargeInHit ?: listen!!.bargedIn.await()
+                    job.cancel()
+                    job.join()
+                    bargedIn(listen!!, hit, progress.started, progress.total())
+                } else {
+                    listen?.stop()
+                    null
+                }
+            }
+            if (barged != null) return Next.Barged(barged)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Next.End(fail(EndReason.SPEECH_ERROR, "Error: ${e.localizedMessage}", e))
+        } finally {
+            currentListen = null
+            listen?.release()
+        }
+        setState(ConversationState.Idle, "repeat finished") { it.copy(currentChunk = "", status = "Ready.") }
+        return Next.End(if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED)
+    }
+
+    /**
+     * Повтор реплики: «Again» — тот же звук (кэш), группы без звука синтезируются; «Slower» — всё заново со скоростью
+     * [ModelConfig.SLOWER_SPEECH_SPEED] и паузами × [ModelConfig.SLOWER_PAUSE_FACTOR]. Сверка и запасной синтез — как у
+     * ответа ([SpeechPipeline]).
+     */
+    private suspend fun playRepeat(cache: ReplyCache, slower: Boolean, progress: ReplyProgress) {
+        val shieldMs = output.prepareReply()
+        val speed = if (slower) ModelConfig.SLOWER_SPEECH_SPEED else ModelConfig.SPEECH_SPEED
+        val factor = if (slower) ModelConfig.SLOWER_PAUSE_FACTOR else 1.0
+        startWaitTicks()
+        coroutineScope {
+            val chunks = Channel<SpeechChunk>(Channel.UNLIMITED)
+            cache.groups.forEach { chunks.trySend(it) }
+            chunks.close()
+            val audios = speech.start(this, chunks, speed, ready = { i -> if (slower) null else cache.audio[i] })
+            var i = 0
+            var lastEnd = 0L
+            for (audio in audios) {
+                if (i > 0) {
+                    val pause = (cache.groups[i - 1].pauseMs * factor).toLong()
+                    val wait = maxOf(10L, pause - shieldMs) - (clock() - lastEnd)
+                    if (wait > 0) delay(wait)
+                }
+                if (audio.pcm.isNotEmpty()) {
+                    setState(ConversationState.Speaking, if (slower) "repeat slower" else "repeat") {
+                        it.copy(currentChunk = cache.groups[i].text, status = "Speaking ${i + 1} 🔊")
+                    }
+                    beforeTeacherSound()
+                    val index = i
+                    output.play(audio, shieldMs) {
+                        stopWaitTicks()
+                        progress.started = index + 1
+                    }
+                }
+                lastEnd = clock()
+                i++
+            }
+        }
+        stopWaitTicks()
     }
 
     // ---- фраза на время поиска (D39) -------------------------------------------------------
@@ -1251,6 +1586,8 @@ class ConversationController(
 
     private fun yesNo(value: Boolean) = if (value) "yes" else "no"
 
+    private fun p2(value: Float) = String.format(java.util.Locale.US, "%.2f", value)
+
     private fun ms1(value: Double) = String.format(java.util.Locale.US, "%.1f", value)
 
     private fun sec1(ms: Long) = String.format(java.util.Locale.US, "%.1f", ms / 1000.0)
@@ -1259,6 +1596,8 @@ class ConversationController(
         private const val SOURCE = "Controller"
         private const val NETWORK = "Network"
         private const val TURN = "Turn"
+        private const val AUDIO = "Audio"
+        private val SPACES = Regex("""\s+""")
         /** Источник строки замера скорости (в Logcat — тег LCT-Timing, как в S01). */
         const val TIMING_SOURCE = "Timing"
         /** Фраза учителя, пока идёт поиск и он ещё ничего не сказал (D39). */
