@@ -8,6 +8,7 @@ import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.AudioInput
 import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.TurnDetector
+import com.example.listeningtrainer.conversation.TurnEnd
 import com.example.listeningtrainer.eventlog.EventLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -26,17 +27,15 @@ import java.nio.ByteOrder
  * Если сжатие не удалось или выключено в [ModelConfig] — загружается WAV. Формат, размер загрузки
  * и время дожимания — в журнал.
  *
- * Громкость считается кусками по [ModelConfig.RECORD_LEVEL_WINDOW_MS] — как раньше (≈ 80 мс на
- * кусок при 44,1 кГц), чтобы порог 59 дБ и 3 с тишины вели себя по-прежнему.
- * Предохранитель: через [ModelConfig.RECORD_MAX_MS] запись заканчивается сама, как по «Stop Recording».
- * Куски, в которых звучал «пульс» слушания ([pulseGate]), в громкость и правило конца реплики не идут
- * ([RecordingMeter]).
+ * Каждый кусок звука идёт в [TurnDetector] (S03c: Silero VAD, кадры 32 мс). Вывод модели — в этом же
+ * потоке записи (`Dispatchers.IO`), не в главном. Детектор кончает запись по тишине или по предохранителю
+ * 90 с (D31); кнопка — [finish]. Громкость (пик в журнале, уровень на экране) — кусками по
+ * [ModelConfig.RECORD_LEVEL_WINDOW_MS], только для показа.
  */
 class AudioRecorder(
     private val wavFile: File,
     private val m4aFile: File,
     private val log: EventLog,
-    private val pulseGate: PulseEchoGate? = null,
     /** Сжимать ли звук в m4a во время записи (запись для пробы S03b — без сжатия, нужен только WAV). */
     private val compress: Boolean = ModelConfig.TRANSCRIBE_UPLOAD_COMPRESSED,
 ) : AudioInput {
@@ -55,7 +54,6 @@ class AudioRecorder(
                 MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minBuffer, window * 2 * 4)
             )
-            val maxSamples = SAMPLE_RATE * ModelConfig.RECORD_MAX_MS / 1000
 
             val outputStream = FileOutputStream(wavFile)
             // Резервируем 44 байта под заголовок WAV
@@ -72,10 +70,10 @@ class AudioRecorder(
             val buffer = ShortArray(window)
             val bytes = ByteArray(window * 2)
             var totalSamples = 0L
-            var limitReached = false
-            val meter = RecordingMeter(turnDetector, pulseGate, ModelConfig.RECORD_LEVEL_WINDOW_MS.toLong())
+            var ended: TurnEnd? = null
+            var peakDb = 0f
+            turnDetector.reset()
             isRecording = true
-            meter.start(System.currentTimeMillis())
             try {
                 audioRecord.startRecording()
                 while (isRecording && isActive) {
@@ -98,9 +96,11 @@ class AudioRecorder(
                         }
                     }
 
-                    if (meter.onWindow(PcmLevel.db(buffer, read), System.currentTimeMillis(), onLevel)) isRecording = false
-                    if (totalSamples >= maxSamples) {
-                        limitReached = true
+                    val db = PcmLevel.db(buffer, read)
+                    if (db > peakDb) peakDb = db
+                    onLevel(db)
+                    turnDetector.onAudio(buffer, read)?.let {
+                        ended = it
                         isRecording = false
                     }
                 }
@@ -117,7 +117,8 @@ class AudioRecorder(
             if (!isActive) encoder?.release()
             ensureActive() // отменённая запись результата не даёт
             val durationMs = totalSamples * 1000 / SAMPLE_RATE
-            if (limitReached) {
+            val endedBy = ended ?: TurnEnd.BUTTON
+            if (endedBy == TurnEnd.LIMIT) {
                 log.event(SOURCE, "recording limit ${ModelConfig.RECORD_MAX_MS / 1000} s reached: recording finished")
             }
             val prepareStarted = System.nanoTime()
@@ -133,8 +134,9 @@ class AudioRecorder(
                 encodeMs = (System.nanoTime() - prepareStarted) / 1_000_000,
                 durationMs = durationMs,
                 heardSpeech = turnDetector.heardSpeech,
-                peakDb = meter.peakDb,
-                pulseMaskedWindows = meter.maskedWindows,
+                peakDb = peakDb,
+                endedBy = endedBy,
+                turn = turnDetector.stats,
             )
         }
 

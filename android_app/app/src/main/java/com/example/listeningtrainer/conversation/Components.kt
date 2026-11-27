@@ -9,7 +9,7 @@ import java.io.File
 /**
  * Записанная реплика ученика: [file] — WAV (кнопка «My Voice», копия в debug), [upload] — файл
  * для распознавания (сжатый `.m4a` или тот же WAV).
- * [heardSpeech] — был ли хоть один замер громче порога [TurnDetector]. Нет — это молчание,
+ * [heardSpeech] — набралось ли в записи речи по [TurnDetector]. Нет — это молчание,
  * распознаватель не вызывается (он «слышит» в тишине фразы вроде `Thank you.`).
  */
 data class RecordedAudio(
@@ -17,10 +17,12 @@ data class RecordedAudio(
     val upload: File = file,
     val durationMs: Long,
     val heardSpeech: Boolean,
-    /** Самый громкий замер записи, дБ (для журнала). Замеры во время «пульса» не учитываются. */
+    /** Самый громкий кусок записи, дБ (для журнала). */
     val peakDb: Float,
-    /** Сколько кусков записи не учтено в громкости, потому что в них звучал «пульс» (для журнала). */
-    val pulseMaskedWindows: Int = 0,
+    /** Чем кончилась запись (для журнала). */
+    val endedBy: TurnEnd = TurnEnd.BUTTON,
+    /** Речь и время вывода детектора за эту запись (для журнала). */
+    val turn: TurnStats = TurnStats(),
     /** Сколько мс после конца записи ушло на подготовку [upload] (сжатие) — входит в замер `stt`. */
     val encodeMs: Long = 0,
 )
@@ -33,20 +35,52 @@ interface AudioInput {
      */
     suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio
 
-    /** Ученик сам закончил реплику (кнопка «Stop Recording»): запись завершается и отдаётся. */
+    /** Ученик сам закончил реплику (кнопка «Stop Recording» или гарнитура): запись завершается и отдаётся. */
     fun finish()
 }
 
-/** Решает, закончил ли ученик реплику. */
+/** Чем кончилась запись: тишина после речи (или с начала), кнопка ученика, предохранитель 90 с (D31). */
+enum class TurnEnd(val label: String) {
+    SILENCE("silence"),
+    BUTTON("button"),
+    LIMIT("limit"),
+}
+
+/** Речь за запись и время вывода модели на кадр (журнал, S03c). */
+data class TurnStats(
+    val speechMs: Long = 0,
+    val frames: Int = 0,
+    val avgFrameMs: Double = 0.0,
+    val maxFrameMs: Double = 0.0,
+)
+
+/** Решает, закончил ли ученик реплику, по звуку записи (S03c: Silero VAD, D64). */
 interface TurnDetector {
-    /** Начало новой реплики. */
-    fun reset(nowMs: Long)
+    /** Начало новой реплики: счёт и состояние модели — с нуля. */
+    fun reset()
 
-    /** Очередной замер громкости. `true` — реплика закончена. */
-    fun onLevel(db: Float, nowMs: Long): Boolean
+    /**
+     * Очередной кусок звука: [count] отсчётов PCM 16 кГц из [pcm], подряд с прошлым куском.
+     * Не `null` — реплика кончилась ([TurnEnd.SILENCE] или [TurnEnd.LIMIT]).
+     */
+    fun onAudio(pcm: ShortArray, count: Int): TurnEnd?
 
-    /** Был ли с начала реплики хоть один замер, похожий на речь. */
+    /** Набралось ли с начала реплики достаточно речи, чтобы это было не молчание. */
     val heardSpeech: Boolean
+
+    /** Речь и время вывода за реплику. */
+    val stats: TurnStats
+}
+
+/**
+ * Вероятность речи по кадрам звука (Silero VAD). Кадр — [frameSamples] отсчётов 16 кГц; модель
+ * помнит состояние между кадрами, [reset] — в начале каждой реплики. Реализация на onnxruntime —
+ * [com.example.listeningtrainer.audio.SileroVad], в тестах — подделка.
+ */
+interface SpeechProbability {
+    val frameSamples: Int
+    fun reset()
+    fun probability(frame: ShortArray): Float
 }
 
 /** Звук → текст. [prompt] — короткий контекст для модели ([TranscriptionPrompt]). */

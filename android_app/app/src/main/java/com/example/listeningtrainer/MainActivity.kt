@@ -2,7 +2,6 @@ package com.example.listeningtrainer
 
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.conversation.ConversationState
-import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import com.example.listeningtrainer.config.ModelConfig
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -215,7 +214,6 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
             // ИНДИКАТОР УРОВНЯ ШУМА
             Text(
                 "Noise: ${ui.levelDb.toInt()} dB",
-                color = if (ui.levelDb > SilenceTurnDetector.DEFAULT_THRESHOLD_DB) MaterialTheme.colorScheme.primary else Color.Gray,
                 fontWeight = FontWeight.Bold
             )
             LinearProgressIndicator(

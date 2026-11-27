@@ -27,11 +27,11 @@ import kotlin.math.min
 class AudioTrackOutput(
     context: Context,
     private val log: EventLog,
-    pulseGate: PulseEchoGate? = null,
+    pulseMarks: PulseMarks? = null,
 ) : AudioOutput {
 
     private val audioManager = context.getSystemService(AudioManager::class.java)
-    private val cues = CuePlayer(log, pulseGate)
+    private val cues = CuePlayer(log, pulseMarks)
 
     @Volatile
     private var current: AudioTrack? = null

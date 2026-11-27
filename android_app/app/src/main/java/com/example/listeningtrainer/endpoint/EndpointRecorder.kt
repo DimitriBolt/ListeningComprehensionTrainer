@@ -1,6 +1,8 @@
 package com.example.listeningtrainer.endpoint
 
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.conversation.SpeechProbability
+import com.example.listeningtrainer.conversation.VadTurnDetector
 import com.example.listeningtrainer.conversation.AudioInput
 import com.example.listeningtrainer.conversation.AudioOutput
 import com.example.listeningtrainer.conversation.ConversationState
@@ -48,8 +50,9 @@ data class EndpointUi(
  *
  * Пользователь выбирает условие, экран показывает реплики сценария по одной. Запись начинается кнопкой
  * гарнитуры (или на экране): «говори», потом «пульс» каждые [pulseEveryMs], как в разговоре (D28).
- * Детектор её **не** останавливает ([LevelTrace]): кончают кнопка или предохранитель [AudioInput] (90 с).
- * Звук сырой: [input] создаётся без маски D34. Моменты пульсов приходят в [onPulseStarted] от
+ * Детектор её **не** останавливает ([LevelTrace]): кончают кнопка или предохранитель 90 с. В JSON — где кончили
+ * бы запись прежний порог 59 дБ / 3 с и детектор приложения (Silero, S03c). Звук сырой, без сжатия.
+ * Моменты пульсов приходят в [onPulseStarted] от
  * проигрывателя (когда звук реально запущен). После записи — WAV + JSON в [store], «обрабатываю»,
  * экран переходит к следующей реплике.
  *
@@ -60,6 +63,8 @@ class EndpointRecorder(
     private val input: AudioInput,
     private val output: AudioOutput,
     private val store: RecordingStore,
+    /** Вероятность речи для эмуляции детектора приложения (Silero, S03c). */
+    private val vad: SpeechProbability,
     private val clock: () -> Long = System::currentTimeMillis,
     private val log: EventLog = NoEventLog,
     private val pulseEveryMs: Long = 2_000L,
@@ -173,7 +178,7 @@ class EndpointRecorder(
         _ui.update { it.copy(recording = true, message = "Recording… ${line.instruction}") }
         output.playCue(Cue.LISTEN)
         output.awaitCues()
-        val trace = LevelTrace(ModelConfig.RECORD_LEVEL_WINDOW_MS)
+        val trace = LevelTrace(ModelConfig.RECORD_LEVEL_WINDOW_MS, VadTurnDetector(vad), clock = clock)
         val pulseJob = if (output.listenPulseAllowed()) scope.launch {
             while (true) {
                 delay(pulseEveryMs)
@@ -182,7 +187,10 @@ class EndpointRecorder(
         } else null
         val audio = try {
             recordingActive = true
-            input.record(trace) { db -> _ui.update { it.copy(levelDb = db) } }
+            input.record(trace) { db ->
+                trace.onLevel(db)
+                _ui.update { it.copy(levelDb = db) }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -213,11 +221,11 @@ class EndpointRecorder(
             buttonPressMs = releaseRel?.let { r -> r - (pressMs ?: 0L) },
             pulsesMs = pulsesRel,
             pulseDurationMs = PULSE_MS,
-            pulseMaskMs = ModelConfig.LISTEN_PULSE_MIC_MASK_MS,
             levelWindowMs = ModelConfig.RECORD_LEVEL_WINDOW_MS,
             levelDb = trace.levels.map { Math.round(it * 10) / 10f },
             levelWallMs = trace.wallMs.toList(),
             silenceDetector = trace.emulation(),
+            sileroDetector = trace.sileroEmulation(),
             device = device,
         )
         val (base, deleted) = try {
@@ -233,7 +241,7 @@ class EndpointRecorder(
         log.event(
             SOURCE,
             "endpoint recording saved: $base, take $takeNumber, ${audio.durationMs} ms, ended by ${take.endedBy}, " +
-                "pulses ${pulsesRel.size}, old recordings deleted $deleted",
+                "pulses ${pulsesRel.size}, silero end ${take.sileroDetector?.endMs?.let { "$it ms" } ?: "none"}, old recordings deleted $deleted",
         )
         val recorded = _ui.value.recorded + line.number
         val nextIndex = (_ui.value.lineIndex + 1).coerceAtMost(EndpointScenario.lines.lastIndex)

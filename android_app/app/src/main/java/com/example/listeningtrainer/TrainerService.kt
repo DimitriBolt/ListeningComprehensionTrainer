@@ -18,7 +18,8 @@ import com.example.listeningtrainer.audio.AudioSession
 import com.example.listeningtrainer.audio.AndroidTtsSynthesizer
 import com.example.listeningtrainer.audio.AudioTrackOutput
 import com.example.listeningtrainer.audio.HeadsetButtons
-import com.example.listeningtrainer.audio.PulseEchoGate
+import com.example.listeningtrainer.audio.PulseMarks
+import com.example.listeningtrainer.audio.SileroVad
 import com.example.listeningtrainer.audio.exportToPublicMusic
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.audio.lastUserUploadFile
@@ -28,9 +29,9 @@ import com.example.listeningtrainer.conversation.ConversationUi
 import com.example.listeningtrainer.conversation.EndReason
 import com.example.listeningtrainer.conversation.IdleShutdown
 import com.example.listeningtrainer.conversation.RecordedAudio
-import com.example.listeningtrainer.conversation.SilenceTurnDetector
 import com.example.listeningtrainer.conversation.SpeechPlanner
 import com.example.listeningtrainer.conversation.TurnDetector
+import com.example.listeningtrainer.conversation.VadTurnDetector
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.openai.RealtimeSynthesizer
@@ -83,9 +84,11 @@ class TrainerService : Service() {
         val apiKey = { keyStore.current() }
         val tutor = (application as TrainerApplication).tutor
         AppLog.event(SOURCE, "tutor history: ${tutor.historySize} messages")
-        // «Пульс» слушания (D28): проигрыватель отмечает его начало, запись эти куски не учитывает.
-        val pulseGate = PulseEchoGate(ModelConfig.LISTEN_PULSE_MIC_MASK_MS)
-        val recorder = AudioRecorder(lastUserSpeechFile(this), lastUserUploadFile(this), AppLog, pulseGate)
+        // «Пульс» слушания (D28): проигрыватель отмечает его начало (режиму записи — для JSON). Маски нет (D68).
+        val pulseMarks = PulseMarks()
+        // Конец реплики — Silero VAD (S03c, D64): модель грузится при первой записи, в её потоке.
+        val vadModel = (application as TrainerApplication).vadModel
+        val recorder = AudioRecorder(lastUserSpeechFile(this), lastUserUploadFile(this), AppLog)
         // Копия каждой записи в общую папку Music — только в debug-сборке, последние 20 файлов.
         val input: AudioInput = if (!BuildConfig.DEBUG) recorder else object : AudioInput by recorder {
             override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio =
@@ -94,11 +97,11 @@ class TrainerService : Service() {
                 }
         }
 
-        val output = AudioTrackOutput(this, AppLog, pulseGate)
+        val output = AudioTrackOutput(this, AppLog, pulseMarks)
         controller = ConversationController(
             scope = scope,
             input = input,
-            turnDetector = SilenceTurnDetector(),
+            turnDetector = VadTurnDetector(SileroVad(vadModel)),
             transcriber = FileTranscriber(apiKey, log = AppLog),
             tutor = tutor,
             planner = SpeechPlanner(),
@@ -110,20 +113,21 @@ class TrainerService : Service() {
             corrector = ResponsesCorrector(apiKey),
             studentLevel = (application as TrainerApplication).studentLevel,
         )
-        // Режим записи для пробы S03b (только debug): свой микрофон без маски D34 и без сжатия; моменты пульсов —
-        // от проигрывателя сигналов.
+        // Режим записи для пробы S03b (только debug): свой микрофон без сжатия; моменты пульсов — от проигрывателя
+        // сигналов; эмуляция Silero — со своим состоянием модели.
         if (EndpointRecorder.available(BuildConfig.DEBUG)) {
             val tmp = File(filesDir, "recordings_tmp").apply { mkdirs() }
-            val rawRecorder = AudioRecorder(File(tmp, "current.wav"), File(tmp, "current.m4a"), AppLog, pulseGate = null, compress = false)
+            val rawRecorder = AudioRecorder(File(tmp, "current.wav"), File(tmp, "current.m4a"), AppLog, compress = false)
             endpoint = EndpointRecorder(
                 scope = scope,
                 input = rawRecorder,
                 output = output,
                 store = RecordingStore(File(filesDir, RECORDINGS_DIR)),
+                vad = SileroVad(vadModel),
                 log = AppLog,
                 device = "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}",
             ).also { rec ->
-                pulseGate.onPulse = rec::onPulseStarted
+                pulseMarks.onPulse = rec::onPulseStarted
                 scope.launch { rec.ui.collect { _endpointUi.value = it } }
             }
         }

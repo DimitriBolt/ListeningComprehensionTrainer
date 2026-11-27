@@ -316,17 +316,18 @@ class ConversationController(
         val recordedAt = clock() - audio.encodeMs
         lastEncodeMs = audio.encodeMs
         _ui.update { it.copy(levelDb = 0f) }
-        val skipped = if (audio.pulseMaskedWindows > 0) " (level skipped in ${audio.pulseMaskedWindows} windows)" else ""
+        val t = audio.turn
         log.event(
             SOURCE,
-            "recording: ${audio.durationMs} ms, above threshold: ${yesNo(audio.heardSpeech)}, peak ${audio.peakDb.toInt()} dB, " +
-                "pulses: $pulseCount$skipped",
+            "recording: ${audio.durationMs} ms, speech ${t.speechMs} ms (silero), ended by ${audio.endedBy.label}, " +
+                "peak ${audio.peakDb.toInt()} dB, vad frames ${t.frames}, avg ${ms1(t.avgFrameMs)} ms, max ${ms1(t.maxFrameMs)} ms, " +
+                "pulses: $pulseCount",
         )
 
         // Молчание определяется по звуку: в записи без речи распознаватель «слышит» `Thank you.`
         // и т. п., поэтому его не вызываем (и не платим за тишину).
         if (!audio.heardSpeech) {
-            log.event(SOURCE, "counted as silence: yes (nothing above threshold, transcription skipped)")
+            log.event(SOURCE, "counted as silence: yes (speech under ${ModelConfig.TURN_MIN_SPEECH_MS} ms, transcription skipped)")
             return onSilence()
         }
 
@@ -907,6 +908,8 @@ class ConversationController(
     }
 
     private fun yesNo(value: Boolean) = if (value) "yes" else "no"
+
+    private fun ms1(value: Double) = String.format(java.util.Locale.US, "%.1f", value)
 
     companion object {
         private const val SOURCE = "Controller"

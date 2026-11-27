@@ -47,7 +47,12 @@ class ConversationControllerTest {
             val heard = speech.removeFirstOrNull() ?: true
             onLevel(if (heard) 65f else 40f)
             if (hold) CompletableDeferred<Unit>().also { pending = it }.await()
-            return RecordedAudio(File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f, encodeMs = encodeMs)
+            return RecordedAudio(
+                File("rec$records.wav"), durationMs = 3000, heardSpeech = heard, peakDb = if (heard) 65f else 40f,
+                endedBy = if (heard) TurnEnd.SILENCE else TurnEnd.BUTTON,
+                turn = if (heard) TurnStats(speechMs = 1_216, frames = 94, avgFrameMs = 0.84, maxFrameMs = 2.5) else TurnStats(),
+                encodeMs = encodeMs,
+            )
         }
 
         override fun finish() {
@@ -245,7 +250,7 @@ class ConversationControllerTest {
             controller = ConversationController(
                 scope = scope,
                 input = input,
-                turnDetector = SilenceTurnDetector(),
+                turnDetector = NoTurnDetector,
                 transcriber = transcriber,
                 tutor = tutor,
                 planner = SpeechPlanner(),
@@ -798,8 +803,8 @@ class ConversationControllerTest {
             listOf(Cue.LISTEN, Cue.NOT_HEARD, Cue.LISTEN, Cue.NOT_HEARD, Cue.LISTEN, Cue.NOT_HEARD, Cue.END),
             rig.output.cues,
         )
-        assertEquals(3, rig.log.lines.count { "counted as silence: yes (nothing above threshold" in it })
-        assertTrue(rig.log.lines.any { "recording: 3000 ms, above threshold: no, peak 40 dB" in it })
+        assertEquals(3, rig.log.lines.count { "counted as silence: yes (speech under 200 ms, transcription skipped)" in it })
+        assertTrue(rig.log.lines.any { "recording: 3000 ms, speech 0 ms (silero), ended by button, peak 40 dB, vad frames 0, avg 0.0 ms, max 0.0 ms" in it })
         assertEquals(listOf("FAREWELL"), rig.circleEnds)
     }
 
@@ -809,7 +814,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceUntilIdle()
 
-        assertTrue(rig.log.lines.contains("[Controller] recording: 3000 ms, above threshold: yes, peak 65 dB, pulses: 0"))
+        assertTrue(rig.log.lines.contains("[Controller] recording: 3000 ms, speech 1216 ms (silero), ended by silence, peak 65 dB, vad frames 94, avg 0.8 ms, max 2.5 ms, pulses: 0"))
         assertTrue(rig.log.lines.contains("[Controller] transcript: 9 chars, counted as silence: no"))
     }
 
@@ -1301,7 +1306,7 @@ class ConversationControllerTest {
         // после записи пульса нет: «обрабатываю» идёт после последнего пульса, дальше пульсов нет
         val afterRecord = rig.output.cues.dropWhile { it != Cue.PROCESSING }
         assertFalse(Cue.PULSE in afterRecord)
-        assertTrue(rig.log.lines.any { it.endsWith("peak 65 dB, pulses: 3") })
+        assertTrue(rig.log.lines.any { it.endsWith("max 2.5 ms, pulses: 3") })
         // строки на каждый пульс нет
         assertEquals(1, rig.log.lines.count { "pulse" in it })
     }
@@ -1554,4 +1559,12 @@ class ConversationControllerTest {
         assertEquals(listOf<String?>(null), rig.tutor.levelNotes)
         assertFalse(rig.log.lines.any { "] level " in it })
     }
+}
+
+/** Детектор не нужен: поддельный микрофон сам решает, была ли речь. */
+private object NoTurnDetector : TurnDetector {
+    override fun reset() {}
+    override fun onAudio(pcm: ShortArray, count: Int): TurnEnd? = null
+    override val heardSpeech = false
+    override val stats = TurnStats()
 }

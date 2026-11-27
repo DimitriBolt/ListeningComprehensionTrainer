@@ -5,7 +5,10 @@ import com.example.listeningtrainer.conversation.AudioOutput
 import com.example.listeningtrainer.conversation.Cue
 import com.example.listeningtrainer.conversation.RecordedAudio
 import com.example.listeningtrainer.conversation.SpeechAudio
+import com.example.listeningtrainer.conversation.SpeechProbability
 import com.example.listeningtrainer.conversation.TurnDetector
+import com.example.listeningtrainer.conversation.TurnEnd
+import com.example.listeningtrainer.conversation.VadTurnDetector
 import com.example.listeningtrainer.eventlog.EventLog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -61,7 +64,7 @@ class RecordingStoreTest {
     private fun take(at: Long, condition: String = "water", line: Int = 5, takeNo: Int = 1) = EndpointTake(
         condition = condition, line = line, kind = "pause", text = "Yesterday I … went to the shop.", take = takeNo,
         startedAtMs = at, startedAtIso = "", sampleRate = 16_000, durationMs = 800, endedBy = "button",
-        buttonReleaseMs = 750, buttonPressMs = 650, pulsesMs = listOf(2000), pulseDurationMs = 60, pulseMaskMs = 350,
+        buttonReleaseMs = 750, buttonPressMs = 650, pulsesMs = listOf(2000), pulseDurationMs = 60,
         levelWindowMs = 80, levelDb = List(10) { 40f }, levelWallMs = List(10) { (it + 1) * 80L },
         silenceDetector = DetectorEmulation(59f, 3000, null, false),
     )
@@ -123,14 +126,15 @@ class EndpointTakeTest {
             condition = "street", line = 9, kind = "long", text = "Yesterday I got up early.", take = 3,
             startedAtMs = 1_764_201_600_000L, startedAtIso = "2026-11-26T15:00:00.000-07:00", sampleRate = 16_000,
             durationMs = 9_040, endedBy = "button", buttonReleaseMs = 9_000, buttonPressMs = 8_880,
-            pulsesMs = listOf(2_010, 4_005), pulseDurationMs = 60, pulseMaskMs = 350, levelWindowMs = 80,
+            pulsesMs = listOf(2_010, 4_005), pulseDurationMs = 60, levelWindowMs = 80,
             levelDb = listOf(41.5f, 72.25f), levelWallMs = listOf(300, 310),
-            silenceDetector = DetectorEmulation(59f, 3000, 6_400, true), device = "samsung SM-X",
+            silenceDetector = DetectorEmulation(59f, 3000, 6_400, true),
+            sileroDetector = SileroEmulation(0.5f, 3000, 200, 5_024, true, 1_536, 282, 0.84, 3.1), device = "samsung SM-X",
         )
         val text = take.toJson()
         for (key in listOf(
             "\"schema\"", "\"condition\"", "\"line\"", "\"kind\"", "\"text\"", "\"take\"", "\"startedAtMs\"", "\"sampleRate\"",
-            "\"durationMs\"", "\"endedBy\"", "\"buttonReleaseMs\"", "\"buttonPressMs\"", "\"pulsesMs\"", "\"pulseMaskMs\"",
+            "\"durationMs\"", "\"endedBy\"", "\"buttonReleaseMs\"", "\"buttonPressMs\"", "\"pulsesMs\"", "\"sileroDetector\"",
             "\"levelWindowMs\"", "\"levelDb\"", "\"levelWallMs\"", "\"silenceDetector\"",
         )) assertTrue(key, key in text)
         assertEquals(take, EndpointTake.fromJson(text))
@@ -141,46 +145,93 @@ class EndpointTakeTest {
         val take = EndpointTake(
             condition = "silence", line = 11, kind = "no_speech", text = "", take = 1, startedAtMs = 1, startedAtIso = "",
             sampleRate = 16_000, durationMs = 90_000, endedBy = "limit", buttonReleaseMs = null, buttonPressMs = null,
-            pulsesMs = emptyList(), pulseDurationMs = 60, pulseMaskMs = 350, levelWindowMs = 80, levelDb = emptyList(),
+            pulsesMs = emptyList(), pulseDurationMs = 60, levelWindowMs = 80, levelDb = emptyList(),
             levelWallMs = emptyList(), silenceDetector = DetectorEmulation(59f, 3000, 3080, false),
         )
         val back = EndpointTake.fromJson(take.toJson())
         assertNull(back.buttonReleaseMs)
         assertEquals("limit", back.endedBy)
+        assertNull(back.sileroDetector)
     }
 }
 
+/** «Silero» для тестов: речь — кадр, где первый отсчёт громче 1000. */
+internal class LoudFrameVad : SpeechProbability {
+    override val frameSamples = 512
+    var resets = 0
+    override fun reset() { resets++ }
+    override fun probability(frame: ShortArray) = if (frame[0] > 1000) 0.9f else 0.1f
+}
+
 class LevelTraceTest {
+    private val window = ShortArray(1280) // 80 мс при 16 кГц
+
+    private fun feed(trace: LevelTrace, loud: Boolean): TurnEnd? {
+        window.fill(if (loud) 3000 else 10)
+        trace.onLevel(if (loud) 70f else 40f)
+        return trace.onAudio(window, window.size)
+    }
+
     @Test
-    fun `never ends the recording, but remembers where the 59 dB, 3 s detector would end it`() {
-        val trace = LevelTrace(windowMs = 80)
-        trace.reset(nowMs = 10_000)
+    fun `never ends the recording, but remembers where the 59 dB and the Silero detectors would end it`() {
+        var now = 10_000L
+        val trace = LevelTrace(windowMs = 80, silero = VadTurnDetector(LoudFrameVad()), clock = { now })
+        trace.reset()
         // 1 с тишины, 1 с речи, потом тишина 5 с
-        val levels = List(12) { 40f } + List(13) { 70f } + List(63) { 40f }
-        levels.forEachIndexed { i, db -> assertFalse(trace.onLevel(db, 10_000L + 500 + i * 80L)) }
+        val loud = List(12) { false } + List(13) { true } + List(63) { false }
+        loud.forEachIndexed { i, l ->
+            now = 10_000L + 500 + i * 80L
+            assertNull(feed(trace, l))
+        }
         assertTrue(trace.heardSpeech)
         // последнее громкое окно кончается на 25·80 = 2000 мс; конец — первое окно, где тишина > 3000 мс
         assertEquals(5_040L, trace.emulatedEndMs)
-        assertEquals(levels.size, trace.levels.size)
+        assertEquals(loud.size, trace.levels.size)
         assertEquals(500L, trace.wallMs.first())
         assertEquals(DetectorEmulation(59f, 3000, 5_040L, true), trace.emulation())
+        // Silero: речь — кадры 960…2000 мс (последний кончается на 2016), 3000 мс тишины — конец в 5024 мс
+        val silero = trace.sileroEmulation()
+        assertEquals(5_024L, silero.endMs)
+        assertTrue(silero.heardSpeech)
+        assertEquals(32L * 33, silero.speechMs)
+        assertEquals(loud.size * 80 / 32, silero.frames)
     }
 
     @Test
-    fun `silence - no speech, the detector would end after 3 s from the start`() {
-        val trace = LevelTrace(windowMs = 80)
-        trace.reset(0)
-        repeat(100) { trace.onLevel(45f, it * 80L) }
+    fun `silence - no speech, both detectors would end after 3 s from the start`() {
+        val trace = LevelTrace(windowMs = 80, silero = VadTurnDetector(LoudFrameVad()))
+        trace.reset()
+        repeat(100) { feed(trace, false) }
         assertFalse(trace.heardSpeech)
         assertEquals(3_040L, trace.emulatedEndMs)
+        assertEquals(3_008L, trace.sileroEmulation().endMs)
+        assertFalse(trace.sileroEmulation().heardSpeech)
     }
 
     @Test
-    fun `noise above the threshold - the detector would never end`() {
-        val trace = LevelTrace(windowMs = 80)
-        trace.reset(0)
-        repeat(500) { trace.onLevel(62f, it * 80L) }
+    fun `noise above the threshold - the old detector would never end`() {
+        val trace = LevelTrace(windowMs = 80, silero = VadTurnDetector(LoudFrameVad()))
+        trace.reset()
+        repeat(500) {
+            trace.onLevel(62f)
+            trace.onAudio(ShortArray(1280), 1280)
+        }
         assertNull(trace.emulatedEndMs)
+    }
+
+    @Test
+    fun `the 90 s limit ends the recording`() {
+        val trace = LevelTrace(windowMs = 80, silero = VadTurnDetector(LoudFrameVad()))
+        trace.reset()
+        var end: TurnEnd? = null
+        var windows = 0
+        while (end == null && windows < 2_000) {
+            end = feed(trace, true)
+            windows++
+        }
+        assertEquals(TurnEnd.LIMIT, end)
+        // 1125 окон = 2812,5 кадра = 89 984 мс; предел — на кадре 2813 (90 016 мс), он во 1126-м окне
+        assertEquals(1_126, windows)
     }
 }
 
@@ -196,14 +247,16 @@ class EndpointRecorderTest {
         override suspend fun record(turnDetector: TurnDetector, onLevel: (Float) -> Unit): RecordedAudio {
             records++
             finished = false
-            turnDetector.reset(clock())
+            turnDetector.reset()
             var audioMs = 0L
-            while (!finished && audioMs < 90_000) {
+            val window = ShortArray(1280)
+            while (!finished) {
                 delay(80)
                 audioMs += 80
                 val db = level(audioMs)
+                window.fill(if (db > 60f) 3000 else 10)
                 onLevel(db)
-                if (turnDetector.onLevel(db, clock())) break
+                if (turnDetector.onAudio(window, window.size) != null) break
             }
             val file = tmp.newFile().apply { writeBytes(ByteArray(44 + (audioMs * 32).toInt())) }
             return RecordedAudio(file, durationMs = audioMs, heardSpeech = turnDetector.heardSpeech, peakDb = 0f)
@@ -242,7 +295,7 @@ class EndpointRecorderTest {
         val dir = File(tmp.root, "recordings")
         val store = RecordingStore(dir)
         val rec = EndpointRecorder(
-            scope, mic, out, store, clock, log, io = StandardTestDispatcher(scope.testScheduler),
+            scope, mic, out, store, LoudFrameVad(), clock, log, io = StandardTestDispatcher(scope.testScheduler),
         ).also { r -> out.onPulse = r::onPulseStarted }
 
         fun takes(): List<EndpointTake> = dir.listFiles().orEmpty().filter { it.name.endsWith(".json") }
@@ -277,8 +330,9 @@ class EndpointRecorderTest {
         assertEquals(80, take.levelWindowMs)
         assertEquals(take.durationMs / 80, take.levelDb.size.toLong())
         assertEquals(72f, take.levelDb[10])
-        assertEquals(350L, take.pulseMaskMs)
         assertEquals(5_040L, take.silenceDetector.endMs) // эмуляция 59 дБ / 3 с — запись она не остановила
+        assertEquals(5_024L, take.sileroDetector?.endMs) // и Silero с настройками приложения — тоже не остановил
+        assertEquals(2, take.schema)
         assertTrue(take.durationMs >= 5_900)
         assertTrue(File(s.dir, s.store.baseName(take.startedAtMs, "water", 1) + ".wav").exists())
 
@@ -287,7 +341,7 @@ class EndpointRecorderTest {
         assertFalse(ui.recording)
         assertEquals(1, ui.lineIndex) // следующая реплика
         assertEquals(setOf(1), ui.recorded)
-        assertTrue(s.log.lines.any { it.startsWith("[Debug] endpoint recording saved: ep_") && "ended by button" in it && "pulses 2" in it })
+        assertTrue(s.log.lines.any { it.startsWith("[Debug] endpoint recording saved: ep_") && "ended by button" in it && "pulses 2" in it && "silero end 5024 ms" in it })
         assertFalse(s.log.lines.any { "At noon" in it }) // текст реплики в журнал не попадает
     }
 
@@ -299,7 +353,7 @@ class EndpointRecorderTest {
         s.rec.start()
         advanceUntilIdle()
         val take = s.takes().single()
-        assertEquals(90_000L, take.durationMs)
+        assertEquals(90_080L, take.durationMs) // предел — в детекторе, на кадре 2813 (окно 1126)
         assertEquals("limit", take.endedBy)
         assertNull(take.buttonReleaseMs)
         assertTrue(take.pulsesMs.size in 44..45)

@@ -5,6 +5,8 @@ import android.app.Application
 import android.app.ApplicationExitInfo
 import android.os.Build
 import android.util.Log
+import com.example.listeningtrainer.audio.SileroModel
+import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.ConversationController
 import com.example.listeningtrainer.conversation.StudentLevel
 import com.example.listeningtrainer.eventlog.AppLog
@@ -27,6 +29,14 @@ class TrainerApplication : Application() {
     val tutor: ResponsesTutor by lazy {
         val keyStore = ApiKeyStore(this)
         ResponsesTutor(apiKey = { keyStore.current() }, log = AppLog)
+    }
+
+    /**
+     * Модель Silero VAD (S03c) — одна на процесс: сеанс onnxruntime создаётся при первой записи (в её потоке)
+     * и не закрывается, пока жив процесс, — так он никогда не закроется посреди вывода.
+     */
+    val vadModel: SileroModel by lazy {
+        SileroModel { assets.open(ModelConfig.VAD_MODEL_ASSET).use { it.readBytes() } }
     }
 
     /** Уровень ученика (D56) — один на процесс, хранится на устройстве; его читает и экран. */
