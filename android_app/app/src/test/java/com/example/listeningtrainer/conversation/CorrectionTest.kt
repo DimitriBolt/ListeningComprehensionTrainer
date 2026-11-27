@@ -52,4 +52,19 @@ class CorrectionTest {
         val p = Correction.phrase("Where do you live?")
         assertEquals(p.length, ReplyText.correctionEnd(p))
     }
+
+    @Test
+    fun `long utterance - one corrected sentence is accepted, an answer is still rejected (S05, D80)`() {
+        // Склеенная длинная реплика без знаков, как пишет поток.
+        val student = "yesterday I got up early and I make coffee then I go to the park with my dog " +
+            "it was very nice weather and we walk for one hour after that I come back home and cook breakfast"
+        assertEquals(
+            Correction.Verdict.Fix("Then I went to the park with my dog."),
+            Correction.check(student, "Then I went to the park with my dog."),
+        )
+        assertTrue(Correction.check(student, "That sounds lovely! What did you cook?") is Correction.Verdict.Rejected)
+        // Поправщик вернул всю реплику целиком — тоже поправка.
+        val whole = student.replace("make", "made").replace(" go ", " went ")
+        assertTrue(Correction.check(student, whole) is Correction.Verdict.Fix)
+    }
 }

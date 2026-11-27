@@ -135,3 +135,12 @@ def test_copies_of_the_app():
     kind, sim = c.check("Where you live?", "I live in Tucson.")
     assert kind == "rejected" and abs(sim - 1 / 3) < 1e-9
     assert c.phrase("I have a dog.") == 'I think you meant "I have a dog", right?'
+
+
+def test_containment_long_utterance_window():
+    """S05 (D80): одно исправленное предложение длинной реплики — сходство по лучшему окну; копия Correction.kt."""
+    student = ("yesterday I got up early and I make coffee then I go to the park with my dog "
+               "it was very nice weather and we walk for one hour after that I come back home and cook breakfast")
+    assert c.check(student, "Then I went to the park with my dog.") == ("fix", "Then I went to the park with my dog.")
+    assert c.check(student, "That sounds lovely! What did you cook?")[0] == "rejected"
+    assert c.containment("I live in Tucson.", "Where you live?") == 1 / 3

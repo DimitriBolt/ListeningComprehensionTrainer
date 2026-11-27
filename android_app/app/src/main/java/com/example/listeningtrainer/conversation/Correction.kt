@@ -40,12 +40,25 @@ object Correction {
     /**
      * Доля слов реплики [student], которые остались в [fix]. Поправка добавляет служебные слова и меняет
      * формы, но слова ученика в основном сохраняет: «Gas price?» → «What is the gas price?» — 1,0.
+     *
+     * S05 (D80): на длинной реплике поправщик отвечает только предложением с ошибкой, и доля от всех слов реплики
+     * мала. Поэтому доля считается в лучшем окне подряд идущих слов ученика длиной в поправку (не длиннее реплики):
+     * у короткой реплики окно — вся реплика, как раньше.
      */
     fun similarity(fix: String, student: String): Double {
         val sw = words(student)
         if (sw.isEmpty()) return 1.0
-        val fw = words(fix).toSet()
-        return sw.count { it in fw }.toDouble() / sw.size
+        val fixWords = words(fix)
+        val fw = fixWords.toSet()
+        val n = minOf(sw.size, maxOf(1, fixWords.size))
+        var count = (0 until n).count { sw[it] in fw }
+        var best = count
+        for (i in n until sw.size) {
+            if (sw[i] in fw) count++
+            if (sw[i - n] in fw) count--
+            if (count > best) best = count
+        }
+        return best.toDouble() / n
     }
 
     fun check(student: String, answer: String): Verdict {

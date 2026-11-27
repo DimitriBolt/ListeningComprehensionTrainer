@@ -42,7 +42,7 @@ DOCS_JSON = probe.REPO_ROOT / "docs" / "research" / "02f-corrector.json"
 # Запрос поправщика (копия того, что будет в приложении, если проба за B).
 MODEL = probe.M_TUTOR_NEW
 EFFORT = "none"
-MAX_OUTPUT_TOKENS = 60
+MAX_OUTPUT_TOKENS = 250  # ModelConfig.CORRECTOR_MAX_OUTPUT_TOKENS (S05, D80)
 
 # Правило решения брифа (п. 1).
 RULE_FOUND = 0.90          # найдено не меньше 90 % ошибок
@@ -120,8 +120,16 @@ def containment(correction: str, student: str) -> float:
     sw = norm_words(student)
     if not sw:
         return 1.0
-    cw = set(norm_words(correction))
-    return sum(1 for w in sw if w in cw) / len(sw)
+    fix_words = norm_words(correction)
+    cw = set(fix_words)
+    # S05 (D80): лучшее окно слов ученика длиной в поправку — на длинной реплике поправляется одно предложение.
+    n = min(len(sw), max(1, len(fix_words)))
+    count = sum(1 for w in sw[:n] if w in cw)
+    best = count
+    for i in range(n, len(sw)):
+        count += (sw[i] in cw) - (sw[i - n] in cw)
+        best = max(best, count)
+    return best / n
 
 
 # Копия Correction.kt (приложение): проверка ответа поправщика и фраза, которая звучит.
