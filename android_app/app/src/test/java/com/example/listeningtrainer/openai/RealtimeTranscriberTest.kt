@@ -143,6 +143,44 @@ class RealtimeTranscriberTest {
     }
 
     @Test
+    fun `continuation - a new turn starts right after commit, the old one still gets its text (S04)`() = runTest {
+        val r = Rig(this)
+        val p1 = mutableListOf<String>()
+        val p2 = mutableListOf<String>()
+        val first = r.t.begin("p1") { p1 += it }
+        r.created()
+        first.onPcm(piece, piece.size)
+        r.delta("i1", " I like")
+        first.onEnd(true)
+        // конец объявлен — продолжение сразу пишет звук в ту же сессию
+        val second = r.t.begin("p2") { p2 += it }
+        second.onPcm(piece, piece.size)
+        r.delta("i1", " coffee") // хвост дельт первого хода
+        r.committed("i1")
+        r.delta("i2", " and tea")
+        r.completed("i1", "I like coffee.")
+        assertEquals("I like coffee.", (first.result() as LiveResult.Text).text)
+        assertEquals(listOf("I like", "I like coffee"), p1)
+        assertEquals(listOf("and tea"), p2)
+
+        second.onEnd(true)
+        r.committed("i2")
+        r.completed("i2", "And tea.")
+        assertEquals("And tea.", (second.result() as LiveResult.Text).text)
+        assertTrue(r.log.none { "replaced" in it })
+    }
+
+    @Test
+    fun `a turn still recording is replaced by a new one`() = runTest {
+        val r = Rig(this)
+        val first = r.t.begin("p1")
+        r.created()
+        first.onPcm(piece, piece.size)
+        r.t.begin("p2")
+        assertEquals("replaced by a new turn", (first.result() as LiveResult.Failed).reason)
+    }
+
+    @Test
     fun `completed before committed is kept until committed names the item`() = runTest {
         val r = Rig(this)
         val turn = r.t.begin("p")

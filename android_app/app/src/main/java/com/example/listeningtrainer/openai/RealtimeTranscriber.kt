@@ -95,7 +95,7 @@ class RealtimeTranscriber(
     override fun prepare() {
         synchronized(lock) {
             val s = session
-            if (s != null && s.turn == null && clock() - s.createdAt > renewMs) s.close("session renewal")
+            if (s != null && s.turns.isEmpty() && clock() - s.createdAt > renewMs) s.close("session renewal")
             current()
         }
     }
@@ -120,11 +120,15 @@ class RealtimeTranscriber(
         var openedAt: Long? = null
         var closedReason: String? = null
         lateinit var socket: LiveSocket
-        var turn: Turn? = null
+        /**
+         * Ходы сессии (S04): обычно один; после объявленного конца — два: прошлый отправил `commit` и ждёт текст, новый
+         * (продолжение реплики) уже шлёт звук. События раздаются по `item_id` ([owner]).
+         */
+        val turns = mutableListOf<Turn>()
         var turnsServed = 0
-        /** `item_id`, виденные в сессии, и те, что принадлежат прошлым репликам. */
+        /** Чей `item_id`; нет в списке — `item_id` прошлых, уже кончившихся ходов (их события не нужны). */
+        val owner = HashMap<String, Turn>()
         val seenItems = HashSet<String>()
-        val oldItems = HashSet<String>()
 
         fun connect() {
             socket = sockets.open(this)
@@ -137,14 +141,32 @@ class RealtimeTranscriber(
                     Event.Created -> if (openedAt == null) {
                         openedAt = clock()
                         log.event(SOURCE, "live transcription session open in ${clock() - createdAt} ms")
-                        turn?.onReady()
+                        turns.toList().forEach { it.onReady() }
                     }
-                    is Event.Delta -> ev.itemId?.let(seenItems::add)
-                    is Event.Committed -> ev.itemId?.let(seenItems::add)
-                    else -> {}
+                    is Event.Delta -> deltaOwner(ev.itemId ?: "-")?.onEvent(ev)
+                    is Event.Committed -> {
+                        val id = ev.itemId ?: "-"
+                        seenItems += id
+                        // `commit` подтверждается по порядку: это item самого раннего хода, который его ждёт.
+                        val t = turns.firstOrNull { it.awaitsCommitted() } ?: return
+                        owner[id]?.takeIf { it !== t }?.dropItem(id)
+                        owner[id] = t
+                        t.onEvent(ev)
+                    }
+                    else -> turns.toList().forEach { it.onEvent(ev) }
                 }
-                turn?.onEvent(ev)
+                Unit
             }
+        }
+
+        /** Под [lock]. Дельта нового `item_id` — ходу, который сейчас пишет звук (последнему). */
+        private fun deltaOwner(id: String): Turn? {
+            owner[id]?.let { return it.takeIf { t -> t in turns } }
+            if (id in seenItems) return null // item прошлого хода
+            seenItems += id
+            val t = turns.lastOrNull { !it.isEnded } ?: turns.lastOrNull() ?: return null
+            owner[id] = t
+            return t
         }
 
         override fun onClosed(reason: String) = markClosed(reason)
@@ -163,16 +185,16 @@ class RealtimeTranscriber(
                 closedReason = reason
                 if (session === this) session = null
                 log.event(SOURCE, "live transcription session closed: $reason (open ${clock() - createdAt} ms)")
-                turn?.fail("closed: $reason", closeSession = false)
+                turns.toList().forEach { it.fail("closed: $reason", closeSession = false) }
             }
         }
 
         fun startTurn(prompt: String, onPartial: (String) -> Unit): Turn {
-            turn?.fail("replaced by a new turn", closeSession = false)
-            oldItems.addAll(seenItems)
+            // Ход, который ещё пишет звук, заменяется; ход после `commit` дожидается своего текста (S04).
+            turns.filter { !it.isEnded }.forEach { it.fail("replaced by a new turn", closeSession = false) }
             val t = Turn(this, reused = turnsServed > 0, onPartial = onPartial)
             turnsServed++
-            turn = t
+            turns += t
             val closed = closedReason
             when {
                 closed != null -> t.fail("session closed: $closed", closeSession = false)
@@ -193,6 +215,9 @@ class RealtimeTranscriber(
         private val resampler = Resampler16To24()
         @Volatile private var sentSamples = 0L
         private var ended = false
+        val isEnded: Boolean get() = ended
+        /** Под [lock]: `commit` отправлен, его `committed` ещё не пришёл. */
+        fun awaitsCommitted() = commitAt != null && committedId == null && !done.isCompleted
         private var commitAt: Long? = null
         private var committedId: String? = null
         private var early: Event.Completed? = null
@@ -259,23 +284,28 @@ class RealtimeTranscriber(
             }
         }
 
-        /** Под [lock]. */
+        /** Под [lock]: item оказался чужим (его `committed` подтвердил другой ход). */
+        fun dropItem(id: String) {
+            if (parts.remove(id) != null) onPartial(parts.values.joinToString("").trim())
+        }
+
+        /** Под [lock]. Дельты и `committed` сюда приходят уже своими ([Session.owner]); остальное — всем ходам. */
         fun onEvent(ev: Event) {
             if (done.isCompleted) return
             when (ev) {
                 is Event.Delta -> {
                     val id = ev.itemId ?: "-"
-                    if (id in s.oldItems) return
                     parts.getOrPut(id) { StringBuilder() }.append(ev.delta)
                     deltas++
                     onPartial(parts.values.joinToString("").trim())
                 }
-                is Event.Committed -> if (commitAt != null && committedId == null && ev.itemId !in s.oldItems) {
+                is Event.Committed -> if (awaitsCommitted()) {
                     committedId = ev.itemId
                     early?.takeIf { it.itemId == ev.itemId }?.let(::complete)
                 }
                 is Event.Completed -> when {
-                    committedId == null -> if (ev.itemId !in s.oldItems) early = ev
+                    // `completed` раньше `committed` — только у хода, который ждёт подтверждения, и только своего item
+                    committedId == null -> if (awaitsCommitted() && s.owner[ev.itemId ?: "-"].let { it == null || it === this }) early = ev
                     ev.itemId == committedId -> complete(ev)
                 }
                 is Event.Failed -> if (ev.itemId == committedId || ev.itemId in parts) fail(ev.reason)
@@ -300,7 +330,7 @@ class RealtimeTranscriber(
         }
 
         private fun detach() {
-            if (s.turn === this) s.turn = null
+            s.turns.remove(this)
         }
 
         private fun stats(chars: Int, cost: Double, commitToTextMs: Long) = LiveStats(
