@@ -263,6 +263,21 @@ python tools/probe/probe.py endpoint --recordings ПУТЬ   # другой ка
 - **Бюджет:** `--endpoint-budget` (по умолчанию $1), прогон остановится, если потрачено больше.
 - **Итог:** `docs/research/03b-endpoint.md` (+ `.json`) — только числа и тексты сценария, без звука.
 
+## Silero в приложении: golden-фикстура и сверка (S03c)
+
+Без ключа и без сети; нужны `numpy`, `scipy`, `onnxruntime`, модель — как у `endpoint` (`out/endpoint/models/`).
+
+```bash
+python tools/probe/silero_golden.py      # нужен espeak-ng: синтезированная фраза + тишина + шум → вероятности кадров
+python tools/probe/silero_app_check.py   # после ./gradlew testDebugUnitTest: Kotlin против Python на записях S03b
+```
+
+- `silero_golden.py` пишет `android_app/app/src/test/resources/vad/golden.wav` и `golden_probs.txt` для
+  `SileroGoldenTest` (обёртка onnxruntime в приложении даёт те же вероятности). Голоса пользователя там нет (D69).
+- `silero_app_check.py` читает `diagnostics/s03c-kotlin.json` (его пишет `S03bRecordingsTest` — тот же код, что в
+  приложении), считает то же правилом приложения (`app_rule`) на вероятностях пробы и печатает расхождение
+  вероятностей, концов записи в кадрах и меры обоих.
+
 ## Тесты (без ключа и без сети)
 
 ```bash
@@ -273,7 +288,7 @@ python -m pytest tools/probe/tests
 звук, файлы результатов. `test_speech_planner.py` — копия `SpeechPlanner` (случаи из `SpeechPlannerTest.kt`),
 чистка сносок, потоковая нарезка (группы те же, что у готового текста, при любой разбивке на куски).
 `test_responses.py` — подкоманда `responses` против подставного сервера с потоком SSE по документации.
-`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` (с `own_words`) и `NotUnderstood.kt`; судья, проверка уточнения, цели S02g, `--rejudge`. `test_endpoint.py` — проба S03b: эмуляция порога, конечный автомат Silero/WebRTC, уточнение конца речи, события сессии, меры и правило выбора. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_fake_server.py` гоняет сетевой код против подставного
+`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` (с `own_words`) и `NotUnderstood.kt`; судья, проверка уточнения, цели S02g, `--rejudge`. `test_endpoint.py` — проба S03b: эмуляция порога, конечный автомат Silero/WebRTC, уточнение конца речи, события сессии, меры и правило выбора. `test_silero_app_check.py` — правило приложения в сверке S03c и его настройки против `ModelConfig.kt`. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_fake_server.py` гоняет сетевой код против подставного
 локального сервера: он ловит ошибки в нашем коде, но не подтверждает, что настоящий API
 отвечает так же.
 
