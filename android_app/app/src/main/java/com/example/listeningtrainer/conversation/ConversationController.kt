@@ -594,7 +594,11 @@ class ConversationController(
     ): String {
         val liveResult = scope.async { live.result() }
         // `commit` ушёл в конце записи, до сжатия: время сжатия уже прошло.
-        val backupAfter = (ModelConfig.LIVE_FILE_BACKUP_AFTER_MS - audio.encodeMs).coerceAtLeast(0)
+        val backupAfter = if (ModelConfig.LIVE_FIRST_TURN_FILE_AT_ONCE && live.firstInSession) {
+            0L
+        } else {
+            (ModelConfig.LIVE_FILE_BACKUP_AFTER_MS - audio.encodeMs).coerceAtLeast(0)
+        }
         val early = withTimeoutOrNull(backupAfter) { liveResult.await() }
         if (early != null) {
             liveText(early)?.let { text ->

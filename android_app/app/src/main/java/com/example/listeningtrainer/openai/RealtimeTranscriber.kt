@@ -87,6 +87,8 @@ class RealtimeTranscriber(
     private val clock: () -> Long = System::currentTimeMillis,
     private val textTimeoutMs: Long = ModelConfig.LIVE_TEXT_TIMEOUT_MS,
     private val renewMs: Long = ModelConfig.LIVE_SESSION_RENEW_MS,
+    /** Прогрев новой сессии, мс тишины (S05, D79); 0 — без прогрева. */
+    private val warmupMs: Long = ModelConfig.LIVE_WARMUP_MS,
 ) : LiveTranscriber {
 
     private val lock = Any()
@@ -95,6 +97,7 @@ class RealtimeTranscriber(
     override fun prepare() {
         synchronized(lock) {
             val s = session
+            s?.expireWarmup()
             if (s != null && s.turns.isEmpty() && clock() - s.createdAt > renewMs) s.close("session renewal")
             current()
         }
@@ -132,6 +135,30 @@ class RealtimeTranscriber(
 
         fun connect() {
             socket = sockets.open(this)
+            warmUp()
+        }
+
+        /**
+         * Прогрев (S05, D79): первым в очереди сокета — [warmupMs] тишины и `commit`, как ход без слушателя. Первый ход
+         * новой сессии в S04 запаздывал (дельты позже, `commit → text` ≈ 1,2 с); прогрев проходит этот путь заранее,
+         * пока ученик ещё не говорит. Цена — секунды тишины (≈ $0,0001). Итог — строка `session warm-up` в журнал.
+         */
+        private fun warmUp() {
+            if (warmupMs <= 0) return
+            val t = Turn(this, reused = false, onPartial = {}, warmup = true)
+            turns += t
+            if (!socket.send(LiveTranscriptionEvents.sessionUpdate(""))) {
+                t.fail("send failed", closeSession = false)
+                return
+            }
+            val silence = ShortArray((warmupMs * ModelConfig.RECORD_SAMPLE_RATE / 1000).toInt())
+            t.onPcm(silence, silence.size)
+            t.onEnd(heardSpeech = true)
+        }
+
+        /** Под [lock]: прогрев без текста дольше предела не держит сессию (обновление ждёт пустого списка ходов). */
+        fun expireWarmup() {
+            turns.filter { it.warmup }.forEach { it.expireIfLate() }
         }
 
         override fun onMessage(text: String) {
@@ -190,6 +217,7 @@ class RealtimeTranscriber(
         }
 
         fun startTurn(prompt: String, onPartial: (String) -> Unit): Turn {
+            expireWarmup()
             // Ход, который ещё пишет звук, заменяется; ход после `commit` дожидается своего текста (S04).
             turns.filter { !it.isEnded }.forEach { it.fail("replaced by a new turn", closeSession = false) }
             val t = Turn(this, reused = turnsServed > 0, onPartial = onPartial)
@@ -209,7 +237,10 @@ class RealtimeTranscriber(
         private val s: Session,
         private val reused: Boolean,
         private val onPartial: (String) -> Unit,
+        /** Прогрев сессии ([Session.warmUp]): итог — только строка журнала. */
+        val warmup: Boolean = false,
     ) : LiveTurn {
+        override val firstInSession: Boolean get() = !reused
         private val startedAt = clock()
         private var readyAt: Long? = null
         private val resampler = Resampler16To24()
@@ -314,9 +345,22 @@ class RealtimeTranscriber(
             }
         }
 
+        /** Под [lock]: прогрев без текста за предел — сбой (сессия остаётся). */
+        fun expireIfLate() {
+            val at = commitAt ?: return
+            if (!done.isCompleted && clock() - at > textTimeoutMs) fail("no text in $textTimeoutMs ms", closeSession = false)
+        }
+
         private fun complete(ev: Event.Completed) {
             val text = ev.transcript.trim()
             val cost = (ev.seconds ?: 0.0) * ModelConfig.LIVE_TRANSCRIBE_PRICE_PER_MIN / 60
+            if (warmup) {
+                log.event(
+                    SOURCE,
+                    "session warm-up: ${commitAt?.let { clock() - it } ?: -1} ms (commit → text, $warmupMs ms of silence, " +
+                        "${s.openedAt?.let { "open → text ${clock() - it} ms" } ?: "not open"}); cost \$${"%.5f".format(java.util.Locale.US, cost)}",
+                )
+            }
             done.complete(LiveResult.Text(text, stats(text.length, cost, commitAt?.let { clock() - it } ?: -1)))
             detach()
         }
@@ -324,6 +368,7 @@ class RealtimeTranscriber(
         /** Под [lock]. Сбой сессии (ошибка сервера, нет текста) закрывает её: следующая реплика — в новой. */
         fun fail(reason: String, closeSession: Boolean = true) {
             if (done.isCompleted) return
+            if (warmup) log.event(SOURCE, "session warm-up failed ($reason)")
             done.complete(LiveResult.Failed(reason, stats(0, 0.0, -1)))
             detach()
             if (closeSession) s.close(reason)

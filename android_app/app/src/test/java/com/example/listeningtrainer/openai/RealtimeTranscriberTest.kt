@@ -39,7 +39,7 @@ class RealtimeTranscriberTest {
         val types get() = sent.map { Regex("\"type\":\"([^\"]+)\"").find(it)!!.groupValues[1] }
     }
 
-    private class Rig(scope: TestScope) {
+    private class Rig(scope: TestScope, warmupMs: Long = 0) {
         val sockets = mutableListOf<FakeSocket>()
         val log = mutableListOf<String>()
         val partials = mutableListOf<String>()
@@ -52,6 +52,7 @@ class RealtimeTranscriberTest {
             clock = { scope.testScheduler.currentTime },
             textTimeoutMs = 2_500,
             renewMs = 50 * 60_000L,
+            warmupMs = warmupMs,
         )
         val s get() = sockets.last()
         fun created() = s.server("""{"type":"session.created","session":{}}""")
@@ -307,5 +308,48 @@ class RealtimeTranscriberTest {
         r.t.prepare()
         r.t.release()
         assertTrue(r.s.cancelled)
+    }
+
+    // ---- прогрев сессии (S05, D79) --------------------------------------------------------
+
+    @Test
+    fun `warm-up - silence and commit go first, its text only goes to the log, the turn gets its own text`() = runTest {
+        val r = Rig(this, warmupMs = 300)
+        r.t.prepare()
+        // Прогрев — первым в очереди: настройки, 300 мс тишины, commit.
+        assertEquals("session.update", r.s.types.first())
+        assertEquals("input_audio_buffer.commit", r.s.types.last())
+        val warmupAudio = r.s.sent.filter { "append" in it }
+            .sumOf { it.substringAfter("\"audio\":\"").substringBefore('"').decodeBase64()!!.size }
+        assertTrue("got $warmupAudio", warmupAudio in 14_400 - 80..14_400) // 300 мс × 24 кГц × 2 байта
+        advanceTimeBy(200)
+        r.created()
+        // Ученик начал раньше, чем пришёл текст прогрева.
+        val turn = r.t.begin("p") { r.partials += it }
+        repeat(5) { turn.onPcm(piece, piece.size) }
+        advanceTimeBy(100)
+        r.committed("w")
+        r.delta("i1", "Hi.")
+        advanceTimeBy(300)
+        r.completed("w", "", seconds = 0)
+        turn.onEnd(heardSpeech = true)
+        val result = async { turn.result() }
+        r.committed("i1")
+        r.completed("i1", "Hi.")
+        runCurrent()
+        assertEquals("Hi.", (result.await() as LiveResult.Text).text)
+        assertTrue(turn.firstInSession) // прогрев — не ход ученика
+        assertTrue(r.log.toString(), r.log.any { it.startsWith("session warm-up: 600 ms (commit → text") })
+    }
+
+    @Test
+    fun `warm-up without text does not block session renewal`() = runTest {
+        val r = Rig(this, warmupMs = 300)
+        r.t.prepare()
+        r.created()
+        advanceTimeBy(2_600)
+        r.t.prepare()
+        assertTrue(r.log.toString(), r.log.any { it == "session warm-up failed (no text in 2500 ms)" })
+        assertEquals(1, r.sockets.size)
     }
 }
