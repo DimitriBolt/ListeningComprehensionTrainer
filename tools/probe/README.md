@@ -1,4 +1,4 @@
-# Пробы S00b, S02c, S02e–S02i, S03b
+# Пробы S00b, S02c, S02e–S02i, S03b, S04, S05
 
 Скрипт `probe.py` проверяет с вашим ключом всё, что в разведке S00
 (`docs/research/00-models.md`) осталось «не подтверждено» (S00b), и учителя на Responses API
@@ -325,6 +325,27 @@ python tools/probe/turn_end_export.py
 cd android_app && ./gradlew testDebugUnitTest --tests '*S04TurnEndRecordingsTest' --rerun
 python tools/probe/turn_end_export.py --check   # расхождения кода приложения с пробой
 ```
+
+## Пробы S05 — перебивание и команды голосом (`s05`)
+
+Бриф — `docs/stages/05-brief.md`; код — `s05.py`. Четыре части, по умолчанию все (≈ $0,15, 3–4 мин):
+
+```bash
+python tools/probe/probe.py s05                       # покажет оценку цены и спросит «y»
+python tools/probe/probe.py s05 --part commands       # только одна часть (можно несколько --part)
+```
+
+- **`commands`** — команды Stop / Again / Slower и похожие обычные реплики читает синтез Realtime тремя голосами (не голос
+  пользователя), звук — в сессию `gpt-live-transcribe` в темпе реального времени с `prompt` приложения. Узнавание — копией
+  `VoiceCommand.of`; список фраз проба читает из `VoiceCommand.kt`, без копии.
+- **`slower`** — каждая группа голосом приложения обычной скоростью и скоростью «Slower» (`ModelConfig.SLOWER_SPEECH_SPEED`),
+  скорость меняется `session.update` посреди одной сессии, как в приложении; длительность и сверка расшифровки.
+- **`interrupted`** — учитель после прерванной реплики: в истории прозвучавшие группы и пометка `BargeIn.INTERRUPTED_MARK`,
+  затем новая реплика ученика; повторяет ли учитель прерванное, попадает ли пометка в ответ, вопрос в конце.
+- **`corrector-long`** — поправщик на длинных склеенных репликах без знаков (как пишет поток): статус, токены, проверка
+  приложения (`Correction.check`, копия в `corrector.py`).
+
+Итог — `docs/research/05-probes.md` (+ `.json`); каждая часть заменяет свой раздел. Звук — `tools/probe/out/05/` (вне Git).
 
 ## Тесты (без ключа и без сети)
 
