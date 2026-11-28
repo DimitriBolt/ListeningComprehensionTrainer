@@ -11,7 +11,8 @@ package com.example.listeningtrainer.conversation
  * 2. Незакрытые `[` или `(` (сноска) останавливают точку перед собой. Жирный `**…**` не режется
  *    посередине: точка внутри пары — не точка, незакрытая `**` на последней строке — граница.
  *    (В пробе 5 из 63 ответов разрезали заголовок посередине — пауза перед ним выходила 600 мс
- *    вместо 1600.)
+ *    вместо 1600.) Кавычки (S05c, D63) — так же: точка внутри пары — не точка, открывающая кавычка, пара которой ещё
+ *    не решена ([Quotes.scan]), — граница: ждём закрывающую, конец абзаца или предел слов.
  * 3. Префикс до точки чистится от сносок ([SpeechText.clean]) и режется [SpeechPlanner.plan];
  *    отдаются все группы, кроме последней — её ещё может изменить продолжение.
  * 4. Конец ответа ([finish]) — режется весь текст, отдаётся остаток.
@@ -97,7 +98,8 @@ class StreamingSpeechPlanner(
     }
 
     companion object {
-        private val SAFE = Regex("""(?<=[,;:!?])\s+|(?<=[.])(?<!\b\d\.)\s+|\n\s*""")
+        /** Группа 1 — после `,"` `."` (закрывающая кавычка пары, S05c): там режет и нарезка. */
+        private val SAFE = Regex("""(?<=[,;:!?])\s+|(?<=[.])(?<!\b\d\.)\s+|\n\s*|(?<=[,.;:]["”])(\s+)""")
         private val BOLD_PAIR = Regex("""\*\*.*?\*\*""")
         private val BOLD_MARK = Regex("""\*\*""")
 
@@ -114,11 +116,15 @@ class StreamingSpeechPlanner(
                 val inPair = pairs.any { mark.range.first in it }
                 if (!inPair && mark.range.first >= lastLineStart) limit = minOf(limit, mark.range.first)
             }
+            val quotes = Quotes.scan(text, final = false)
+            if (quotes.undecided >= 0) limit = minOf(limit, quotes.undecided)
             var cut = 0
             for (m in SAFE.findAll(text.substring(0, limit))) {
                 val end = m.range.last + 1
                 if (end >= text.length || isRegexSpace(text[end])) continue
                 if (pairs.any { end > it.first && end <= it.last }) continue // внутри **…**
+                if (quotes.pairs.any { end > it.open && end <= it.close }) continue // внутри "…"
+                if (m.groups[1] != null && quotes.pairs.none { it.close == m.range.first - 1 }) continue // кавычка без пары
                 cut = end
             }
             return cut

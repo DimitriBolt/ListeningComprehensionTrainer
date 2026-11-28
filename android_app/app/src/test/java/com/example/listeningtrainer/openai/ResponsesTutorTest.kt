@@ -490,4 +490,24 @@ class ResponsesTutorTest {
         assertEquals(listOf("And rivers?", "Rivers run."), t.turns.takeLast(2).map { it.text })
         assertEquals(6, t.turns.size)
     }
+
+    @Test
+    fun `quotes - a question inside a title does not cut the reply, an unclosed quote is cut at the end (S05c, D63)`() = runTest {
+        val transport = FakeTransport().apply {
+            streams += sse(delta("Have you read \"Who Moved My "), delta("Cheese?"), delta("\" yet? It is a short book."), completed)
+            streams += sse(delta("She said \"I am happy. Are you happy? "), delta("I am."), completed)
+        }
+        val t = tutor(transport)
+        val texts = mutableListOf<String>()
+        t.reply("I like books.", null) { if (it is TutorEvent.Text) texts += it.delta }
+        assertEquals("Have you read \"Who Moved My Cheese?\" yet?", texts.joinToString(""))
+        assertEquals("Have you read \"Who Moved My Cheese?\" yet?", t.lastTeacherText)
+        texts.clear()
+        val events = mutableListOf<TutorEvent>()
+        t.reply("And you?", null) { events += it; if (it is TutorEvent.Text) texts += it.delta }
+        // кавычка не закрылась: текст за «?» держался и не ушёл в нарезку; в конце — реплика до «?»
+        assertEquals("She said \"I am happy. Are you happy?", texts.joinToString(""))
+        assertEquals("She said \"I am happy. Are you happy?", t.lastTeacherText)
+        assertTrue(events.last() is TutorEvent.Done)
+    }
 }

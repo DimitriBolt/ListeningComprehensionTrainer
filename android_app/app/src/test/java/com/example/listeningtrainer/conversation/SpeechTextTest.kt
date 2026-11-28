@@ -120,10 +120,10 @@ class SpeechTextTest {
         val curly = "His story “The Call of the Wild” is famous. Do you like it?"
         assertEquals(curly, SpeechText.clean(curly))
         val cg = SpeechPlanner().plan(curly).map { it.text }
-        // Группа длиннее 6 слов режется пополам и внутри названия — как раньше (вне этапа, см. отчёт S02i).
-        assertEquals(listOf("His story “The Call", "of the Wild” is famous.", "Do you like it?"), cg)
-        assertTrue(TranscriptCheck.compare(cg[0], "His story The Call").ok)
-        assertTrue(TranscriptCheck.compare(cg[1], "of the Wild is famous.").ok)
+        // Группа длиннее 6 слов режется пополам, но не внутри названия (S05c, D63): по границе кавычки, ближайшей к середине.
+        assertEquals(listOf("His story", "“The Call of the Wild” is famous.", "Do you like it?"), cg)
+        assertTrue(TranscriptCheck.compare(cg[0], "His story").ok)
+        assertTrue(TranscriptCheck.compare(cg[1], "The Call of the Wild is famous.").ok)
         assertEquals(2, ReplyText.metrics(curly).sentences)
     }
 }

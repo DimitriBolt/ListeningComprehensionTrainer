@@ -188,4 +188,45 @@ class SpeechPlannerTest {
             pairs("Today is 2026. **Note** this."),
         )
     }
+
+    // ---- кавычки — пара (S05c, D63); те же случаи — в Python (tests/test_speech_planner.py) ----
+
+    @Test
+    fun `quotes - a title is one group`() {
+        assertEquals(listOf("His favorite book is" to 250L, "\"The Call of the Wild\"." to 1000L), pairs("His favorite book is \"The Call of the Wild\"."))
+        assertEquals(listOf("His story", "“The Call of the Wild” is famous.", "Do you like it?"), texts("His story “The Call of the Wild” is famous. Do you like it?"))
+    }
+
+    @Test
+    fun `quotes - a question or exclamation inside is not the end of a phrase`() {
+        assertEquals("\"Who Moved My Cheese?\" yet?" to 1000L, pairs("Have you read \"Who Moved My Cheese?\" yet? I liked it.")[1])
+        assertEquals("The sign says “Stop!”" to 250L, pairs("The sign says “Stop!” and you stop.")[0])
+    }
+
+    @Test
+    fun `quotes - a comma inside the closing quote is a comma pause, no cut inside a short title`() {
+        assertEquals(listOf("I read" to 250L, "\"The Call of the Wild,\"" to 600L), pairs("I read \"The Call of the Wild,\" a book about a big dog.").take(2))
+        assertEquals(listOf("My mom loves", "\"Eat, Pray, Love\" very much."), texts("My mom loves \"Eat, Pray, Love\" very much."))
+    }
+
+    @Test
+    fun `quotes - a long quote keeps the usual rules but not one word from a quote`() {
+        assertEquals(
+            listOf("He said,", "\"I will go to the", "big lake with my son,", "and we will", "catch many fish there.\"", "Do you?"),
+            texts("He said, \"I will go to the big lake with my son, and we will catch many fish there.\" Do you?"),
+        )
+        assertTrue(texts("“Yesterday, I went to the shop and bought some apples and pears.”")[0] != "“Yesterday,")
+    }
+
+    @Test
+    fun `quotes - without a pair the text is ordinary`() {
+        assertEquals(
+            listOf("She said \"I am happy." to 1000L, "Are you happy?" to 1000L, "I am." to 1000L),
+            pairs("She said \"I am happy. Are you happy? I am."),
+        )
+        assertTrue(Quotes.scan("\"" + List(31) { "word" }.joinToString(" ") + "\"").pairs.isEmpty()) // дальше 30 слов
+        assertTrue(Quotes.scan("\"a\nb\"").pairs.isEmpty()) // другой абзац
+        assertEquals(2, Quotes.scan("A \"b", final = false).undecided) // поток: ещё не решено
+        assertEquals(-1, Quotes.scan("A \"b").undecided)
+    }
 }

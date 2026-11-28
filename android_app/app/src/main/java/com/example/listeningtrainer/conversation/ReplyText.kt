@@ -2,7 +2,7 @@ package com.example.listeningtrainer.conversation
 
 /**
  * Ответ учителя как реплика диалога (S02e, раздел «Методика»). Чистый Kotlin (инвариант 3).
- * Копия в Python — `reply_metrics`, `drop_unfinished`, `first_question_end` в `tools/probe/tutor_dialog.py`.
+ * Копия в Python — `reply_metrics`, `drop_unfinished`, `first_question_end`, `question_pending` в `tools/probe/tutor_dialog.py`.
  */
 object ReplyText {
 
@@ -50,11 +50,31 @@ object ReplyText {
      *
      * Поправка ученика в начале реплики (D47) — не вопрос: «I think you meant "…", right?» пропускается
      * целиком, вместе с `?` внутри кавычек. Пока поправка не пришла до конца — `null` (ждём).
+     *
+     * S05c (D63): «?» внутри пары кавычек — не конец реплики («Have you read "Who Moved My Cheese?" yet?»). «?» после
+     * открывающей кавычки, пара которой ещё не решена ([questionPending]), — решать рано. [final] — текст целиком (поток
+     * кончился): кавычка без закрывающей — без пары, её «?» — конец реплики.
      */
-    fun firstQuestionEnd(text: String): Int? {
+    fun firstQuestionEnd(text: String, final: Boolean = false): Int? {
         val from = afterCorrection(text) ?: return null
-        val m = QUESTION_END.find(text, from) ?: return null
-        return m.range.last + 1
+        val quotes = Quotes.scan(text, final)
+        for (m in QUESTION_END.findAll(text, from)) {
+            val at = m.range.first
+            if (quotes.undecided in 0 until at) return null
+            if (quotes.pairs.any { it.open < at && at < it.close }) continue
+            return m.range.last + 1
+        }
+        return null
+    }
+
+    /**
+     * Есть «?» после открывающей кавычки, пара которой ещё не решена (S05c, D63): поток держит текст, пока не придёт
+     * закрывающая кавычка, конец абзаца, предел слов или конец ответа — иначе за таким «?» уже прозвучал бы лишний текст.
+     */
+    fun questionPending(text: String): Boolean {
+        val from = afterCorrection(text) ?: return false
+        val open = Quotes.scan(text, final = false).undecided
+        return open >= from && text.indexOf('?', open + 1) >= 0
     }
 
     private const val CORRECTION_START = "i think you meant"

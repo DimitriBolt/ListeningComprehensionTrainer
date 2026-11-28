@@ -60,4 +60,19 @@ class ReplyTextTest {
         assertEquals("I think you meant “I went home.” Where?", cut("I think you meant “I went home.” Where? Then"))
         assertEquals("I think it is hot. Do you?", cut("I think it is hot. Do you? Yes."))
     }
+
+    @Test
+    fun `quotes - a question inside a pair is not the end of the reply, an unpaired quote waits for the end (S05c, D63)`() {
+        val t = "Have you read \"Who Moved My Cheese?\" yet? I liked it."
+        assertEquals("Have you read \"Who Moved My Cheese?\" yet?", t.substring(0, ReplyText.firstQuestionEnd(t)!!))
+        assertNull(ReplyText.firstQuestionEnd("Have you read \"Who Moved My Cheese? ")) // пара ещё не решена — рано
+        assertTrue(ReplyText.questionPending("Have you read \"Who Moved My Cheese? "))
+        assertFalse(ReplyText.questionPending("Have you read \"Who Moved"))
+        val unpaired = "She said \"I am happy. Are you happy? I am."
+        assertNull(ReplyText.firstQuestionEnd(unpaired))
+        assertEquals("She said \"I am happy. Are you happy?", unpaired.substring(0, ReplyText.firstQuestionEnd(unpaired, final = true)!!))
+        // поправка с «?» внутри — как раньше
+        val fix = "I think you meant \"Where is it?\", right? Is it far? Yes."
+        assertEquals("I think you meant \"Where is it?\", right? Is it far?", fix.substring(0, ReplyText.firstQuestionEnd(fix)!!))
+    }
 }

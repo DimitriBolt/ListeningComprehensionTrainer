@@ -146,4 +146,26 @@ class StreamingSpeechPlannerTest {
         assertEquals(listOf("Y", "Z"), sp.feed("hree and more words here.").let { it + sp.finish() }.map { it.text })
         assertEquals(listOf(1), sp.divergences)
     }
+
+    @Test
+    fun `quotes - no safe point inside an open pair, the stream gives the same groups as the whole text (S05c, D63)`() {
+        assertEquals(4, StreamingSpeechPlanner.safeCut("Hi. \"The Call, of"))
+        assertEquals("Hi. \"The Call, of the Wild,\" ".length, StreamingSpeechPlanner.safeCut("Hi. \"The Call, of the Wild,\" a"))
+        val texts = listOf(
+            "His favorite book is \"The Call of the Wild\". It is about a dog. Do you like dogs?",
+            "Have you read \"Who Moved My Cheese?\" yet? I liked it.",
+            "I read \"The Call of the Wild,\" a book about a big dog. Do you like dogs?",
+            "He said, \"I will go to the big lake with my son, and we will catch many fish there.\" Do you?",
+            "She said \"I am happy. Are you happy? I am.",
+            "A \"b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg.\" Ok.",
+        )
+        for ((n, text) in texts.withIndex()) {
+            val whole = planner.plan(text)
+            for (way in listOf(1, 2, 3, 7).map { bySize(text, it) } + (0 until 5).map { pieces(text, Random(n * 10 + it), 6) }) {
+                val (got, sp) = stream(way)
+                assertEquals(text, whole, got)
+                assertTrue(text, sp.divergences.isEmpty())
+            }
+        }
+    }
 }

@@ -1,4 +1,4 @@
-# Пробы S00b, S02c, S02e–S02i, S03b, S04, S05, S05b
+# Пробы S00b, S02c, S02e–S02i, S03b, S04, S05, S05b; сверка S05c
 
 Скрипт `probe.py` проверяет с вашим ключом всё, что в разведке S00
 (`docs/research/00-models.md`) осталось «не подтверждено» (S00b), и учителя на Responses API
@@ -367,6 +367,22 @@ python tools/probe/probe.py s05b --part corrector     # только попра�
   (D87, копия `Correction.check` в `corrector.py`) против прежней поправки целиком.
 
 Итог — `docs/research/05b-probes.md` (+ `.json`).
+
+## Сверка S05c — кавычки (`quotes_check.py`, без ключа и сети)
+
+Бриф — `docs/stages/05c-brief.md`, п. 4 (D63). Копия правила пар кавычек — `quote_pairs`, `quote_cut_allowed` в
+`speech_planner.py` (Kotlin — `Quotes.kt`), конец реплики — `first_question_end(text, final)` и `question_pending` в
+`tutor_dialog.py` (Kotlin — `ReplyText.kt`).
+
+```bash
+python tools/probe/quotes_check.py
+```
+
+- нарезка 90 ответов пробы S02c (`android_app/app/src/test/resources/02c-replies.txt`) до S05c
+  (`fixtures/02c_plans_s05b.json`, записана прежней копией) и после; итог — `docs/research/05c-quotes.md`;
+- `fixtures/02c_plans.json` — нынешняя нарезка 90 ответов и случаев брифа: её же сверяет Kotlin-тест
+  `SpeechPlannerCopyTest` (сверка копий). Поменяли нарезку — перезапустите скрипт, иначе упадут `SpeechPlannerCopyTest`
+  и `test_quotes_check_fixture_is_current`.
 
 ## Тесты (без ключа и без сети)
 

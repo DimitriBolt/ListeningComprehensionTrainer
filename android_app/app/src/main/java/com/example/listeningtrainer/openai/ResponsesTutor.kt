@@ -198,6 +198,8 @@ class ResponsesTutor(
     private inner class Stream(private val userText: String, private val onEvent: suspend (TutorEvent) -> Unit) {
         private val data = StringBuilder()
         private val text = StringBuilder()
+        /** Сколько знаков [text] отдано контроллеру; остальное держится, пока «?» после открытой кавычки не решён (D63). */
+        private var sent = 0
         /** Что пришло после первого вопроса: дочитывается, только пока это сноска к нему (источник для экрана). */
         private val tail = StringBuilder()
         private var atQuestion = false
@@ -252,12 +254,12 @@ class ResponsesTutor(
                     text.append(delta)
                     val cut = ReplyText.firstQuestionEnd(text.toString())
                     if (cut == null) {
-                        onEvent(TutorEvent.Text(delta))
+                        // «?» внутри открытой кавычки (S05c, D63): держать, пока не ясно, пара ли это.
+                        if (!ReplyText.questionPending(text.toString())) send(text.length)
                         return
                     }
                     // Первый вопрос кончился: дальше — только сноска к нему, иначе поток обрывается.
-                    val keep = delta.length - (text.length - cut)
-                    if (keep > 0) onEvent(TutorEvent.Text(delta.substring(0, keep)))
+                    send(cut)
                     tail.append(text, cut, text.length)
                     text.setLength(cut)
                     atQuestion = true
@@ -276,7 +278,7 @@ class ResponsesTutor(
                     // «…or tonight?I think…» (проба S02e) — нарезка не видит конца предложения.
                     if (item.str("type") == "message" && text.isNotEmpty() && !text.last().isWhitespace()) {
                         text.append(' ')
-                        onEvent(TutorEvent.Text(" "))
+                        if (sent == text.length - 1) send(text.length)
                     }
                 }
                 "response.output_item.done" -> {
@@ -312,6 +314,12 @@ class ResponsesTutor(
                     throw ServiceException(kindOf(code), "stream error (${code ?: "?"})")
                 }
             }
+        }
+
+        /** Отдать контроллеру текст до [to]. */
+        private suspend fun send(to: Int) {
+            if (to > sent) onEvent(TutorEvent.Text(text.substring(sent, to)))
+            sent = maxOf(sent, to)
         }
 
         private suspend fun citation(a: JsonElement) {
@@ -350,6 +358,11 @@ class ResponsesTutor(
         private suspend fun complete(response: JsonObject?, incomplete: String?) {
             if (done) return
             done = true
+            // Ответ кончился, а текст ещё держится (D63): кавычка так и не закрылась — она без пары, её «?» — конец реплики.
+            if (sent < text.length) {
+                if (!atQuestion) ReplyText.firstQuestionEnd("$text ", final = true)?.let { if (it < text.length) text.setLength(it) }
+                send(text.length)
+            }
             val usage = response?.obj("usage")
             val input = usage?.int("input_tokens") ?: 0
             val cached = usage?.obj("input_tokens_details")?.int("cached_tokens") ?: 0

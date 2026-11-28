@@ -8,6 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import speech_planner as sp  # noqa: E402
 from speech_planner import Chunk, plan  # noqa: E402
+import tutor_dialog as td  # noqa: E402
 
 
 def pairs(text):
@@ -218,3 +219,72 @@ def test_all_probe_replies_stream_like_whole_text():
         for way in ways:
             got, s = stream_with_late_pauses(text, way)
             assert got == expected and s.divergences == [], f"ответ {n + 1}"
+
+
+# --- S05c: кавычки — пара (D63); те же случаи — в Kotlin (SpeechPlannerTest, SpeechPlannerCopyTest) ---
+
+def groups(text):
+    return [(c.text, c.pause_ms) for c in plan(text)]
+
+
+def test_quotes_title_is_one_group():
+    assert groups('His favorite book is "The Call of the Wild".') == [
+        ("His favorite book is", 250), ('"The Call of the Wild".', 1000)]
+    assert groups("His story “The Call of the Wild” is famous. Do you like it?")[:2] == [
+        ("His story", 250), ("“The Call of the Wild” is famous.", 1000)]
+
+
+def test_quotes_question_inside_is_not_the_end():
+    t = 'Have you read "Who Moved My Cheese?" yet? I liked it.'
+    assert t[:td.first_question_end(t + " ", final=True)] == 'Have you read "Who Moved My Cheese?" yet?'
+    assert groups(t)[1] == ('"Who Moved My Cheese?" yet?', 1000)
+    assert groups("The sign says “Stop!” and you stop.")[0] == ("The sign says “Stop!”", 250)  # «!» внутри — не конец фразы
+
+
+def test_quotes_comma_inside_the_closing_quote_is_a_comma_pause():
+    assert groups('I read "The Call of the Wild," a book about a big dog.')[:2] == [
+        ("I read", 250), ('"The Call of the Wild,"', 600)]
+    assert groups('My mom loves "Eat, Pray, Love" very much.') == [
+        ("My mom loves", 250), ('"Eat, Pray, Love" very much.', 1000)]
+
+
+def test_quotes_long_quote_keeps_the_usual_rules_but_not_one_word_from_a_quote():
+    g = [t for t, _ in groups('He said, "I will go to the big lake with my son, and we will catch many fish there." Do you?')]
+    assert g == ["He said,", '"I will go to the', "big lake with my son,", "and we will", 'catch many fish there."', "Do you?"]
+    g = [t for t, _ in groups('“Yesterday, I went to the shop and bought some apples and pears.”')]
+    assert g[0] != "“Yesterday,"  # одно слово у кавычки не отрезается
+
+
+def test_quotes_without_a_pair_are_ordinary_text():
+    t = 'She said "I am happy. Are you happy? I am.'
+    assert groups(t) == [('She said "I am happy.', 1000), ("Are you happy?", 1000), ("I am.", 1000)]
+    assert t[:td.first_question_end(t + " ", final=True)] == 'She said "I am happy. Are you happy?'
+    assert td.first_question_end(t + " ") is None and td.question_pending(t)  # поток: пока не ясно — ждать
+    # закрывающая дальше 30 слов или в другом абзаце — без пары
+    far = '"' + " ".join(["word"] * 31) + '"'
+    assert sp.quote_pairs(far)[0] == []
+    assert sp.quote_pairs('"a\nb"')[0] == []
+
+
+def test_quotes_stream_waits_for_the_closing_quote():
+    assert sp.safe_cut('Hi. "The Call, of') == 4  # внутри открытой пары не режем
+    assert sp.safe_cut('Hi. "The Call, of the Wild," a') == len('Hi. "The Call, of the Wild," ')
+    for text in ['His favorite book is "The Call of the Wild". It is about a dog. Do you like dogs?',
+                 'Have you read "Who Moved My Cheese?" yet? I liked it.',
+                 'I read "The Call of the Wild," a book about a big dog. Do you like dogs?',
+                 'He said, "I will go to the big lake with my son, and we will catch many fish there." Do you?',
+                 'She said "I am happy. Are you happy? I am.',
+                 'A "b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg." Ok.']:
+        for n in range(6):
+            way = list(text) if n == 0 else split_random(text, random.Random(n))
+            got, s = stream_with_late_pauses(text, way)
+            assert got == plan(text) and s.divergences == [], text
+
+
+def test_quotes_check_fixture_is_current():
+    """fixtures/02c_plans.json — то, что сверяет Kotlin; он должен совпадать с нынешней копией."""
+    import json
+    import quotes_check as qc
+    d = json.loads(qc.AFTER.read_text(encoding="utf-8"))
+    assert d["replies"] == [qc.now(t) for t in qc.replies()]
+    assert d["cases"] == [qc.now(t) for t in qc.CASES]

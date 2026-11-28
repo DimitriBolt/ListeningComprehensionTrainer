@@ -223,13 +223,32 @@ def _after_correction(text: str) -> int | None:
     return None if "right?".startswith(tail) else after
 
 
-def first_question_end(text: str) -> int | None:
-    """Копия ReplyText.firstQuestionEnd: реплика кончается первым вопросом (поправка — не вопрос)."""
+def first_question_end(text: str, final: bool = False) -> int | None:
+    """Копия ReplyText.firstQuestionEnd: реплика кончается первым вопросом (поправка — не вопрос); «?» внутри пары
+    кавычек — не конец (S05c, D63), после нерешённой открывающей — решать рано."""
+    from speech_planner import quote_pairs
     start = _after_correction(text)
     if start is None:
         return None
-    m = _QUESTION_END.search(text, start)
-    return m.end() if m else None
+    pairs, undecided = quote_pairs(text, final)
+    for m in _QUESTION_END.finditer(text, start):
+        at = m.start()
+        if 0 <= undecided < at:
+            return None
+        if any(p.open < at < p.close for p in pairs):
+            continue
+        return m.end()
+    return None
+
+
+def question_pending(text: str) -> bool:
+    """Копия ReplyText.questionPending: «?» после открывающей кавычки, пара которой ещё не решена."""
+    from speech_planner import quote_pairs
+    start = _after_correction(text)
+    if start is None:
+        return False
+    _, undecided = quote_pairs(text, final=False)
+    return undecided >= start and text.find("?", undecided + 1) >= 0
 
 
 def _tail_is_footnote(tail: str) -> bool:

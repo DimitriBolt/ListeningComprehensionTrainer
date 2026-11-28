@@ -1,6 +1,6 @@
 """Нарезка речи учителя для пробы S02c: Python-копия SpeechPlanner и потоковая нарезка.
 
-`plan()` — перенос `android_app/.../conversation/SpeechPlanner.kt` (состояние после S02e: D22, D23, D45)
+`plan()` — перенос `android_app/.../conversation/SpeechPlanner.kt` (состояние после S05c: D22, D23, D45, кавычки D63)
 с Kotlin на Python, строка в строку, вместе с особенностями. Нужен, чтобы на настоящих потоках
 ответа учителя проверить: потоковая нарезка даёт **те же** группы, что нарезка готового текста
 (инвариант 1). Эталонные случаи — из `SpeechPlannerTest.kt` (перенесены в tests/test_speech_planner.py).
@@ -47,9 +47,87 @@ PAUSE_LIST_NUMBER_MS = 400
 _HEADING_LINE_RE = re.compile(r"[ \t]*(?:\d{1,2}\.[ \t]+)?\*\*(?:(?!\*\*)[^\n])+\*\*[ \t]*[:.!?]?[ \t]*")
 _LIST_NUMBER_RE = re.compile(r"^\s*(\d{1,2}\.)\s+(\S.*)$", re.S)
 _SPLIT_RE = re.compile(
-    r"(?<=[,!?;:])\s+|(?<=[.])(?<!\b\d\.)\s+"
+    r"(?<=[,!?;:])\s+|(?<=[.])(?<!\b\d\.)\s+|(?<=[,.;:][\"”])(\s+)"
     r"|\s+(?=(?i:and|but|because|if|when|then|after|before|that|which|who|so|or|although|while|since|as)\b)")
 _PARAGRAPH_RE = re.compile(r"\n+")
+
+
+# --------------------------------------------------------------------------
+# Кавычки — пара (S05c, D63): копия Quotes.kt
+# --------------------------------------------------------------------------
+
+QUOTE_SHORT_MAX_WORDS = 8
+QUOTE_PAIR_MAX_WORDS = 30
+_WORD_RE = re.compile(r"[^\W_]+(?:['’][^\W\d_]+)?")
+
+
+@dataclass(frozen=True)
+class QuotePair:
+    open: int
+    close: int
+    words: int
+
+    @property
+    def short(self) -> bool:
+        return self.words <= QUOTE_SHORT_MAX_WORDS
+
+    def inside(self, at: int) -> bool:
+        return self.open < at <= self.close
+
+
+def _words(text: str, a: int, b: int) -> int:
+    return 0 if b <= a else len(_WORD_RE.findall(text[a:b]))
+
+
+def _letter_or_digit(ch: str) -> bool:
+    return ch.isalnum()
+
+
+def quote_pairs(text: str, final: bool = True) -> tuple[list[QuotePair], int]:
+    """Копия Quotes.scan: пары `"…"` / `“…”` в одном абзаце, не дальше 30 слов; (пары, первая нерешённая открывающая или -1)."""
+    pairs: list[QuotePair] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] not in '"“':
+            i += 1
+            continue
+        o = i
+        j = o + 1
+        close = -1
+        limit = False
+        words = 0
+        in_word = False
+        while j < n:
+            ch = text[j]
+            if ch == "\n":
+                limit = True
+                break
+            if ch in '"”':
+                close = j
+                break
+            letter = _letter_or_digit(ch)
+            if letter and not in_word:
+                words += 1
+                if words > QUOTE_PAIR_MAX_WORDS:
+                    limit = True
+                    break
+            in_word = letter or (in_word and ch in "'’")
+            j += 1
+        if close >= 0:
+            pairs.append(QuotePair(o, close, _words(text, o + 1, close)))
+            i = close + 1
+        elif limit or final:
+            i = o + 1
+        else:
+            return pairs, o
+    return pairs, -1
+
+
+def quote_cut_allowed(text: str, pairs: list[QuotePair], at: int) -> bool:
+    """Копия Quotes.cutAllowed: не внутри короткой пары и не в одном слове от кавычки внутри длинной."""
+    return not any(p.inside(at) and (p.short or _words(text, p.open + 1, at) <= 1 or _words(text, at, p.close) <= 1)
+                   for p in pairs)
 
 
 @dataclass(frozen=True)
@@ -87,6 +165,34 @@ def _join_wordless(chunks: list[Chunk]) -> list[Chunk]:
     return out
 
 
+def _half_cut(words: list[str], start: int, p_text: str, pairs: list[QuotePair]) -> int | None:
+    mid = len(words) // 2
+    space_at = [0] * len(words)
+    off = start
+    for k, w in enumerate(words):
+        if k > 0:
+            space_at[k] = off - 1
+        off += len(w) + 1
+    for k in sorted(range(1, len(words)), key=lambda k: (abs(k - mid), k)):
+        if quote_cut_allowed(p_text, pairs, space_at[k]):
+            return k
+    return None
+
+
+def _end_mark(text: str, start: int, p_text: str, pairs: list[QuotePair]) -> str | None:
+    t = text.rstrip()
+    if not t:
+        return None
+    last = start + len(t) - 1
+    pair = next((p for p in pairs if p.close == last), None)
+    if pair is None:
+        return t[-1]
+    if last <= pair.open + 1:
+        return None
+    before = p_text[last - 1]
+    return before if before in ",.;:" else None
+
+
 def plan(text: str) -> list[Chunk]:
     """Копия SpeechPlanner.plan()."""
     spoken = _strip_service_label(text)
@@ -99,25 +205,42 @@ def plan(text: str) -> list[Chunk]:
         if m:
             all_chunks.append(Chunk(m.group(1), PAUSE_LIST_NUMBER_MS))
             p_text = m.group(2)
-        raw = [c for c in _SPLIT_RE.split(p_text) if c.strip()]
-        ped: list[str] = []
-        for r in raw:
+        pairs, _ = quote_pairs(p_text)
+        raw: list[tuple[str, int]] = []
+        frm = 0
+        for sm in _SPLIT_RE.finditer(p_text):
+            at = sm.start()
+            if sm.group(1) is not None and not any(p.close == at - 1 for p in pairs):
+                continue
+            if not quote_cut_allowed(p_text, pairs, at):
+                continue
+            raw.append((p_text[frm:at], frm))
+            frm = sm.end()
+        raw.append((p_text[frm:], frm))
+        raw = [r for r in raw if r[0].strip()]
+        ped: list[tuple[str, int]] = []
+        for r, start in raw:
             words = r.split(" ")
             if len(words) > 6:
-                mid = len(words) // 2
-                ped.append(" ".join(words[:mid]))
-                ped.append(" ".join(words[mid:]))
+                k = _half_cut(words, start, p_text, pairs)
+                if k is None:
+                    ped.append((r, start))
+                else:
+                    head = " ".join(words[:k])
+                    ped.append((head, start))
+                    ped.append((" ".join(words[k:]), start + len(head) + 1))
             else:
-                ped.append(r)
-        for c_index, t in enumerate(ped):
+                ped.append((r, start))
+        for c_index, (t, start) in enumerate(ped):
             s = t.strip()
+            end = _end_mark(t, start, p_text, pairs)
             if c_index == len(ped) - 1 and p_index < len(paragraphs) - 1:
                 pause = PAUSE_PARAGRAPH_MS
             elif heading and c_index == len(ped) - 1:
                 pause = PAUSE_HEADING_MS
-            elif s.endswith((".", "!", "?")):
+            elif end in (".", "!", "?"):
                 pause = PAUSE_SENTENCE_MS
-            elif s.endswith((",", ":", ";")):
+            elif end in (",", ":", ";"):
                 pause = PAUSE_COMMA_MS
             else:
                 pause = PAUSE_INSIDE_MS
@@ -169,7 +292,7 @@ def speech_leftovers(text: str) -> list[str]:
 # Потоковая нарезка
 # --------------------------------------------------------------------------
 
-_SAFE_RE = re.compile(r"(?<=[,;:!?])\s+|(?<=[.])(?<!\b\d\.)\s+|\n\s*")
+_SAFE_RE = re.compile(r"(?<=[,;:!?])\s+|(?<=[.])(?<!\b\d\.)\s+|\n\s*|(?<=[,.;:][\"”])(\s+)")
 _BOLD_PAIR_RE = re.compile(r"\*\*.*?\*\*")
 _REGEX_SPACE = " \t\n\x0b\x0c\r"  # \s регулярных выражений Java (как в Kotlin)
 
@@ -204,6 +327,10 @@ def safe_cut(text: str) -> int:
     for m in re.finditer(r"\*\*", text):
         if not any(a <= m.start() < b for a, b in pairs) and m.start() >= last_line:
             limit = min(limit, m.start())
+    # Кавычки (S05c, D63): точка внутри пары — не точка; нерешённая открывающая — граница.
+    qpairs, undecided = quote_pairs(text, final=False)
+    if undecided >= 0:
+        limit = min(limit, undecided)
     cut = 0
     for m in _SAFE_RE.finditer(text, 0, limit):
         end = m.end()
@@ -212,6 +339,10 @@ def safe_cut(text: str) -> int:
             continue
         if any(a < end < b for a, b in pairs):
             continue
+        if any(q.open < end <= q.close for q in qpairs):
+            continue
+        if m.group(1) is not None and not any(q.close == m.start() - 1 for q in qpairs):
+            continue  # `,"` — точка, только если кавычка закрывает пару (там режет и plan)
         cut = end
     return cut
 
