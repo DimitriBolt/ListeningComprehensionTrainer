@@ -119,6 +119,23 @@ class ResponsesTutor(
         log.event(SOURCE, "tutor history: turn withdrawn (the student went on)")
     }
 
+    /** S05c (D90): после поддакивания ответ в истории — целиком; пара «реплика — ответ» восстанавливается, если её нет. */
+    override fun resumed(studentText: String, reply: String) {
+        val n = history.size
+        when {
+            n >= 2 && history[n - 1].role == ROLE_ASSISTANT && history[n - 2].role == ROLE_USER && history[n - 2].text == studentText ->
+                history[n - 1] = Turn(ROLE_ASSISTANT, reply)
+            n >= 1 && history[n - 1].role == ROLE_USER && history[n - 1].text == studentText -> history += Turn(ROLE_ASSISTANT, reply)
+            else -> {
+                history += Turn(ROLE_USER, studentText)
+                history += Turn(ROLE_ASSISTANT, reply)
+            }
+        }
+        trim()
+        lastReplyDone = true
+        log.event(SOURCE, "tutor history: reply resumed after a backchannel")
+    }
+
     override val lastTeacherText: String?
         get() = history.lastOrNull { it.role == ROLE_ASSISTANT && it.text.isNotBlank() }?.text?.let(BargeIn::unmarked)
 

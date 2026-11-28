@@ -238,6 +238,12 @@ class ConversationControllerTest {
         /** Отменённые ходы (S05b, D86): ученик продолжил мысль поверх начала ответа. */
         val withdrawn = mutableListOf<String>()
         override fun withdrawn(studentText: String) { withdrawn += studentText }
+        /** Ответы, продолженные после поддакивания (S05c, D90): реплика ученика и ответ целиком. */
+        val resumed = mutableListOf<Pair<String, String>>()
+        override fun resumed(studentText: String, reply: String) {
+            resumed += studentText to reply
+            lastTeacherText = reply
+        }
     }
 
     /** Подставной поправщик: ответ [answer] через [delayMs]; [error] — сбой. */
@@ -2420,6 +2426,105 @@ class ConversationControllerTest {
         assertEquals("Weather in Tucson" to "", rig.tutor.interrupted.single())
         assertTrue(rig.log.lines.any { it.startsWith("[Turn] barge-in at +") && "spoken 0 of 0 groups" in it })
         assertEquals(listOf("Weather in Tucson", "Never mind"), rig.tutor.replies)
+    }
+
+    // ---- поддакивание поверх учителя — учитель продолжает (S05c, D90) -------------------------------------------
+
+    /** Ответ [longReply]; ученик говорит [speakMs] с [speakFrom] (часы теста), распознано [said]. */
+    private fun TestScope.backchannelRig(said: String, speakFrom: Long, speakMs: Long = 800, ending: TurnEnd? = null, level: StudentLevel? = null): Rig {
+        val rig = Rig(this, "I went shopping", said, bargeIn = true, level = level)
+        ending?.let { rig.input.endings += it }
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = speakFrom
+        rig.vad.speakUntil = speakFrom + speakMs
+        advanceUntilIdle()
+        return rig
+    }
+
+    @Test
+    fun `backchannel over the teacher - nothing to the teacher, the reply goes on from the interrupted group`() = runTest {
+        val level = StudentLevel(MemoryLevelStore())
+        // первая группа звучит 1500–2500, вторая — с 3500: ученик говорит в начале второй
+        val rig = backchannelRig("Mm-hmm.", speakFrom = 3_550, level = level)
+        val groups = SpeechPlanner().plan(longReply).map { it.text }
+        val info = "played ${rig.output.played}\n" + rig.log.lines.joinToString("\n")
+        // прозвучали группы 1–2, вторая прервана; дальше — снова с группы 2 до конца
+        assertEquals(info, groups.take(2) + groups.drop(1), rig.output.played)
+        assertEquals(info, listOf("I went shopping"), rig.tutor.replies) // учителю — ничего нового
+        assertTrue(info, rig.log.lines.contains("[Turn] barge-in → backchannel, resumed at group 2 of ${groups.size}"))
+        // история: ответ целиком, как прозвучал
+        assertEquals(info, listOf("I went shopping" to groups.joinToString(" ")), rig.tutor.resumed)
+        assertEquals(1, level.state.value.turns) // поддакивание не в окне уровня
+        assertEquals(1, rig.synth.texts.count { it == groups[1] }) // тот же звук, без нового синтеза
+        assertEquals(1, rig.output.cues.count { it == Cue.LISTEN })
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+        // перед прерванной группой — обычная пауза после первой (1000 мс после «…market.»)
+        val t = rig.output.startTimes
+        assertTrue(info, rig.log.lines.any { Regex("""\[Audio] mic during teacher: .*""").matches(it) })
+        assertTrue(info, t[2] - t[1] >= 1_000)
+    }
+
+    @Test
+    fun `backchannel during the last group - the reply ends as usual`() = runTest {
+        val groups = SpeechPlanner().plan(longReply).map { it.text }
+        val rig = backchannelRig("Uh-huh.", speakFrom = 8_750) // последняя группа звучит с ≈ 8700
+        val info = "played ${rig.output.played}\n" + rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.log.lines.contains("[Turn] barge-in → backchannel, resumed at group ${groups.size} of ${groups.size}"))
+        assertEquals(info, groups + groups.last(), rig.output.played)
+        assertEquals(listOf("I went shopping"), rig.tutor.replies)
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `not a backchannel - a new turn as before`() = runTest {
+        val rig = backchannelRig("What is a market", speakFrom = 3_550)
+        assertEquals(listOf("I went shopping", "What is a market"), rig.tutor.replies)
+        assertTrue(rig.tutor.resumed.isEmpty())
+        assertTrue(rig.log.lines.none { "backchannel" in it })
+    }
+
+    @Test
+    fun `backchannel in the continuation window - the turn comes back, the reply goes on`() = runTest {
+        val level = StudentLevel(MemoryLevelStore())
+        val rig = backchannelRig("Mhm.", speakFrom = 3_550, ending = TurnEnd.JUDGE, level = level)
+        val groups = SpeechPlanner().plan(longReply).map { it.text }
+        val info = "played ${rig.output.played}\n" + rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.log.lines.any { it.endsWith("→ continuation of the student turn") })
+        assertEquals(info, listOf("I went shopping"), rig.tutor.withdrawn)
+        assertEquals(info, listOf("I went shopping"), rig.tutor.replies) // склеенная реплика учителю не ушла
+        assertEquals(info, listOf("I went shopping" to groups.joinToString(" ")), rig.tutor.resumed)
+        assertEquals(info, groups.take(2) + groups.drop(1), rig.output.played)
+        assertEquals(info, 1, level.state.value.turns) // реплика посчитана один раз
+    }
+
+    @Test
+    fun `barge-in again over the resumed reply - the history keeps all that sounded, with the mark`() = runTest {
+        val rig = Rig(this, "I went shopping", "Mhm.", "What is a market", bargeIn = true)
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = 3_550
+        rig.vad.speakUntil = 4_350
+        rig.vad.more += 9_000L to 9_800L // перебил продолжение по-настоящему
+        advanceUntilIdle()
+        val info = "played ${rig.output.played}\n" + rig.log.lines.joinToString("\n")
+        assertEquals(info, listOf("I went shopping", "What is a market"), rig.tutor.replies)
+        assertEquals(info, 1, rig.tutor.resumed.size)
+        val history = rig.tutor.interrupted.last()
+        assertEquals("I went shopping", history.first)
+        assertTrue(info, history.second.endsWith(BargeIn.INTERRUPTED_MARK))
+        assertTrue(info, BargeIn.unmarked(history.second).startsWith("Yesterday I went to the market. I bought apples"))
+    }
+
+    @Test
+    fun `short sound with a backchannel - not a command, the teacher goes on`() = runTest {
+        val rig = shortSoundRig("I went shopping", "Uh-huh.") { it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150 }
+        assertTrue(rig.log.lines.any { it.endsWith("→ stt 300 ms: not a command (2 words)") })
+        assertEquals(SpeechPlanner().plan(longReply).map { it.text }, rig.output.played)
     }
 
     @Test

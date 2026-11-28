@@ -323,13 +323,24 @@ class ConversationController(
         class Barged(val start: BargeStart) : Next
     }
 
-    /** Запись, начатая перебиванием (S05): её поток распознавания, `prompt` и реплика (новый ход). */
+    /**
+     * Запись, начатая перебиванием (S05): её поток распознавания, `prompt` и реплика (новый ход). [resume] — что продолжить,
+     * если это окажется поддакиванием (S05c, D90); `null` — продолжать нечего.
+     */
     private class BargeStart(
         val recording: Deferred<RecordedAudio>,
         val live: LiveTurn?,
         val prompt: String,
         val utterance: Utterance,
+        val resume: Interrupted? = null,
     )
+
+    /**
+     * Прерванная реплика учителя (S05c, D90): кэш повтора и номер прерванной группы (с 0). [studentText] — реплика ученика, на
+     * которую это ответ (для истории учителя); `null` — это был повтор «Again» / «Slower», в истории его нет.
+     * [continuation] — перебивание было продолжением мысли (D86): ход учителя уже убран из истории и не посчитан в окне уровня.
+     */
+    private class Interrupted(val studentText: String?, val cache: ReplyCache, val from: Int, val continuation: Boolean)
 
     /** Конец круга: сигналы и строка в журнале с причиной. */
     private fun endCircle(reason: EndReason) {
@@ -427,7 +438,7 @@ class ConversationController(
             return Next.End(onSilence())
         }
 
-        var segment = Segment(audio, live, prompt)
+        var segment = Segment(audio, live, prompt, barged?.resume)
         while (true) {
             // --- Thinking: распознавание и ответ; ученик может продолжить до первого звука учителя (S04) ---
             output.playCue(Cue.PROCESSING)
@@ -449,6 +460,7 @@ class ConversationController(
                     is TurnOutcome.End -> Next.End(outcome.reason)
                     is TurnOutcome.Barged -> Next.Barged(outcome.start)
                     is TurnOutcome.Command -> runCommand(outcome.command)
+                    is TurnOutcome.Backchannel -> resumeReply(outcome.resume)
                     is TurnOutcome.Resumed, is TurnOutcome.Continued -> error("unreachable")
                 }
             }
@@ -474,7 +486,7 @@ class ConversationController(
             }
             logRecording(next)
             segment = if (continued != null) {
-                Segment(next, continued.start.live, continued.start.prompt)
+                Segment(next, continued.start.live, continued.start.prompt, continued.start.resume)
             } else {
                 Segment(next, watch!!.live, watch.prompt)
             }
@@ -509,8 +521,11 @@ class ConversationController(
         },
     )
 
-    /** Кусок реплики: запись, её поток и `prompt` (S04: после отмены реплика идёт дальше новым куском). */
-    private class Segment(val audio: RecordedAudio, val live: LiveTurn?, val prompt: String)
+    /**
+     * Кусок реплики: запись, её поток и `prompt` (S04: после отмены реплика идёт дальше новым куском). [resume] — кусок начат
+     * перебиванием: что продолжить, если его текст — только поддакивание (S05c, D90).
+     */
+    private class Segment(val audio: RecordedAudio, val live: LiveTurn?, val prompt: String, val resume: Interrupted? = null)
 
     /** Что уже сказано в реплике (S04): тексты кусков (для учителя) и их частичный текст (для судьи). */
     private class Utterance {
@@ -528,6 +543,8 @@ class ConversationController(
         class Command(val command: VoiceCommand) : TurnOutcome
         /** Ученик перебил начало ответа, продолжая мысль (S05b, D86): эта запись — следующий кусок той же реплики. */
         class Continued(val start: BargeStart) : TurnOutcome
+        /** Перебивание оказалось поддакиванием (S05c, D90): учитель продолжает прерванную реплику. */
+        class Backchannel(val resume: Interrupted) : TurnOutcome
     }
 
     /** Наблюдение за продолжением, пока идёт ответ (S04); ставится на время ответа, звук учителя его закрывает. */
@@ -632,6 +649,16 @@ class ConversationController(
         }
         watch?.resumed?.takeIf { it.isCompleted }?.let { return resumedOutcome(it.getCompleted(), correction = false) }
         silenceCount = 0
+        // Поддакивание поверх учителя (S05c, D90): учителю, поправщику и в окно уровня не идёт, в историю не пишется —
+        // учитель продолжает прерванную реплику. Кусок поддакивания из реплики убирается (D86: остаётся первая часть).
+        segment.resume?.let { r ->
+            if (Backchannel.of(segmentText)) {
+                utterance.texts.removeAt(utterance.texts.lastIndex)
+                if (utterance.partials.isNotEmpty()) utterance.partials.removeAt(utterance.partials.lastIndex)
+                _ui.update { it.copy(studentText = r.studentText.orEmpty()) }
+                return TurnOutcome.Backchannel(r)
+            }
+        }
         // Команда голосом (S05, D82): учителю, поправщику и в окно уровня не идёт.
         VoiceCommand.of(studentText)?.let { return TurnOutcome.Command(it) }
 
@@ -699,18 +726,22 @@ class ConversationController(
                         val hit = first as? BargeInHit ?: listen!!.bargedIn.await()
                         reply.cancel()
                         reply.join()
+                        // Что продолжить, если это поддакивание (D90): реплика, что начала звучать, с прерванной группы.
+                        val resume = lastReply.takeIf { it !== replyBefore }?.let {
+                            Interrupted(studentText, it, maxOf(0, progress.started - 1), continuation = listen!!.continuation)
+                        }
                         if (listen!!.continuation) {
                             // Продолжение мысли (D86): ход отменён целиком, как отмена S04; реплика посчитается в окне
                             // уровня один раз — склеенной.
                             correction?.cancelled()
                             tutor.withdrawn(studentText)
                             lastReply = replyBefore
-                            TurnOutcome.Continued(bargedIn(listen, hit, progress.started, progress.total()))
+                            TurnOutcome.Continued(bargedIn(listen, hit, progress.started, progress.total(), resume))
                         } else {
                             if (watch != null) levelStep?.let { countTurn(it) }
                             // История: прозвучавшая часть с пометкой; ничего не прозвучало — ответа нет (D81).
                             tutor.interrupted(studentText, BargeIn.marked(progress.spokenText()))
-                            TurnOutcome.Barged(bargedIn(listen, hit, progress.started, progress.total()))
+                            TurnOutcome.Barged(bargedIn(listen, hit, progress.started, progress.total(), resume))
                         }
                     }
                     else -> {
@@ -932,7 +963,7 @@ class ConversationController(
     }
 
     /** Строка журнала о перебивании и запись следующего хода (S05). */
-    private fun bargedIn(listen: TeacherListen, hit: BargeInHit, spoken: Int, total: Int): BargeStart {
+    private fun bargedIn(listen: TeacherListen, hit: BargeInHit, spoken: Int, total: Int, resume: Interrupted? = null): BargeStart {
         val miss = if (listen.continuation) {
             "; within ${ModelConfig.BARGE_IN_J2_MISS_MS / 1000} s of teacher audio after the end by ${lastEndedBy.label} " +
                 "→ continuation of the student turn"
@@ -944,7 +975,7 @@ class ConversationController(
             "barge-in at +${hit.atMs} ms of teacher audio (p ${p2(hit.meanP)}, speech ${hit.speechMs} ms) → stopped, " +
                 "spoken $spoken of $total groups$miss",
         )
-        return BargeStart(listen.takeRecording(), listen.live, listen.livePrompt, listen.utterance)
+        return BargeStart(listen.takeRecording(), listen.live, listen.livePrompt, listen.utterance, resume)
     }
 
     /** Ученик продолжил после объявленного конца, до голоса учителя: ответ отменён (строка журнала без текстов). */
@@ -1525,7 +1556,9 @@ class ConversationController(
                     val hit = first as? BargeInHit ?: listen!!.bargedIn.await()
                     job.cancel()
                     job.join()
-                    bargedIn(listen!!, hit, progress.started, progress.total())
+                    // Поддакивание поверх повтора (D90) — повтор продолжается с прерванной группы; в истории его нет.
+                    val resume = Interrupted(null, cache, maxOf(0, progress.started - 1), continuation = false)
+                    bargedIn(listen!!, hit, progress.started, progress.total(), resume)
                 } else {
                     listen?.stop()
                     null
@@ -1546,22 +1579,96 @@ class ConversationController(
     }
 
     /**
+     * Поддакивание поверх учителя (S05c, D90): учитель продолжает прерванную реплику с прерванной группы, тем же звуком (кэш
+     * повтора), перед ней — обычная пауза группы. Ответ в истории — целиком, как прозвучит; если снова перебили — прозвучавшая
+     * часть с пометкой, как в D81. Пока звучит — микрофон слушает перебивание (и снова поддакивание) и короткие команды.
+     */
+    private suspend fun resumeReply(r: Interrupted): Next {
+        stopWaitTicks()
+        val cache = r.cache
+        val total = cache.groups.size
+        if (r.from >= total) {
+            log.event(TURN, "barge-in → backchannel, nothing to resume → listening")
+            setState(ConversationState.Idle, "backchannel, nothing to resume") { it.copy(status = "Listening again.") }
+            return Next.Listen
+        }
+        log.event(TURN, "barge-in → backchannel, resumed at group ${r.from + 1} of $total")
+        lastReply = cache
+        val student = r.studentText
+        if (student != null) {
+            tutor.resumed(student, cache.groups.joinToString(" ") { it.text.replace("**", "").trim() }.replace(SPACES, " ").trim())
+            // Продолжение мысли (D86) убрало ход и не посчитало реплику: теперь она дошла до учителя — один раз.
+            if (r.continuation) studentLevel?.preview(student)?.let { countTurn(it) }
+        }
+        _ui.update { it.copy(teacherText = cache.groups.joinToString(" ") { g -> g.text }.replace(SPACES, " ").trim()) }
+        val progress = ReplyProgress().apply { groups = cache.groups; started = r.from }
+        val listen = newListen {
+            TranscriptionPrompt.build(progress.spokenText().ifBlank { null } ?: tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS)
+        }
+        currentListen = listen
+        try {
+            val next = coroutineScope {
+                val job = async { playRepeat(cache, slower = false, progress = progress, from = r.from) }
+                val first = select<Any?> {
+                    job.onAwait { null }
+                    listen?.bargedIn?.onAwait { it }
+                    listen?.commandHeard?.onAwait { it }
+                }
+                when {
+                    first is VoiceCommand -> {
+                        job.cancel()
+                        job.join()
+                        listen!!.stop()
+                        if (student != null) tutor.interrupted(student, BargeIn.marked(progress.spokenText()))
+                        log.event(TURN, "short sound → command ${first.label}: stopped, spoken ${progress.started} of $total groups")
+                        first
+                    }
+                    first is BargeInHit || listen?.hit == true -> {
+                        val hit = first as? BargeInHit ?: listen!!.bargedIn.await()
+                        job.cancel()
+                        job.join()
+                        if (student != null) tutor.interrupted(student, BargeIn.marked(progress.spokenText()))
+                        val again = Interrupted(student, cache, maxOf(0, progress.started - 1), continuation = false)
+                        bargedIn(listen!!, hit, progress.started, total, again)
+                    }
+                    else -> {
+                        listen?.stop()
+                        null
+                    }
+                }
+            }
+            if (next is VoiceCommand) return runCommand(next)
+            if (next is BargeStart) return Next.Barged(next)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Next.End(fail(EndReason.SPEECH_ERROR, "Error: ${e.localizedMessage}", e))
+        } finally {
+            currentListen = null
+            listen?.release()
+        }
+        setState(ConversationState.Idle, "reply finished") { it.copy(currentChunk = "", status = "Ready.") }
+        return Next.End(if (_ui.value.autoMode) null else EndReason.REPLY_FINISHED)
+    }
+
+    /**
      * Повтор реплики: «Again» — тот же звук (кэш), группы без звука синтезируются; «Slower» — всё заново со скоростью
      * [ModelConfig.SLOWER_SPEECH_SPEED] и паузами × [ModelConfig.SLOWER_PAUSE_FACTOR]. Сверка и запасной синтез — как у
      * ответа ([SpeechPipeline]).
      */
-    private suspend fun playRepeat(cache: ReplyCache, slower: Boolean, progress: ReplyProgress) {
+    private suspend fun playRepeat(cache: ReplyCache, slower: Boolean, progress: ReplyProgress, from: Int = 0) {
         val shieldMs = output.prepareReply()
         val speed = if (slower) ModelConfig.SLOWER_SPEECH_SPEED else ModelConfig.SPEECH_SPEED
         val factor = if (slower) ModelConfig.SLOWER_PAUSE_FACTOR else 1.0
         startWaitTicks()
         coroutineScope {
             val chunks = Channel<SpeechChunk>(Channel.UNLIMITED)
-            cache.groups.forEach { chunks.trySend(it) }
+            cache.groups.drop(from).forEach { chunks.trySend(it) }
             chunks.close()
-            val audios = speech.start(this, chunks, speed, ready = { i -> if (slower) null else cache.audio[i] })
-            var i = 0
-            var lastEnd = 0L
+            val audios = speech.start(this, chunks, speed, ready = { i -> if (slower) null else cache.audio[i + from] })
+            var i = from
+            // Продолжение после поддакивания (D90): перед прерванной группой — обычная пауза после предыдущей.
+            var lastEnd = clock()
             for (audio in audios) {
                 if (i > 0) {
                     val pause = (cache.groups[i - 1].pauseMs * factor).toLong()

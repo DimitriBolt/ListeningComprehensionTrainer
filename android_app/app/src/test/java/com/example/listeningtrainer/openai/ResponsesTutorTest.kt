@@ -464,4 +464,30 @@ class ResponsesTutorTest {
         assertEquals("Yesterday I got up early. I made coffee.", t.turns[2].text)
         assertEquals(4, t.turns.size)
     }
+
+    @Test
+    fun `resumed (S05c, D90) - the whole reply in the history, the pair comes back if it was removed`() = runTest {
+        val transport = FakeTransport().apply {
+            streams += sse(delta("Hi. How are you?"), completed)
+            streams += sse(delta("Lakes are big. Do you swim?"), completed)
+            streams += sse(delta("Half an ans")) // поток оборван
+        }
+        val t = tutor(transport)
+        t.reply("Hello.", null) {}
+        t.reply("Tell me about lakes.", null) {}
+        t.interrupted("Tell me about lakes.", BargeIn.marked("Lakes are big."))
+        t.resumed("Tell me about lakes.", "Lakes are big. Do you swim?")
+        assertEquals(listOf("Hello.", "Hi. How are you?", "Tell me about lakes.", "Lakes are big. Do you swim?"), t.turns.map { it.text })
+        // продолжение мысли (D86) убрало пару — поддакивание её возвращает
+        t.withdrawn("Tell me about lakes.")
+        t.resumed("Tell me about lakes.", "Lakes are big. Do you swim?")
+        assertEquals(4, t.turns.size)
+        assertEquals("Lakes are big. Do you swim?", t.turns.last().text)
+        // ничего не прозвучало у оборванного потока: в истории только реплика — ответ дописывается к ней
+        try { t.reply("And rivers?", null) {} } catch (e: ServiceException) {}
+        t.interrupted("And rivers?", "")
+        t.resumed("And rivers?", "Rivers run.")
+        assertEquals(listOf("And rivers?", "Rivers run."), t.turns.takeLast(2).map { it.text })
+        assertEquals(6, t.turns.size)
+    }
 }

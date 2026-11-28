@@ -91,3 +91,44 @@ enum class VoiceCommand(val label: String) {
         }
     }
 }
+
+/**
+ * Поддакивание (S05c, D90): «Mhm», «Mm-hmm», «Uh-huh», «Aha», «Oho», «Hmm», «Uh», «Um» с вариантами написания. Чистый Kotlin
+ * (инвариант 3). Полное перебивание, текст которого — только поддакивание, учителю не уходит: учитель продолжает с прерванной
+ * группы. Короткий звук (D85) с таким текстом — не команда, как и раньше.
+ *
+ * Слово сравнивается без регистра, знаков и дефиса, повторы букв сжаты: «Mmm-hmm» → «mhm», «Uhh» → «uh», «Hmmm» → «hm».
+ * Реплика — поддакивание, если в ней не больше [MAX_WORDS] слов и каждое из [WORDS] (или вся реплика слитно: «uh huh»).
+ * Список — только здесь.
+ */
+object Backchannel {
+    const val MAX_WORDS = 4
+
+    /** Слова после сжатия повторов букв. */
+    val WORDS: Set<String> = setOf(
+        "m", "mhm", "hm", // mm, mhm, mm-hmm, m-hm, hmm
+        "uhuh", // uh-huh, uh huh
+        "aha", // aha, a-ha, ahha
+        "oho", // oho
+        "uh", "um", "uhm", // uh, uhh, um, umm, uhm
+    )
+
+    private val NON_WORD = Regex("""[^\p{L}\s]""")
+    private val SPACES = Regex("""\s+""")
+
+    /** Без регистра, знаков и дефиса; повторы букв сжаты. */
+    private fun squeeze(word: String): String {
+        val sb = StringBuilder()
+        for (ch in word) if (sb.isEmpty() || sb.last() != ch) sb.append(ch)
+        return sb.toString()
+    }
+
+    /** Текст — только поддакивание. */
+    fun of(text: String): Boolean {
+        val n = text.lowercase().replace("-", "").replace(NON_WORD, " ").replace(SPACES, " ").trim()
+        if (n.isEmpty()) return false
+        val words = n.split(' ')
+        if (words.size > MAX_WORDS) return false
+        return words.all { squeeze(it) in WORDS } || squeeze(n.replace(" ", "")) in WORDS
+    }
+}

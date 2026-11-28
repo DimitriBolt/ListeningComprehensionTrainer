@@ -1,6 +1,7 @@
 package com.example.listeningtrainer.conversation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,5 +60,28 @@ class VoiceCommandTest {
         assertEquals(2, VoiceCommand.edits("agane", "again"))
         assertEquals(2, VoiceCommand.edits("spot", "stop"))
         assertEquals(3, VoiceCommand.edits("stopped", "stop"))
+    }
+
+    // ---- поддакивание (S05c, D90) ----
+
+    @Test
+    fun `backchannel - the list of the brief with spellings`() {
+        for (t in listOf("Mhm.", "Mm-hmm.", "Mmhmm", "Mm hmm", "M-hm.", "Mm.", "Mmm.", "Uh-huh.", "Uh huh.", "Uhhuh", "Aha.", "A-ha!",
+            "Oho.", "Hmm.", "Hmmm...", "Hm?", "Uh.", "Uhh", "Um.", "Umm,", "Uhm.", "Mhm. Mhm.", "Mm-hmm, mm-hmm.", "Uh, mhm.")) {
+            assertTrue(t, Backchannel.of(t))
+        }
+    }
+
+    @Test
+    fun `backchannel - not replies, commands or questions`() {
+        for (t in listOf("", "Yes.", "Okay.", "No.", "Huh?", "Uh, I don't know.", "Hmm, what is a lake?", "Oh.", "Ah.",
+            "Stop.", "Again.", "Mhm mhm mhm mhm mhm.", "Home.", "Ohio.", "Hum.")) {
+            assertFalse(t, Backchannel.of(t))
+        }
+    }
+
+    @Test
+    fun `backchannel is never a command - a short sound with it is not a command`() {
+        for (t in listOf("Mhm.", "Mm-hmm.", "Uh-huh.", "Oho.", "Aha.")) assertNull(t, VoiceCommand.of(t))
     }
 }
