@@ -2065,6 +2065,48 @@ class ConversationControllerTest {
     }
 
     @Test
+    fun `the student goes on after the whole reply has come, before its voice - the pair is withdrawn from the history`() = runTest {
+        val rig = Rig(this, "I like", "to read books")
+        rig.input.endings += TurnEnd.JUDGE
+        rig.tutor.replyDelayMs = 100 // ответ пришёл целиком (`completed`) …
+        rig.synth.delayMs = 2_000 // … а первая группа ещё синтезируется
+        rig.input.resumes += 1_000L
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        val info = rig.log.lines.joinToString("\n")
+        assertEquals(info, listOf("I like", "I like to read books"), rig.tutor.replies)
+        assertEquals(info, listOf("I like"), rig.tutor.withdrawn) // первая часть не уйдёт учителю дважды
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Turn] resumed after end (+1000 ms)") })
+    }
+
+    @Test
+    fun `again after a cancelled turn - the cache goes back, nothing to repeat yet`() = runTest {
+        val rig = Rig(this, "Yesterday I got up early", "I made coffee", "Again", bargeIn = true)
+        rig.input.endings += TurnEnd.JUDGE
+        rig.tutor.replyText = longReply
+        rig.tutor.errors += null
+        rig.tutor.errors += ServiceException(FailureKind.QUOTA, "http 429 insufficient_quota") // склеенная реплика без ответа
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = 2_700
+        rig.vad.speakUntil = 3_500
+        advanceUntilIdle()
+        val info0 = rig.log.lines.joinToString("\n")
+        assertTrue(info0, rig.log.lines.any { it.endsWith("→ continuation of the student turn") })
+        assertEquals(info0, listOf("TUTOR_ERROR"), rig.circleEnds)
+
+        rig.input.speech += listOf(true, false)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        val info = rig.log.lines.joinToString("\n")
+        // отменённый ответ уже звучал, но повторять его нельзя: прошлой прозвучавшей реплики нет
+        assertTrue(info, rig.log.lines.contains("[Turn] command again: nothing to repeat yet → listening"))
+        assertEquals(info, 2, rig.tutor.replies.size)
+    }
+
+    @Test
     fun `button end - no continuation, no cancel`() = runTest {
         val rig = Rig(this, "I like tea")
         rig.input.endings += TurnEnd.BUTTON

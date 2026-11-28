@@ -642,6 +642,8 @@ class ConversationController(
         if (watch == null) levelStep?.let { countTurn(it) }
 
         val progress = ReplyProgress()
+        // Кэш повтора до этого хода: ход отменён (S04 или D86) — «Again» повторяет прошлую реплику, а не отменённый ответ.
+        val replyBefore = lastReply
         // Конец по судье (или по пределу тишины): перебивание в первые 3 с голоса учителя — продолжение мысли (D86).
         val goOn = if (watch != null) {
             GoOn(utterance) { TranscriptionPrompt.continued(segment.prompt, utterance.partials.filter { it.isNotBlank() }.joinToString(" ")) }
@@ -675,6 +677,11 @@ class ConversationController(
                     first is ResumedAt -> {
                         correction?.cancelled()
                         reply.cancel()
+                        reply.join()
+                        // Ответ мог уже дойти целиком (`completed`, синтез первой группы ещё шёл): пара «первая часть —
+                        // ответ» убирается из истории, иначе первая часть уйдёт учителю дважды (S05c).
+                        tutor.withdrawn(studentText)
+                        lastReply = replyBefore
                         resumedOutcome(first.afterMs, correction = correction != null)
                     }
                     first is VoiceCommand -> {
@@ -697,6 +704,7 @@ class ConversationController(
                             // уровня один раз — склеенной.
                             correction?.cancelled()
                             tutor.withdrawn(studentText)
+                            lastReply = replyBefore
                             TurnOutcome.Continued(bargedIn(listen, hit, progress.started, progress.total()))
                         } else {
                             if (watch != null) levelStep?.let { countTurn(it) }
