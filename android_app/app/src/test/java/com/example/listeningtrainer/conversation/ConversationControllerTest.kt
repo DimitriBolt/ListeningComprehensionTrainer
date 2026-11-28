@@ -2125,7 +2125,7 @@ class ConversationControllerTest {
         runCurrent()
         // первый звук ≈ 1500 мс; ученик заговорил во второй группе
         rig.vad!!.speakFrom = 2_700
-        rig.vad.speakUntil = 3_200
+        rig.vad.speakUntil = 3_400
         advanceUntilIdle()
 
         val firstReplyGroups = SpeechPlanner().plan(longReply).map { it.text }
@@ -2144,8 +2144,8 @@ class ConversationControllerTest {
         assertEquals(1, rig.output.cues.count { it == Cue.LISTEN })
         assertEquals(2, rig.output.cues.count { it == Cue.PROCESSING })
         val line = rig.log.lines.single { it.startsWith("[Turn] barge-in at +") }
-        assertTrue(info, Regex("""\[Turn] barge-in at \+\d+ ms of teacher audio \(p 0.95, speech 320 ms\) → stopped, spoken ${spoken.size} of \d+ groups""").matches(line))
-        assertTrue(info, rig.log.lines.any { it.startsWith("[Audio] mic during teacher: ") && "speech frames 10" in it })
+        assertTrue(info, Regex("""\[Turn] barge-in at \+\d+ ms of teacher audio \(p 0.95, speech 608 ms\) → stopped, spoken ${spoken.size} of \d+ groups""").matches(line))
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Audio] mic during teacher: ") && "speech frames 19" in it })
         assertEquals(info, 2, rig.timing.size) // замер прерванного ответа тоже в журнале
         assertEquals(info, 2, level.state.value.turns) // ход ученика — новый, окно уровня как обычно
         assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
@@ -2162,7 +2162,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         runCurrent()
         rig.vad!!.speakFrom = speakFrom
-        rig.vad.speakUntil = speakFrom + 500
+        rig.vad.speakUntil = speakFrom + 800
         advanceUntilIdle()
         return rig to level
     }
@@ -2171,10 +2171,10 @@ class ConversationControllerTest {
         log.lines.single { it.startsWith("[Turn] barge-in at +") }.substringAfter("+").substringBefore(" ms").toLong()
 
     @Test
-    fun `barge-in in the first 3 s after the end by judge - continuation, one glued turn`() = runTest {
+    fun `barge-in in the first 6 s after the end by judge - continuation, one glued turn`() = runTest {
         val (rig, level) = continuationRig(TurnEnd.JUDGE, speakFrom = 2_700)
         val info = rig.log.lines.joinToString("\n")
-        assertTrue(info, rig.bargeAtMs() <= 3_000)
+        assertTrue(info, rig.bargeAtMs() <= 6_000)
         // Учитель получил сначала первую часть, потом склеенную реплику; ход отменён, в историю ничего.
         assertEquals(info, listOf("Yesterday I got up early", "Yesterday I got up early I made coffee"), rig.tutor.replies)
         assertEquals(listOf("Yesterday I got up early"), rig.tutor.withdrawn)
@@ -2196,7 +2196,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         runCurrent()
         rig.vad!!.speakFrom = 2_700
-        rig.vad.speakUntil = 3_200
+        rig.vad.speakUntil = 3_500
         advanceUntilIdle()
 
         val info = rig.log.lines.joinToString("\n")
@@ -2212,10 +2212,10 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `barge-in later than 3 s after the end by judge - a new turn`() = runTest {
-        val (rig, level) = continuationRig(TurnEnd.JUDGE, speakFrom = 4_300)
+    fun `barge-in later than 6 s after the end by judge - a new turn`() = runTest {
+        val (rig, level) = continuationRig(TurnEnd.JUDGE, speakFrom = 7_300)
         val info = rig.log.lines.joinToString("\n")
-        assertTrue(info, rig.bargeAtMs() in 3_001..3_400)
+        assertTrue(info, rig.bargeAtMs() in 6_001..6_400)
         assertEquals(info, listOf("Yesterday I got up early", "I made coffee"), rig.tutor.replies)
         assertTrue(rig.tutor.withdrawn.isEmpty())
         assertEquals("Yesterday I got up early", rig.tutor.interrupted.single().first)
@@ -2224,9 +2224,27 @@ class ConversationControllerTest {
     }
 
     @Test
+    fun `barge-in at 5_9 s after the end by judge - still a continuation (D91)`() = runTest {
+        val (rig, _) = continuationRig(TurnEnd.JUDGE, speakFrom = 6_780)
+        val info = rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.bargeAtMs() in 5_850..6_000)
+        assertEquals(info, listOf("Yesterday I got up early"), rig.tutor.withdrawn)
+        assertTrue(info, rig.log.lines.any { it.endsWith("within 6 s of teacher audio after the end by judge → continuation of the student turn") })
+    }
+
+    @Test
+    fun `barge-in at 6_1 s after the end by judge - a new turn (D91)`() = runTest {
+        val (rig, _) = continuationRig(TurnEnd.JUDGE, speakFrom = 6_980)
+        val info = rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.bargeAtMs() in 6_001..6_150)
+        assertTrue(info, rig.tutor.withdrawn.isEmpty())
+        assertEquals(info, listOf("Yesterday I got up early", "I made coffee"), rig.tutor.replies)
+    }
+
+    @Test
     fun `after the button - always a new turn`() = runTest {
         val (rig, level) = continuationRig(TurnEnd.BUTTON, speakFrom = 2_700)
-        assertTrue(rig.bargeAtMs() <= 3_000)
+        assertTrue(rig.bargeAtMs() <= 6_000)
         assertEquals(listOf("Yesterday I got up early", "I made coffee"), rig.tutor.replies)
         assertTrue(rig.tutor.withdrawn.isEmpty())
         assertEquals(2, level.state.value.turns)
@@ -2292,7 +2310,7 @@ class ConversationControllerTest {
     fun `full barge-in while a short sound is being recognized - the barge-in wins, the candidate is dropped`() = runTest {
         val rig = shortSoundRig("I went shopping", "Stop.", "What is a market", sttMs = 1_500L) {
             it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150
-            it.vad.more += 3_400L to 3_900L
+            it.vad.more += 3_400L to 4_200L
         }
         val info = rig.log.lines.joinToString("\n")
         assertTrue(info, rig.log.lines.any { it.startsWith("[Turn] barge-in at +") })
@@ -2314,7 +2332,7 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `short noise does not barge in - the rule needs 300 ms in a row`() = runTest {
+    fun `short noise does not barge in - the rule needs 600 ms in a row`() = runTest {
         val rig = Rig(this, "I am fine", bargeIn = true)
         rig.tutor.replyText = longReply
         rig.output.playMs = 1_000
@@ -2336,7 +2354,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         runCurrent()
         rig.vad!!.speakFrom = 1_600
-        rig.vad.speakUntil = 2_100
+        rig.vad.speakUntil = 2_400
         advanceUntilIdle()
 
         val heard = BargeIn.unmarked(rig.tutor.interrupted.single().second)
@@ -2353,7 +2371,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         advanceTimeBy(1_000) // фраза готова заранее
         rig.vad!!.speakFrom = 1_700
-        rig.vad.speakUntil = 2_200
+        rig.vad.speakUntil = 2_500
         advanceUntilIdle()
 
         assertEquals("Let me check.", rig.output.played.first())
@@ -2435,7 +2453,7 @@ class ConversationControllerTest {
         rig.controller.startTurn()
         runCurrent()
         rig.vad!!.speakFrom = 1_600
-        rig.vad.speakUntil = 2_100
+        rig.vad.speakUntil = 2_400
         advanceUntilIdle()
 
         val groups = SpeechPlanner().plan(longReply).map { it.text }

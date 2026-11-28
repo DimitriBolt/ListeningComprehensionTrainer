@@ -45,16 +45,16 @@ class BargeInTest {
     }
 
     @Test
-    fun `300 ms of speech in a row at p of 0_8 or more - barge-in, with the preroll of 500 ms`() {
+    fun `600 ms of speech in a row at p of 0_8 or more - barge-in, with the preroll of 500 ms`() {
         // тишина 1 с (31 кадр), затем речь
         val d = BargeInDetector(ScriptVad { if (it >= 31) 0.9f else 0.1f })
         d.reset()
         assertNull(feed(d, 31))
         assertFalse(d.hit != null)
-        assertTrue(feed(d, 20) != null)
+        assertTrue(feed(d, 30) != null)
         val hit = d.hit!!
-        assertEquals(320, hit.speechMs) // 10 кадров по 32 мс — первые ≥ 300
-        assertEquals(41L * 32, hit.atMs)
+        assertEquals(608, hit.speechMs) // 19 кадров по 32 мс — первые ≥ 600 (D90)
+        assertEquals(50L * 32, hit.atMs)
         assertEquals(0.9f, hit.meanP, 1e-6f)
         assertEquals(8_000, d.preroll().size) // 500 мс при 16 кГц
         assertFalse(d.onAudio(ShortArray(512), 512)) // после решения — ничего
@@ -89,8 +89,8 @@ class BargeInTest {
         assertEquals(30L * 32, d.stats.mutedMs)
         assertEquals(0, d.stats.speechFrames)
         cue = false
-        assertTrue(feed(d, 10) != null)
-        assertEquals(320, d.hit!!.speechMs)
+        assertTrue(feed(d, 20) != null)
+        assertEquals(608, d.hit!!.speechMs)
     }
 
     @Test
@@ -102,6 +102,44 @@ class BargeInTest {
     }
 
     // ---- вторая ступень: короткий звук (S05b, D85) ---------------------------------------------------------------
+
+    /** Речь [frames] кадров с p 0.9 после 1 с тишины: (кандидат, перебивание). */
+    private fun speech(frames: Int, minSpeechMs: Long = com.example.listeningtrainer.config.ModelConfig.BARGE_IN_SPEECH_MS): Pair<SoundCandidate?, BargeInHit?> {
+        val d = BargeInDetector(ScriptVad { i -> if (i in 31 until 31 + frames) 0.9f else 0.1f }, minSpeechMs = minSpeechMs)
+        val got = candidates(d)
+        d.reset()
+        feed(d, 31 + frames + 20)
+        return got.singleOrNull() to d.hit
+    }
+
+    @Test
+    fun `500 ms in a row - not a full barge-in, a candidate (D90)`() {
+        val (c, hit) = speech(16) // 512 мс — «угу» пользователя
+        assertNull(hit)
+        assertEquals(512, c!!.speechMs)
+    }
+
+    @Test
+    fun `650 ms in a row - a full barge-in, no candidate (D90)`() {
+        val (c, hit) = speech(21) // 672 мс
+        assertNull(c)
+        assertEquals(608, hit!!.speechMs)
+    }
+
+    @Test
+    fun `Stop and Again go to the second stage, a long phrase barges in 0_3 s later than in S05`() {
+        val (stop, stopHit) = speech(7) // «Stop» ≈ 200 мс
+        assertNull(stopHit)
+        assertEquals(224, stop!!.speechMs)
+        val (again, againHit) = speech(15) // «Again» ≈ 400–500 мс
+        assertNull(againHit)
+        assertEquals(480, again!!.speechMs)
+        // «Wait, what is a lake?» ≈ 1,2 с: перебивание на 19-м кадре речи (608 мс), в S05 (300 мс) — на 10-м
+        val (_, lake) = speech(38)
+        val (_, lakeS05) = speech(38, minSpeechMs = 300)
+        assertEquals((31L + 19) * 32, lake!!.atMs)
+        assertEquals(288L, lake.atMs - lakeS05!!.atMs) // ≈ 0,3 с позже
+    }
 
     private fun candidates(d: BargeInDetector): MutableList<SoundCandidate> =
         mutableListOf<SoundCandidate>().also { list -> d.onCandidate = { list += it } }
