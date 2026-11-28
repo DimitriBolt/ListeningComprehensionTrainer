@@ -386,7 +386,7 @@ class ConversationControllerTest {
     private class Rig(
         scope: TestScope, vararg transcripts: Any, filler: String? = null, val corrector: FakeCorrector? = null,
         val level: StudentLevel? = null, val live: FakeLive? = null, compare: Boolean = false,
-        bargeIn: Boolean = false,
+        bargeIn: Boolean = false, val pauses: PauseScale? = null,
     ) {
         val compared = mutableListOf<Triple<String, String, Double>>()
         lateinit var controller: ConversationController
@@ -426,6 +426,7 @@ class ConversationControllerTest {
                 compareLiveWithFile = compare,
                 onLiveVsFile = { a, b, sim -> compared += Triple(a, b, sim) },
                 bargeInVad = vad,
+                pauseScale = pauses,
             )
         }
 
@@ -523,8 +524,9 @@ class ConversationControllerTest {
         assertEquals(listOf("One,", "two.", "Three."), rig.output.played)
         assertEquals(listOf(0L, 0L, 0L), rig.output.shields)
         val t = rig.output.startTimes // звук групп в подставном выходе — 0 мс
-        assertEquals(600L, t[1] - t[0])   // запятая
-        assertEquals(1600L, t[2] - t[1])  // абзац
+        // S07: + доля звука группы (подставной синтез — ≈ 40 мс звука → + 10 мс при доле 0,25), множитель 1,0
+        assertEquals(600L + 10L, t[1] - t[0])   // запятая
+        assertEquals(1600L + 10L, t[2] - t[1])  // абзац
     }
 
     @Test
@@ -538,8 +540,8 @@ class ConversationControllerTest {
 
         assertEquals(listOf(1000L, 1000L, 1000L), rig.output.shields)
         val t = rig.output.startTimes
-        assertEquals(1000L + 10L, t[1] - t[0])   // звук 1000, пауза 600 - 1000 → не меньше 10
-        assertEquals(1000L + 600L, t[2] - t[1])  // звук 1000, абзац 1600 - 1000
+        assertEquals(1000L + 10L, t[1] - t[0])   // звук 1000, пауза 610 - 1000 → не меньше 10
+        assertEquals(1000L + 610L, t[2] - t[1])  // звук 1000, абзац 1610 - 1000 (S07: + 10 мс за 40 мс звука группы)
         assertEquals(1, rig.output.prepareReplies) // выход проверяется один раз на ответ
     }
 
@@ -579,8 +581,9 @@ class ConversationControllerTest {
         assertEquals(listOf("1.", "Make a plan:", "write it down."), rig.output.played)
         assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
         val t = rig.output.startTimes // звук групп в подставном выходе — 0 мс
-        assertEquals(400L, t[1] - t[0])
-        assertEquals(1600L, t[2] - t[1]) // пауза заголовка-абзаца
+        // S07: номер и заголовок — по тому же правилу, + 10 мс за ≈ 40 мс звука подставной группы
+        assertEquals(400L + 10L, t[1] - t[0])
+        assertEquals(1600L + 10L, t[2] - t[1]) // пауза заголовка-абзаца
     }
 
     @Test
@@ -2301,8 +2304,10 @@ class ConversationControllerTest {
 
     // ---- короткий звук посреди ответа — в распознавание (S05b, D85) ------------------------------------------
 
-    private fun TestScope.shortSoundRig(vararg transcripts: Any, sttMs: Long = 300L, setup: (Rig) -> Unit): Rig {
-        val rig = Rig(this, *transcripts, bargeIn = true)
+    private fun TestScope.shortSoundRig(
+        vararg transcripts: Any, sttMs: Long = 300L, pauses: PauseScale? = null, setup: (Rig) -> Unit,
+    ): Rig {
+        val rig = Rig(this, *transcripts, bargeIn = true, pauses = pauses)
         rig.tutor.replyText = longReply
         rig.output.playMs = 1_000
         rig.transcriber.delayMs = sttMs
@@ -2561,9 +2566,10 @@ class ConversationControllerTest {
         assertEquals(listOf(0.88f, 0.88f, 0.7f, 0.7f, 0.88f, 0.88f), rig.synth.speeds.take(6))
         assertEquals(2, rig.synth.speeds.count { it == 0.7f })
         val t = rig.output.startTimes
-        assertEquals(1_000L, t[1] - t[0]) // пауза после «Hello there.» — 1000 мс
-        assertEquals(1_500L, t[3] - t[2]) // медленнее: × 1,5
-        assertEquals(1_000L, t[5] - t[4]) // дальше — обычная скорость
+        // S07: + 10 мс за ≈ 40 мс звука подставной группы; множителя у этой сборки нет (1,0)
+        assertEquals(1_010L, t[1] - t[0]) // пауза после «Hello there.» — 1000 мс
+        assertEquals(1_515L, t[3] - t[2]) // медленнее: × 1,5 поверх формулы
+        assertEquals(1_010L, t[5] - t[4]) // дальше — обычная скорость
         assertTrue(rig.log.lines.contains("[Turn] command slower (2 groups)"))
     }
 
@@ -2620,6 +2626,179 @@ class ConversationControllerTest {
 
         assertEquals(1, rig.input.listensCancelled)
         assertEquals(listOf("STOP_BUTTON"), rig.circleEnds)
+    }
+
+    // ---- паузы по потребности (S07, D97–D99) -----------------------------------------------------------------
+
+    /** Звук подставной группы — ≈ 40 мс (1000+ отсчётов при 24 кГц, окна по 10 мс). */
+    private val fakeSpeechMs = 40L
+
+    @Test
+    fun `every reply writes its pauses to the log - scale, groups, mean, max, total`() = runTest {
+        val rig = Rig(this, "I am fine")
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertTrue(rig.log.lines.joinToString("\n"),
+            rig.log.lines.contains("[Controller] pauses: scale × 1.00, 2 groups, mean 1010 ms, max 1010 ms, total 1010 ms"))
+    }
+
+    @Test
+    fun `the scale multiplies every pause of the reply`() = runTest {
+        val rig = Rig(this, "Hi", pauses = PauseScale(MemoryPauseScaleStore(1.3225)))
+        rig.tutor.replyText = "One, two.\nThree."
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        val t = rig.output.startTimes
+        assertEquals(PauseRule.pauseMs(600, fakeSpeechMs, 1.3225), t[1] - t[0])
+        assertEquals(PauseRule.pauseMs(1600, fakeSpeechMs, 1.3225), t[2] - t[1])
+        assertTrue(rig.log.lines.any { it.startsWith("[Controller] pauses: scale × 1.32, 3 groups,") })
+    }
+
+    @Test
+    fun `slower - the scale one step up first, the repeat already with it, x 1_5 on top`() = runTest {
+        val scale = PauseScale(MemoryPauseScaleStore())
+        val rig = Rig(this, "I am fine", "Slower, please.", "Thanks", pauses = scale)
+        rig.controller.setAutoMode(true)
+        rig.controller.startTurn()
+        advanceTimeBy(20_000)
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+
+        val info = rig.log.lines.joinToString("\n")
+        assertEquals(1.15, scale.value, 0.0)
+        assertTrue(info, rig.log.lines.contains("[Controller] pauses × 1.00 → × 1.15 (slower)"))
+        val t = rig.output.startTimes
+        assertEquals(PauseRule.pauseMs(1000, fakeSpeechMs, 1.0), t[1] - t[0])
+        assertEquals(PauseRule.pauseMs(1000, fakeSpeechMs, 1.15, 1.5), t[3] - t[2]) // повтор: новый множитель и × 1,5
+        assertEquals(PauseRule.pauseMs(1000, fakeSpeechMs, 1.15), t[5] - t[4])       // следующий ответ — × 1,15
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Controller] pauses: scale × 1.15, 2 groups, mean 1742 ms") })
+    }
+
+    @Test
+    fun `slower at the upper limit - only the repeat, a log line`() = runTest {
+        val scale = PauseScale(MemoryPauseScaleStore(2.5))
+        val rig = Rig(this, "I am fine", "Slower.", pauses = scale)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(2.5, scale.value, 0.0)
+        assertTrue(rig.log.lines.contains("[Controller] pauses × 2.50 → × 2.50 (limit, slower)"))
+        assertEquals(listOf("Hello there.", "How are you?", "Hello there.", "How are you?"), rig.output.played)
+        val t = rig.output.startTimes
+        assertEquals(PauseRule.pauseMs(1000, fakeSpeechMs, 2.5, 1.5), t[3] - t[2])
+    }
+
+    @Test
+    fun `faster after the answer - one step down, no repeat, listening, nothing to the teacher or the level`() = runTest {
+        val scale = PauseScale(MemoryPauseScaleStore(1.3225))
+        val level = StudentLevel(MemoryLevelStore())
+        val rig = Rig(this, "I am fine", "Faster.", level = level, pauses = scale)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+        rig.input.speech += listOf(true, false)
+        rig.controller.startTurn()
+        advanceUntilIdle()
+
+        val info = rig.log.lines.joinToString("\n")
+        assertEquals(1.15, scale.value, 0.0)
+        assertTrue(info, rig.log.lines.contains("[Controller] pauses × 1.32 → × 1.15 (faster)"))
+        assertTrue(info, rig.log.lines.contains("[Turn] command faster (0 groups)"))
+        assertEquals(listOf("I am fine"), rig.tutor.replies)
+        assertEquals(listOf("Hello there.", "How are you?"), rig.output.played) // повтора нет
+        assertEquals(3, rig.output.cues.count { it == Cue.LISTEN })            // после «Faster» — «говори» и слушание
+        assertEquals(StudentLevel.State(1, 1, 0), level.state.value)           // «Faster» в окне не считается
+    }
+
+    @Test
+    fun `faster at the lower limit - nothing changes, a log line`() = runTest {
+        val scale = PauseScale(MemoryPauseScaleStore(0.7))
+        val rig2 = Rig(this, "Faster", pauses = scale)
+        rig2.input.speech += listOf(true, false)
+        rig2.controller.startTurn()
+        advanceUntilIdle()
+        assertEquals(0.7, scale.value, 0.0)
+        assertTrue(rig2.log.lines.contains("[Controller] pauses × 0.70 → × 0.70 (limit, faster)"))
+        assertTrue(rig2.tutor.replies.isEmpty())
+    }
+
+    @Test
+    fun `faster during the answer as a short sound - the teacher goes on, the following pauses are shorter`() = runTest {
+        val scale = PauseScale(MemoryPauseScaleStore(1.3225))
+        val rig = shortSoundRig("I went shopping", "Faster.", pauses = scale) {
+            it.vad!!.speakFrom = 2_700; it.vad.speakUntil = 2_700 + 150
+        }
+        val plan = SpeechPlanner().plan(longReply)
+        val info = "played ${rig.output.played}\n" + rig.log.lines.joinToString("\n")
+        assertEquals(info, plan.map { it.text }, rig.output.played) // учитель не замолк
+        assertEquals(info, 0, rig.output.stops)
+        assertTrue(info, rig.log.lines.any { it.endsWith("→ stt 300 ms: command faster: the teacher goes on") })
+        assertTrue(info, rig.log.lines.contains("[Controller] pauses × 1.32 → × 1.15 (faster)"))
+        assertEquals(1.15, scale.value, 0.0)
+        val t = rig.output.startTimes
+        val play = rig.output.playMs
+        assertEquals(info, play + PauseRule.pauseMs(plan[0].pauseMs, fakeSpeechMs, 1.3225), t[1] - t[0]) // до команды
+        val n = plan.size - 1
+        assertEquals(info, play + PauseRule.pauseMs(plan[n - 1].pauseMs, fakeSpeechMs, 1.15), t[n] - t[n - 1]) // после
+        assertEquals(listOf("I went shopping"), rig.tutor.replies)
+        assertTrue(rig.tutor.interrupted.isEmpty())
+        assertEquals(listOf("REPLY_FINISHED"), rig.circleEnds)
+    }
+
+    @Test
+    fun `faster as a full barge-in - the teacher stops, then as after the answer`() = runTest {
+        val scale = PauseScale(MemoryPauseScaleStore())
+        val rig = Rig(this, "I went shopping", "Faster", bargeIn = true, pauses = scale)
+        rig.tutor.replyText = longReply
+        rig.output.playMs = 1_000
+        rig.controller.startTurn()
+        runCurrent()
+        rig.vad!!.speakFrom = 1_600
+        rig.vad.speakUntil = 2_400
+        advanceUntilIdle()
+
+        val info = rig.log.lines.joinToString("\n")
+        assertTrue(info, rig.log.lines.any { it.startsWith("[Turn] barge-in at +") })
+        assertTrue(info, rig.log.lines.contains("[Turn] command faster (0 groups)"))
+        assertTrue(info, rig.log.lines.contains("[Controller] pauses × 1.00 → × 0.87 (faster)"))
+        assertEquals(listOf("I went shopping"), rig.tutor.replies)
+        assertTrue(rig.output.played.size < SpeechPlanner().plan(longReply).size) // учитель замолк, повтора нет
+    }
+
+    @Test
+    fun `again and slower count as not understood in the level window, faster and stop do not`() = runTest {
+        val level = StudentLevel(MemoryLevelStore())
+        val rig = Rig(this, "I am fine", "Again!", "Slower.", "Faster.", "Stop.", level = level)
+        repeat(5) {
+            rig.input.speech += listOf(true, false)
+            rig.controller.startTurn()
+            advanceUntilIdle()
+        }
+        val info = rig.log.lines.joinToString("\n")
+        assertEquals(info, StudentLevel.State(1, 1, 2), level.state.value)
+        assertTrue(info, rig.log.lines.contains("[Controller] level 1 (window 1 of 20, not understood 1; command again)"))
+        assertTrue(info, rig.log.lines.contains("[Controller] level 1 (window 1 of 20, not understood 2; command slower)"))
+        assertEquals(listOf("I am fine"), rig.tutor.replies) // учителю команды не идут
+    }
+
+    @Test
+    fun `the scale never changes by itself - 6 replies, new conversation, restart`() = runTest {
+        val store = MemoryPauseScaleStore(1.3225)
+        val scale = PauseScale(store)
+        val rig = Rig(this, "I like tea", "Yes", "At noon", "My dog", "In the park", "Thank you", level = StudentLevel(MemoryLevelStore()), pauses = scale)
+        rig.controller.setAutoMode(true)
+        rig.controller.startTurn()
+        advanceTimeBy(60_000)
+        rig.controller.stop(EndReason.STOP_BUTTON)
+        advanceUntilIdle()
+        rig.controller.newConversation()
+
+        val info = rig.log.lines.joinToString("\n")
+        assertEquals(info, 6, rig.tutor.replies.size)
+        assertEquals(1.3225, scale.value, 0.0)
+        assertTrue(info, rig.log.lines.none { it.startsWith("[Controller] pauses ×") })
+        assertEquals(info, 7, rig.log.lines.count { it.startsWith("[Controller] pauses: scale × 1.32,") }) // 6 ответов и прощание
+        assertEquals(1.3225, PauseScale(store).value, 0.0) // после перезапуска — тот же
     }
 }
 

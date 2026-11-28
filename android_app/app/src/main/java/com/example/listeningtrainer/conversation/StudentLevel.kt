@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * «New conversation», «Back» и перезапуск приложения. Новая установка начинается с уровня 1.
  *
  * Окно — реплики ученика, дошедшие до учителя (молчание сюда не попадает). «Не понял»
- * ([NotUnderstood.isMarker]) набралось [downMin] — уровень сразу ниже, не дожидаясь полного окна (D59).
+ * ([NotUnderstood.isMarker], а с S07 и команды «Again» / «Slower» — [onDifficulty]) набралось [downMin] — уровень сразу ниже, не дожидаясь полного окна (D59).
  * Когда в окне набралось [window] реплик: «не понял» не больше [upMax] — уровень выше, иначе тот же.
  * После решения окно начинается заново (и на границах 1 и 5 тоже).
  * Уровень от 1 до [targets].size.
@@ -70,6 +70,24 @@ class StudentLevel(
             else -> s.level
         }.coerceIn(1, maxLevel)
         return Step(State(next), from = s.level.takeIf { it != next })
+    }
+
+    /**
+     * «Again» или «Slower» (S07, D99) — признак трудности: в окне это «не понял» (понижение и запрет повышения — по тем же
+     * порогам), но не реплика окна: окно по-прежнему ждёт [window] реплик, дошедших до учителя.
+     */
+    @Synchronized
+    fun onDifficulty(): Step {
+        val s = _state.value
+        val nu = s.notUnderstood + 1
+        val step = if (nu >= downMin) {
+            val next = (s.level - 1).coerceIn(1, maxLevel)
+            Step(State(next), from = s.level.takeIf { it != next })
+        } else {
+            Step(State(s.level, s.turns, nu))
+        }
+        set(step.state)
+        return step
     }
 
     /** Записать шаг [preview]. */

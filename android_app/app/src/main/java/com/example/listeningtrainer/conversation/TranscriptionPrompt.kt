@@ -18,7 +18,7 @@ object TranscriptionPrompt {
      * Подсказка со словами команд (S05b, D84): короткие команды распознавание писало с ошибками («Slowware», «Igain»).
      * Одна и та же для потока и файла. Проба `s05b --part commands` читает её отсюда.
      */
-    const val COMMANDS_HINT = "The student may also say a short command: Stop, Again, Slower."
+    const val COMMANDS_HINT = "The student may also say a short command: Stop, Again, Slower, Faster."
 
     /** [lastTeacherText] — весь последний ответ учителя (может быть `null` в начале разговора). */
     fun build(lastTeacherText: String?, maxTeacherChars: Int): String {

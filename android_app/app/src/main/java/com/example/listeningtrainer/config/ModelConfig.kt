@@ -215,8 +215,24 @@ object ModelConfig {
      * `session.update`, после — обратно [SPEECH_SPEED]. Сверка — как у обычной речи (проба `s05 --part slower`).
      */
     const val SLOWER_SPEECH_SPEED = 0.7f
-    /** «Slower»: паузы после групп длиннее во столько раз. */
+    /** «Slower»: паузы после групп длиннее во столько раз — поверх формулы S07 и её предела. */
     const val SLOWER_PAUSE_FACTOR = 1.5
+
+    // --- Паузы по потребности (S07, D97, D98; проба `s07`, docs/research/07-pauses.md) ---
+    /**
+     * Пауза после группы = множитель × (пауза по знаку + доля × звук группы), не больше [PAUSE_MAX_MS] ([PauseRule]).
+     * Проба на 90 ответах S02c: звук группы — медиана 2,15 с; при 0,25 группа ≈ 0,7 с — +≈ 0,18 с, 2,5 с — +≈ 0,6 с,
+     * реплика длиннее на 16,5 % (p10 … p90 14,8 … 19,2 %), до предела не доходит ни одна пауза.
+     */
+    const val PAUSE_GROUP_SHARE = 0.25
+    const val PAUSE_MAX_MS = 3000L
+    /** Звук группы без тишины по краям: окна столько мс, тишина — окно тише самого громкого на [PAUSE_EDGE_DB] дБ. */
+    const val PAUSE_WINDOW_MS = 10
+    const val PAUSE_EDGE_DB = 35.0
+    /** Личный множитель пауз (D98): «Slower» — × шаг, «Faster» — ÷ шаг, в границах; новая установка — 1,0. */
+    const val PAUSE_SCALE_STEP = 1.15
+    const val PAUSE_SCALE_MIN = 0.7
+    const val PAUSE_SCALE_MAX = 2.5
 
     /** Запасной синтез — встроенный Android TextToSpeech (английский), скорость как у основного. */
     const val FALLBACK_SPEECH_RATE = 0.88f

@@ -135,6 +135,7 @@ class TrainerService : Service() {
             speechLookahead = ModelConfig.SPEECH_LOOKAHEAD,
             corrector = ResponsesCorrector(apiKey),
             studentLevel = (application as TrainerApplication).studentLevel,
+            pauseScale = (application as TrainerApplication).pauseScale,
             // Потоковое распознавание (S03d, D67): одна сессия на разговор; сбой — файл.
             liveTranscriber = RealtimeTranscriber(OkHttpLiveSocketFactory(apiKey), AppLog),
             // Сверка потока с файлом — только в debug (S03d, п. 3); тексты — в files/diagnostics, не в журнал.

@@ -8,6 +8,7 @@ import android.util.Log
 import com.example.listeningtrainer.audio.SileroModel
 import com.example.listeningtrainer.config.ModelConfig
 import com.example.listeningtrainer.conversation.ConversationController
+import com.example.listeningtrainer.conversation.PauseScale
 import com.example.listeningtrainer.conversation.StudentLevel
 import com.example.listeningtrainer.eventlog.AppLog
 import com.example.listeningtrainer.eventlog.FileEventLog
@@ -41,6 +42,9 @@ class TrainerApplication : Application() {
 
     /** Уровень ученика (D56) — один на процесс, хранится на устройстве; его читает и экран. */
     val studentLevel: StudentLevel by lazy { StudentLevel(LevelPrefsStore(this)) }
+
+    /** Личный множитель пауз (S07, D98) — один на процесс, хранится на устройстве; его читает и экран. */
+    val pauseScale: PauseScale by lazy { PauseScale(PauseScalePrefsStore(this)) }
 
     override fun onCreate() {
         super.onCreate()

@@ -6,7 +6,7 @@ package com.example.listeningtrainer.conversation
  * «What?» и «I don't understand» — не команды: по-прежнему «скажи проще» (D55).
  *
  * S05b (D84): короткие слова распознавание пишет с ошибками («Slowware», «Igain»), поэтому одно слово узнаётся терпимо
- * ([tolerant]): на «slow…» — Slower; в [AGAIN_MAX_EDITS] правки от «again» — Again; в [STOP_MAX_EDITS] правку от «stop» —
+ * ([tolerant]): на «slow…» — Slower; на «fas…» не дальше [FASTER_MAX_EDITS] правок от «faster» — Faster (S07); в [AGAIN_MAX_EDITS] правки от «again» — Again; в [STOP_MAX_EDITS] правку от «stop» —
  * Stop. Чтобы обычный ответ («Rain.», «Spain.», «Shop.», «Top.») не стал командой, у слова-Again первая буква гласная и
  * есть «g», у слова-Stop — начало «st» (проба `s05b --part commands`).
  *
@@ -18,13 +18,24 @@ enum class VoiceCommand(val label: String) {
     STOP("stop"),
     /** Последняя реплика учителя слово в слово, тем же звуком. */
     AGAIN("again"),
-    /** Та же реплика один раз медленнее, с более длинными паузами. */
-    SLOWER("slower");
+    /** Та же реплика один раз медленнее, с более длинными паузами; личный множитель пауз — на шаг больше (S07, D98). */
+    SLOWER("slower"),
+    /**
+     * Личный множитель пауз — на шаг меньше (S07, D98). Повтора нет: после ответа — «говори» и слушание; посреди ответа
+     * второй ступенью (D85) учитель не замолкает, дальше паузы уже короче.
+     */
+    FASTER("faster");
 
     companion object {
         const val MAX_WORDS = 3
         /** Одно слово, которое начинается так, — Slower («slowware», «slowlyer»; «Slow.» как ответ — допустимая цена). */
         const val SLOW_PREFIX = "slow"
+        /**
+         * Одно слово на «fas…» не дальше стольких правок от «faster» — Faster (S07): «fast», «fastr», «fastest». Не просто
+         * «fast…», как «slow…»: иначе «Fasting.» стал бы командой (проба `s07 --part faster`).
+         */
+        const val FASTER_PREFIX = "fas"
+        const val FASTER_MAX_EDITS = 2
         /** Одно слово не дальше стольких правок от «again» — Again («igain», «agane»). */
         const val AGAIN_MAX_EDITS = 2
         /** Одно слово не дальше стольких правок от «stop» — Stop («stap», «stops»). */
@@ -43,6 +54,10 @@ enum class VoiceCommand(val label: String) {
             SLOWER to listOf(
                 "slower", "slow down", "more slowly", "slower please", "slowly please", "please slower",
                 "slowly", "speak slower", "speak slowly", "say slower", "slow please",
+            ),
+            FASTER to listOf(
+                "faster", "speed up", "quicker", "more quickly", "faster please", "please faster", "speak faster",
+                "say faster", "a bit faster", "quicker please", "speed it up",
             ),
         )
 
@@ -70,6 +85,7 @@ enum class VoiceCommand(val label: String) {
             val w = word.replace("'", "")
             return when {
                 w.startsWith(SLOW_PREFIX) -> SLOWER
+                w.startsWith(FASTER_PREFIX) && edits(w, "faster") <= FASTER_MAX_EDITS -> FASTER
                 w.first() in VOWELS && 'g' in w && edits(w, "again") <= AGAIN_MAX_EDITS -> AGAIN
                 w.startsWith("st") && edits(w, "stop") <= STOP_MAX_EDITS -> STOP
                 else -> null

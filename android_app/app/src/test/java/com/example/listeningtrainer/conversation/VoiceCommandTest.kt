@@ -54,6 +54,21 @@ class VoiceCommandTest {
     }
 
     @Test
+    fun `faster - the brief's variants and one misheard word on fas (S07)`() {
+        for (t in listOf("Faster.", "Speed up!", "Quicker.", "More quickly.", "Faster, please.", "Speak faster.", "A bit faster."))
+            assertEquals(t, VoiceCommand.FASTER, VoiceCommand.of(t))
+        for (t in listOf("Fast.", "Fastr.", "Fastest!", "Fasta")) assertEquals(t, VoiceCommand.FASTER, VoiceCommand.of(t))
+    }
+
+    @Test
+    fun `faster - similar short answers stay replies (S07, probe s07)`() {
+        for (t in listOf("Fast food.", "Breakfast.", "First.", "Fasting.", "Fast car.", "Last.", "Past.", "Fact.", "Vast.",
+            "Forest.", "Fashion.", "Quick lunch.", "Faster than me.", "Festival.", "Feast.")) {
+            assertNull(t, VoiceCommand.of(t))
+        }
+    }
+
+    @Test
     fun `edit distance`() {
         assertEquals(0, VoiceCommand.edits("again", "again"))
         assertEquals(1, VoiceCommand.edits("igain", "again"))

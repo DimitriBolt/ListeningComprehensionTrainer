@@ -3,6 +3,7 @@ package com.example.listeningtrainer
 import com.example.listeningtrainer.audio.lastUserSpeechFile
 import com.example.listeningtrainer.conversation.ConversationState
 import com.example.listeningtrainer.config.ModelConfig
+import com.example.listeningtrainer.conversation.PauseScale
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import com.example.listeningtrainer.eventlog.AppLog
@@ -330,11 +331,16 @@ fun PracticeScreen(viewModel: TrainerViewModel, onBack: () -> Unit) {
 /**
  * Уровень ученика мелким текстом (D56). Только в debug-сборке долгое нажатие переключает уровень по кругу
  * 1 → 2 → … → 5 → 1 (ручная проверка: услышать длинные уровни сразу); окно начинается заново.
+ * Рядом — личный множитель пауз (S07, D98): «Pauses × 1.15». В debug долгое нажатие — на шаг больше, после верхней
+ * границы — нижняя.
  */
 @Composable
 private fun StudentLevelLabel() {
-    val studentLevel = (LocalContext.current.applicationContext as TrainerApplication).studentLevel
+    val app = LocalContext.current.applicationContext as TrainerApplication
+    val studentLevel = app.studentLevel
+    val pauseScale = app.pauseScale
     val state by studentLevel.state.collectAsState()
+    val scale by pauseScale.state.collectAsState()
     val modifier = if (!BuildConfig.DEBUG) Modifier else Modifier.pointerInput(Unit) {
         detectTapGestures(onLongPress = {
             val next = studentLevel.level % ModelConfig.LEVEL_TARGETS.size + 1
@@ -342,12 +348,27 @@ private fun StudentLevelLabel() {
             AppLog.event("UI", "level set by hand to $next (debug long press)")
         })
     }
-    Text(
-        text = "Level ${state.level}",
-        style = MaterialTheme.typography.labelSmall,
-        color = Color.Gray,
-        modifier = modifier.padding(4.dp),
-    )
+    val scaleModifier = if (!BuildConfig.DEBUG) Modifier else Modifier.pointerInput(Unit) {
+        detectTapGestures(onLongPress = {
+            val up = pauseScale.value * ModelConfig.PAUSE_SCALE_STEP
+            val c = pauseScale.set(if (pauseScale.value >= ModelConfig.PAUSE_SCALE_MAX) ModelConfig.PAUSE_SCALE_MIN else up)
+            AppLog.event("UI", "pauses × ${PauseScale.format(c.from)} → × ${PauseScale.format(c.to)} set by hand (debug long press)")
+        })
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "Level ${state.level}",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.Gray,
+            modifier = modifier.padding(4.dp),
+        )
+        Text(
+            text = "Pauses × ${PauseScale.format(scale)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.Gray,
+            modifier = scaleModifier.padding(4.dp),
+        )
+    }
 }
 
 /**

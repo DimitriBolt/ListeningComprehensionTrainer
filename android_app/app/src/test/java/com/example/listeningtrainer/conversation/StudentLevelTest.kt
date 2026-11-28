@@ -111,4 +111,37 @@ class StudentLevelTest {
         assertEquals("(App note: target length: 5 to 6 sentences, 45 to 60 words.)", level.note(3))
         assertEquals("(App note: target length: 7 to 8 sentences, 65 to 80 words.)", level.note(5))
     }
+
+    // ---- S07 (D99): «Again» и «Slower» в окне — как «не понял» ----------------------------------------------------
+
+    @Test
+    fun `4 again or slower in the window - the level goes down at once`() {
+        val level = StudentLevel(MemoryLevelStore(StudentLevel.State(3, 5, 0)))
+        repeat(3) { level.onDifficulty() }
+        assertEquals(StudentLevel.State(3, 5, 3), level.state.value) // не реплики окна — только «не понял»
+        val step = level.onDifficulty()
+        assertEquals(3, step.from)
+        assertEquals(StudentLevel.State(2, 0, 0), step.state)
+    }
+
+    @Test
+    fun `2 slower in the window - no level up at the threshold of 1`() {
+        val level = StudentLevel(MemoryLevelStore())
+        level.onDifficulty()
+        level.onDifficulty()
+        turns(level, understood = 19, notUnderstood = 0)
+        val step = level.onStudentTurn("Yes, I do.")
+        assertEquals(StudentLevel.State(1, 0, 0), step.state) // окно полное, «не понял» 2 > 1 — уровень тот же
+        assertNull(step.from)
+    }
+
+    @Test
+    fun `commands and real not understood add up`() {
+        val level = StudentLevel(MemoryLevelStore(StudentLevel.State(2)))
+        level.onStudentTurn("What?")
+        level.onStudentTurn("I don't understand.")
+        level.onDifficulty()
+        assertEquals(StudentLevel.State(2, 2, 3), level.state.value)
+        assertEquals(StudentLevel.State(1, 0, 0), level.onDifficulty().state) // 4-й «не понял» — вниз
+    }
 }

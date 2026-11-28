@@ -125,6 +125,11 @@ class ConversationController(
     /** Уровень ученика (S02h, D56): цель длины — служебной строкой в запрос; `null` — без неё. */
     private val studentLevel: StudentLevel? = null,
     /**
+     * Личный множитель пауз (S07, D98): «Slower» — больше, «Faster» — меньше, сам не меняется; `null` — всегда 1,0.
+     * Паузы после групп — [PauseRule] с текущим множителем в момент паузы.
+     */
+    private val pauseScale: PauseScale? = null,
+    /**
      * Потоковое распознавание во время записи (S03d, D67); `null` — только файл. Сбой потока — текст из файла
      * ([transcriber]) нынешним путём, без повтора потока.
      */
@@ -906,6 +911,16 @@ class ConversationController(
             when {
                 text.isBlank() -> log.event(TURN, "${stt}empty")
                 command == null -> log.event(TURN, "${stt}not a command (${TranscriptMatch.words(text).size} words)")
+                // «Faster» второй ступенью (S07): учитель не замолкает, оставшиеся паузы — уже с новым множителем.
+                // При полном перебивании команду узнает следующий ход — как после ответа.
+                command == VoiceCommand.FASTER -> {
+                    val apply = synchronized(lock) { !hit }
+                    log.event(TURN, "${stt}command faster${if (apply) ": the teacher goes on" else ", dropped: barge-in"}")
+                    if (apply) {
+                        commands++
+                        changeScale(pauseScale?.faster(), "faster")
+                    }
+                }
                 else -> {
                     val taken = synchronized(lock) {
                         if (halted || !active) false else { halted = true; true }
@@ -1157,6 +1172,38 @@ class ConversationController(
         }
     }
 
+    /** «Again» / «Slower» (S07, D99): «не понял» в окне уровня, строка в журнал. */
+    private fun countDifficulty(command: VoiceCommand) {
+        val level = studentLevel ?: return
+        val step = level.onDifficulty()
+        val s = step.state
+        step.from?.let { from -> log.event(SOURCE, "level ${if (s.level > from) "up" else "down"} $from → ${s.level}") }
+        log.event(SOURCE, "level ${s.level} (window ${s.turns} of ${level.windowSize}, not understood ${s.notUnderstood}; command ${command.label})")
+    }
+
+    private fun scale(): Double = pauseScale?.value ?: 1.0
+
+    /** Множитель пауз изменился командой (S07): строка `pauses × A → × B (why)`; на границе — `(limit, why)`. */
+    private fun changeScale(change: PauseScale.Change?, why: String) {
+        change ?: return
+        val from = PauseScale.format(change.from)
+        if (change.limit) {
+            log.event(SOURCE, "pauses × $from → × $from (limit, $why)")
+        } else {
+            log.event(SOURCE, "pauses × $from → × ${PauseScale.format(change.to)} ($why)")
+        }
+    }
+
+    /** Паузы одной прозвучавшей реплики (S07): `pauses: scale × N, N groups, mean N ms, max N ms, total N ms`. */
+    private fun logPauses(groups: Int, pauses: List<Long>) {
+        val total = pauses.sum()
+        val mean = if (pauses.isEmpty()) 0 else total / pauses.size
+        log.event(
+            SOURCE,
+            "pauses: scale × ${PauseScale.format(scale())}, $groups groups, mean $mean ms, max ${pauses.maxOrNull() ?: 0} ms, total $total ms",
+        )
+    }
+
     /** Учесть реплику в уровне ученика (шаг [StudentLevel.preview]), записать в журнал. */
     private fun countTurn(step: StudentLevel.Step) {
         val level = studentLevel ?: return
@@ -1290,6 +1337,8 @@ class ConversationController(
         progress?.groups = sent
         /** Звук групп по номеру — для «Again» (S05). */
         val played = HashMap<Int, SpeechAudio>()
+        /** Паузы, которые прозвучали между группами (S07): строка `pauses:` в журнал. */
+        val pauses = mutableListOf<Long>()
         /** Группы поправки поправщика: они первые в [sent]. */
         var prefix: List<SpeechChunk> = emptyList()
         var prefixText = ""
@@ -1456,7 +1505,11 @@ class ConversationController(
                             // Пауза после прошлой группы — по самой свежей нарезке (D38). Опережающий
                             // запуск: в начале звука shieldMs тишины, голос звучит через эталонную паузу.
                             val before = i - 1
-                            val pause = if (before < prefix.size) prefix[before].pauseMs else stream.pauseAfter(before - prefix.size)
+                            val mark = if (before < prefix.size) prefix[before].pauseMs else stream.pauseAfter(before - prefix.size)
+                            // S07 (D97, D98): + доля звука прошлой группы, × личный множитель (текущий: «Faster» посреди
+                            // ответа укорачивает уже следующие паузы).
+                            val pause = PauseRule.pauseMs(mark, PauseRule.speechMs(played[before]!!), scale())
+                            pauses += pause
                             val wait = maxOf(10L, pause - shieldMs) - (clock() - lastEnd)
                             if (wait > 0) delay(wait)
                         }
@@ -1503,6 +1556,7 @@ class ConversationController(
                     SpeechChunk(c.text, if (i < prefix.size) prefix[i].pauseMs else stream.pauseAfter(i - prefix.size))
                 } + more
                 lastReply = ReplyCache(groups, played.toMap())
+                logPauses(progress?.started ?: played.size, pauses)
             }
         }
         return tutorError
@@ -1510,7 +1564,10 @@ class ConversationController(
 
     // ---- команды голосом (S05, D82) --------------------------------------------------------
 
-    /** Последняя реплика учителя: группы с паузами (как прозвучали бы) и звук тех, что синтезированы, по номеру. */
+    /**
+     * Последняя реплика учителя: группы с паузами по знаку и звук тех, что синтезированы, по номеру. Пауза повтора — та же
+     * формула S07 ([PauseRule]) с текущим множителем: пока множитель не менялся, это ровно те паузы, что прозвучали (D82).
+     */
     private class ReplyCache(val groups: List<SpeechChunk>, val audio: Map<Int, SpeechAudio>)
 
     /**
@@ -1521,18 +1578,28 @@ class ConversationController(
     private suspend fun runCommand(command: VoiceCommand): Next {
         stopWaitTicks()
         val cache = lastReply
-        val groups = if (command == VoiceCommand.STOP) 0 else cache?.groups?.size ?: 0
+        val groups = if (command == VoiceCommand.STOP || command == VoiceCommand.FASTER) 0 else cache?.groups?.size ?: 0
         log.event(TURN, "command ${command.label} ($groups groups)")
         if (command == VoiceCommand.STOP) {
             setState(ConversationState.Idle, "voice command stop") { it.copy(status = "Listening again.") }
             return Next.Listen
         }
+        // «Faster» (S07, D98): паузы на шаг короче, повтора нет — «говори» и слушание.
+        if (command == VoiceCommand.FASTER) {
+            changeScale(pauseScale?.faster(), "faster")
+            setState(ConversationState.Idle, "voice command faster") { it.copy(status = "Listening again.") }
+            return Next.Listen
+        }
+        // «Slower» (S07, D98): сначала множитель на шаг больше, повтор — уже с ним; на границе — только повтор.
+        if (command == VoiceCommand.SLOWER) changeScale(pauseScale?.slower(), "slower")
         if (cache == null || cache.groups.isEmpty()) {
             log.event(TURN, "command ${command.label}: nothing to repeat yet → listening")
             setState(ConversationState.Idle, "nothing to repeat") { it.copy(status = "Nothing to repeat.") }
             return Next.Listen
         }
         val slower = command == VoiceCommand.SLOWER
+        // «Again» и «Slower» — признак трудности (D99): в окне уровня это «не понял». Учителю и в счёт D55 не идут.
+        countDifficulty(command)
         _ui.update { it.copy(teacherText = cache.groups.joinToString(" ") { g -> g.text }.replace(SPACES, " ").trim()) }
         val progress = ReplyProgress().apply { this.groups = cache.groups }
         val listen = newListen { TranscriptionPrompt.build(tutor.lastTeacherText, ModelConfig.TRANSCRIBE_PROMPT_TEACHER_CHARS) }
@@ -1660,7 +1727,27 @@ class ConversationController(
         val shieldMs = output.prepareReply()
         val speed = if (slower) ModelConfig.SLOWER_SPEECH_SPEED else ModelConfig.SPEECH_SPEED
         val factor = if (slower) ModelConfig.SLOWER_PAUSE_FACTOR else 1.0
+        val pauses = mutableListOf<Long>()
         startWaitTicks()
+        try {
+            playGroups(cache, from, speed, slower, factor, shieldMs, progress, pauses)
+        } finally {
+            if (progress.started > from) logPauses(progress.started - from, pauses)
+        }
+        stopWaitTicks()
+    }
+
+    /** Группы повтора по порядку с паузами S07 ([PauseRule]); прозвучавшие паузы — в [pauses]. */
+    private suspend fun playGroups(
+        cache: ReplyCache,
+        from: Int,
+        speed: Float,
+        slower: Boolean,
+        factor: Double,
+        shieldMs: Long,
+        progress: ReplyProgress,
+        pauses: MutableList<Long>,
+    ) {
         coroutineScope {
             val chunks = Channel<SpeechChunk>(Channel.UNLIMITED)
             cache.groups.drop(from).forEach { chunks.trySend(it) }
@@ -1669,12 +1756,17 @@ class ConversationController(
             var i = from
             // Продолжение после поддакивания (D90): перед прерванной группой — обычная пауза после предыдущей.
             var lastEnd = clock()
+            /** Звук прошлой группы, мс (S07): для продолжения — по кэшу, иначе — то, что только что прозвучало. */
+            var prevSpeechMs = if (from > 0) cache.audio[from - 1]?.let { PauseRule.speechMs(it) } ?: 0L else 0L
             for (audio in audios) {
                 if (i > 0) {
-                    val pause = (cache.groups[i - 1].pauseMs * factor).toLong()
+                    // Та же формула, что у ответа (S07), с текущим множителем; «Slower» — × factor поверх предела.
+                    val pause = PauseRule.pauseMs(cache.groups[i - 1].pauseMs, prevSpeechMs, scale(), factor)
+                    pauses += pause
                     val wait = maxOf(10L, pause - shieldMs) - (clock() - lastEnd)
                     if (wait > 0) delay(wait)
                 }
+                prevSpeechMs = PauseRule.speechMs(audio)
                 if (audio.pcm.isNotEmpty()) {
                     setState(ConversationState.Speaking, if (slower) "repeat slower" else "repeat") {
                         it.copy(currentChunk = cache.groups[i].text, status = "Speaking ${i + 1} 🔊")
@@ -1690,7 +1782,6 @@ class ConversationController(
                 i++
             }
         }
-        stopWaitTicks()
     }
 
     // ---- фраза на время поиска (D39) -------------------------------------------------------
