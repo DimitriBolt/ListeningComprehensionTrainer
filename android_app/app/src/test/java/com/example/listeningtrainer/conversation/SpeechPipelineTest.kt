@@ -29,6 +29,8 @@ class SpeechPipelineTest {
         val texts = mutableListOf<String>()
         val transcripts = ArrayDeque<String?>()
         val errors = ArrayDeque<Exception?>()
+        /** Пик звука на каждый вызов (тишина синтеза, D93); пусто — обычный звук (пик ≈ 655). */
+        val peaks = ArrayDeque<Int>()
         var delayMs = 100L
         override suspend fun synthesize(text: String, speed: Float): SynthesizedSpeech {
             speeds += speed
@@ -36,7 +38,8 @@ class SpeechPipelineTest {
             delay(delayMs)
             errors.removeFirstOrNull()?.let { throw it }
             val heard = if (transcripts.isEmpty()) text else transcripts.removeFirst()
-            return SynthesizedSpeech(SpeechAudio(tone(0.02, 2400), 24_000), if (withTranscript) heard else null)
+            val pcm = peaks.removeFirstOrNull()?.let { p -> tone(p / 32767.0, 2400) } ?: tone(0.02, 2400)
+            return SynthesizedSpeech(SpeechAudio(pcm, 24_000), if (withTranscript) heard else null)
         }
     }
 
@@ -113,6 +116,55 @@ class SpeechPipelineTest {
         assertTrue(log.lines.contains("[Audio] group 1: fallback to android after 2 attempts"))
         assertTrue(log.lines.any { it.startsWith("[Audio] group 1: android, ready in") })
         assertTrue(log.lines.any { it.startsWith("[Audio] group 2: realtime, ready in") })
+    }
+
+    @Test
+    fun `silent audio with the right transcript - one retry, then the voice (D93)`() = runTest {
+        val primary = Fake("realtime").apply { peaks += 80 }
+        val fallback = Fake("android")
+        val log = Log()
+        coroutineScope {
+            SpeechPipeline(primary, fallback, log, { testScheduler.currentTime }).start(this, chunks("Wait a moment.")).receive()
+        }
+        assertEquals(2, primary.texts.size)
+        assertTrue(fallback.texts.isEmpty())
+        assertTrue(log.lines.toString(), log.lines.contains("[Audio] realtime group 1: silent audio (peak 80) → retry"))
+        assertTrue(log.lines.any { it.startsWith("[Audio] group 1: realtime (attempt 2), ready in") })
+    }
+
+    @Test
+    fun `silent audio twice - this group via fallback (D93)`() = runTest {
+        val primary = Fake("realtime").apply { peaks += 80; peaks += 0 }
+        val fallback = Fake("android", withTranscript = false)
+        val log = Log()
+        coroutineScope {
+            val groups = SpeechPipeline(primary, fallback, log, { testScheduler.currentTime }).start(this, chunks("Green.", "Good job!"))
+            groups.receive(); groups.receive()
+        }
+        assertEquals(listOf("Green."), fallback.texts)
+        assertTrue(log.lines.contains("[Audio] realtime group 1: silent audio (peak 0) → fallback"))
+        assertTrue(log.lines.contains("[Audio] group 1: fallback to android after 2 attempts"))
+        assertTrue(log.lines.any { it.startsWith("[Audio] group 2: realtime, ready in") })
+    }
+
+    @Test
+    fun `quiet but audible voice is not silence - peak just above 1 percent`() = runTest {
+        val primary = Fake("realtime").apply { peaks += 400 }
+        val log = Log()
+        coroutineScope {
+            SpeechPipeline(primary, Fake("android"), log, { testScheduler.currentTime }).start(this, chunks("Hello.")).receive()
+        }
+        assertEquals(1, primary.texts.size)
+        assertTrue(log.lines.none { "silent audio" in it })
+    }
+
+    @Test
+    fun `silent search filler is not used`() = runTest {
+        val primary = Fake("realtime").apply { peaks += 80 }
+        val log = Log()
+        val audio = SpeechPipeline(primary, Fake("android"), log, { testScheduler.currentTime }).synthesizePrimary("Let me check.")
+        assertEquals(null, audio)
+        assertTrue(log.lines.contains("[Audio] realtime: silent audio (peak 80)"))
     }
 
     @Test

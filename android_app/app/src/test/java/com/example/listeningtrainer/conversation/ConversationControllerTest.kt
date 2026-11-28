@@ -253,7 +253,7 @@ class ConversationControllerTest {
     }
 
     /**
-     * Подставной синтез. Звук каждой группы — тишина своей длины: по длине [FakeOutput] узнаёт,
+     * Подставной синтез. Звук каждой группы — ровный звук своей длины (не тишина, D93): по длине [FakeOutput] узнаёт,
      * какой текст играет (нормализация громкости длину не меняет).
      */
     private class FakeSynth(override val name: String, private val sounds: MutableMap<Int, String>) : Synthesizer {
@@ -275,7 +275,7 @@ class ConversationControllerTest {
             error?.let { throw it }
             val size = 1000 + sounds.size
             sounds[size] = text
-            return SynthesizedSpeech(SpeechAudio(ShortArray(size), 24_000), transcript = text)
+            return SynthesizedSpeech(SpeechAudio(ShortArray(size) { 3000 }, 24_000), transcript = text)
         }
     }
 

@@ -15,8 +15,9 @@ import kotlinx.coroutines.channels.produce
  * - Группы приходят **потоком** (S02d: учитель ещё пишет ответ) и синтезируются **по порядку**:
  *   первая запрашивается первой и ничего не ждёт, дальше готовыми держатся не больше [lookahead]
  *   групп вперёд (D8, бриф S02 п. 3).
- * - Каждая группа основного синтеза сверяется с его расшифровкой ([TranscriptCheck]).
- *   Расхождение или ошибка → один повтор → снова не так → эта группа читается [fallback].
+ * - Каждая группа основного синтеза сверяется с его расшифровкой ([TranscriptCheck]) и по уровню звука: пик ниже
+ *   [ModelConfig.SPEECH_SILENT_PEAK] — тишина (D93). Расхождение, тишина или ошибка → один повтор → снова не так → эта
+ *   группа читается [fallback].
  * - Основной синтез недоступен целиком (нет сети, 401, 429, сессия) → остаток ответа читает
  *   [fallback]; следующий ответ снова начинается с основного.
  * - Громкость каждой группы приводится к целевой ([Loudness]).
@@ -112,6 +113,11 @@ class SpeechPipeline(
             log.event(SOURCE, "${primary.name} mismatch")
             return null
         }
+        val peak = peak(speech.audio.pcm)
+        if (peak < ModelConfig.SPEECH_SILENT_PEAK) {
+            log.event(SOURCE, "${primary.name}: silent audio (peak $peak)")
+            return null
+        }
         val norm = normalize(speech.audio)
         return SpeechAudio(norm.pcm, speech.audio.sampleRate)
     }
@@ -159,6 +165,12 @@ class SpeechPipeline(
                 }
                 val verdict = TranscriptCheck.compare(text, speech.transcript)
                 if (verdict.ok) {
+                    // Расшифровка верна, а звука нет (D93): это тоже сбой синтеза.
+                    val peak = peak(speech.audio.pcm)
+                    if (peak < ModelConfig.SPEECH_SILENT_PEAK) {
+                        log.event(SOURCE, "${primary.name} group $number: silent audio (peak $peak) → ${if (attempt < ATTEMPTS) "retry" else "fallback"}")
+                        continue
+                    }
                     val how = if (attempt == 1) primary.name else "${primary.name} (attempt $attempt)"
                     return speech to how
                 }
@@ -194,6 +206,16 @@ class SpeechPipeline(
 
     private companion object {
         const val SOURCE = "Audio"
+
+        /** Наибольшая абсолютная величина отсчёта. */
+        fun peak(pcm: ShortArray): Int {
+            var max = 0
+            for (v in pcm) {
+                val a = kotlin.math.abs(v.toInt())
+                if (a > max) max = a
+            }
+            return max
+        }
 
         /** Есть что произнести: хотя бы одна буква или цифра. */
         fun hasWords(text: String) = text.any { it.isLetterOrDigit() }
