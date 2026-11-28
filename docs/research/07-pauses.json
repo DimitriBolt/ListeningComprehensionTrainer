@@ -1,0 +1,3980 @@
+{
+ "durations": {
+  "replies": 90,
+  "groups_total": 710,
+  "groups_unique": 422,
+  "synthesized": 421,
+  "pauses": 620,
+  "speech_ms": {
+   "median": 2150,
+   "p10": 1120,
+   "p90": 3350,
+   "max": 6660
+  },
+  "edge_ms": {
+   "median": 267,
+   "p90": 485,
+   "max": 938
+  },
+  "corr": {
+   "syllables": 0.868,
+   "words": 0.694
+  },
+  "density": {
+   "median": 3.194888178913738,
+   "p10": 2.262443438914027,
+   "p90": 4.205607476635514
+  },
+  "by_share": [
+   {
+    "share": 0.0,
+    "kinds": {
+     "абзац": {
+      "n": 55,
+      "median": 1600,
+      "p90": 1600,
+      "max": 1600
+     },
+     "предложение": {
+      "n": 123,
+      "median": 1000,
+      "p90": 1000,
+      "max": 1000
+     },
+     ", : ;": {
+      "n": 197,
+      "median": 600,
+      "p90": 600,
+      "max": 600
+     },
+     "внутри": {
+      "n": 245,
+      "median": 250,
+      "p90": 250,
+      "max": 250
+     }
+    },
+    "growth_median": 0.0,
+    "growth_p10": 0.0,
+    "growth_p90": 0.0,
+    "add_short_median": 0.0,
+    "add_long_median": 0.0,
+    "n_short": 48,
+    "n_long": 127,
+    "capped": 0,
+    "longest": [
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 2040,
+      "text": "that happened yesterday.",
+      "reply": 9
+     },
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 1680,
+      "text": "and bought some apples.”**",
+      "reply": 11
+     },
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 1680,
+      "text": "and bought some apples.”**",
+      "reply": 12
+     },
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 1940,
+      "text": "the electricity is off.",
+      "reply": 13
+     },
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 1940,
+      "text": "the electricity is off.",
+      "reply": 14
+     },
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 2900,
+      "text": "the electricity stops working.",
+      "reply": 15
+     },
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 2040,
+      "text": "or supply is not available.",
+      "reply": 16
+     },
+     {
+      "pause": 1600,
+      "mark": 1600,
+      "speech_ms": 2270,
+      "text": "means the electricity stopped working.",
+      "reply": 16
+     }
+    ]
+   },
+   {
+    "share": 0.1,
+    "kinds": {
+     "абзац": {
+      "n": 55,
+      "median": 1815,
+      "p90": 1967,
+      "max": 2045
+     },
+     "предложение": {
+      "n": 123,
+      "median": 1215,
+      "p90": 1329,
+      "max": 1446
+     },
+     ", : ;": {
+      "n": 197,
+      "median": 776,
+      "p90": 907,
+      "max": 1266
+     },
+     "внутри": {
+      "n": 245,
+      "median": 446,
+      "p90": 563,
+      "max": 861
+     }
+    },
+    "growth_median": 6.604679064187162,
+    "growth_p10": 5.924583031182016,
+    "growth_p90": 7.666962362184767,
+    "add_short_median": 73.0,
+    "add_long_median": 241.0,
+    "n_short": 48,
+    "n_long": 127,
+    "capped": 0,
+    "longest": [
+     {
+      "pause": 2045,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 71
+     },
+     {
+      "pause": 2045,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 74
+     },
+     {
+      "pause": 2022,
+      "mark": 1600,
+      "speech_ms": 4220,
+      "text": "be kept on display rather than flown again.",
+      "reply": 42
+     },
+     {
+      "pause": 1994,
+      "mark": 1600,
+      "speech_ms": 3940,
+      "text": "for public display instead of flying again.",
+      "reply": 34
+     },
+     {
+      "pause": 1967,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 35
+     },
+     {
+      "pause": 1967,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 41
+     },
+     {
+      "pause": 1933,
+      "mark": 1600,
+      "speech_ms": 3330,
+      "text": "two major SpaceX stories stand out:",
+      "reply": 37
+     },
+     {
+      "pause": 1914,
+      "mark": 1600,
+      "speech_ms": 3140,
+      "text": "Space Force mission on November 23.",
+      "reply": 37
+     }
+    ]
+   },
+   {
+    "share": 0.15,
+    "kinds": {
+     "абзац": {
+      "n": 55,
+      "median": 1922,
+      "p90": 2150,
+      "max": 2268
+     },
+     "предложение": {
+      "n": 123,
+      "median": 1322,
+      "p90": 1494,
+      "max": 1669
+     },
+     ", : ;": {
+      "n": 197,
+      "median": 864,
+      "p90": 1060,
+      "max": 1599
+     },
+     "внутри": {
+      "n": 245,
+      "median": 544,
+      "p90": 720,
+      "max": 1166
+     }
+    },
+    "growth_median": 9.91001799640072,
+    "growth_p10": 8.890500362581582,
+    "growth_p90": 11.500443543277152,
+    "add_short_median": 109.5,
+    "add_long_median": 361.5,
+    "n_short": 48,
+    "n_long": 127,
+    "capped": 0,
+    "longest": [
+     {
+      "pause": 2268,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 71
+     },
+     {
+      "pause": 2268,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 74
+     },
+     {
+      "pause": 2233,
+      "mark": 1600,
+      "speech_ms": 4220,
+      "text": "be kept on display rather than flown again.",
+      "reply": 42
+     },
+     {
+      "pause": 2191,
+      "mark": 1600,
+      "speech_ms": 3940,
+      "text": "for public display instead of flying again.",
+      "reply": 34
+     },
+     {
+      "pause": 2150,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 35
+     },
+     {
+      "pause": 2150,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 41
+     },
+     {
+      "pause": 2100,
+      "mark": 1600,
+      "speech_ms": 3330,
+      "text": "two major SpaceX stories stand out:",
+      "reply": 37
+     },
+     {
+      "pause": 2071,
+      "mark": 1600,
+      "speech_ms": 3140,
+      "text": "Space Force mission on November 23.",
+      "reply": 37
+     }
+    ]
+   },
+   {
+    "share": 0.2,
+    "kinds": {
+     "абзац": {
+      "n": 55,
+      "median": 2030,
+      "p90": 2334,
+      "max": 2490
+     },
+     "предложение": {
+      "n": 123,
+      "median": 1430,
+      "p90": 1658,
+      "max": 1892
+     },
+     ", : ;": {
+      "n": 197,
+      "median": 952,
+      "p90": 1214,
+      "max": 1932
+     },
+     "внутри": {
+      "n": 245,
+      "median": 642,
+      "p90": 876,
+      "max": 1472
+     }
+    },
+    "growth_median": 13.209358128374324,
+    "growth_p10": 11.849166062364032,
+    "growth_p90": 15.333924724369535,
+    "add_short_median": 146.0,
+    "add_long_median": 482.0,
+    "n_short": 48,
+    "n_long": 127,
+    "capped": 0,
+    "longest": [
+     {
+      "pause": 2490,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 71
+     },
+     {
+      "pause": 2490,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 74
+     },
+     {
+      "pause": 2444,
+      "mark": 1600,
+      "speech_ms": 4220,
+      "text": "be kept on display rather than flown again.",
+      "reply": 42
+     },
+     {
+      "pause": 2388,
+      "mark": 1600,
+      "speech_ms": 3940,
+      "text": "for public display instead of flying again.",
+      "reply": 34
+     },
+     {
+      "pause": 2334,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 35
+     },
+     {
+      "pause": 2334,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 41
+     },
+     {
+      "pause": 2266,
+      "mark": 1600,
+      "speech_ms": 3330,
+      "text": "two major SpaceX stories stand out:",
+      "reply": 37
+     },
+     {
+      "pause": 2228,
+      "mark": 1600,
+      "speech_ms": 3140,
+      "text": "Space Force mission on November 23.",
+      "reply": 37
+     }
+    ]
+   },
+   {
+    "share": 0.25,
+    "kinds": {
+     "абзац": {
+      "n": 55,
+      "median": 2138,
+      "p90": 2518,
+      "max": 2712
+     },
+     "предложение": {
+      "n": 123,
+      "median": 1538,
+      "p90": 1822,
+      "max": 2115
+     },
+     ", : ;": {
+      "n": 197,
+      "median": 1040,
+      "p90": 1368,
+      "max": 2265
+     },
+     "внутри": {
+      "n": 245,
+      "median": 740,
+      "p90": 1032,
+      "max": 1778
+     }
+    },
+    "growth_median": 16.50869826034793,
+    "growth_p10": 14.807831762146485,
+    "growth_p90": 19.16740590546192,
+    "add_short_median": 182.5,
+    "add_long_median": 602.5,
+    "n_short": 48,
+    "n_long": 127,
+    "capped": 0,
+    "longest": [
+     {
+      "pause": 2712,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 71
+     },
+     {
+      "pause": 2712,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 74
+     },
+     {
+      "pause": 2655,
+      "mark": 1600,
+      "speech_ms": 4220,
+      "text": "be kept on display rather than flown again.",
+      "reply": 42
+     },
+     {
+      "pause": 2585,
+      "mark": 1600,
+      "speech_ms": 3940,
+      "text": "for public display instead of flying again.",
+      "reply": 34
+     },
+     {
+      "pause": 2518,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 35
+     },
+     {
+      "pause": 2518,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 41
+     },
+     {
+      "pause": 2432,
+      "mark": 1600,
+      "speech_ms": 3330,
+      "text": "two major SpaceX stories stand out:",
+      "reply": 37
+     },
+     {
+      "pause": 2385,
+      "mark": 1600,
+      "speech_ms": 3140,
+      "text": "Space Force mission on November 23.",
+      "reply": 37
+     }
+    ]
+   },
+   {
+    "share": 0.3,
+    "kinds": {
+     "абзац": {
+      "n": 55,
+      "median": 2245,
+      "p90": 2701,
+      "max": 2935
+     },
+     "предложение": {
+      "n": 123,
+      "median": 1645,
+      "p90": 1987,
+      "max": 2338
+     },
+     ", : ;": {
+      "n": 197,
+      "median": 1128,
+      "p90": 1521,
+      "max": 2598
+     },
+     "внутри": {
+      "n": 245,
+      "median": 838,
+      "p90": 1189,
+      "max": 2083
+     }
+    },
+    "growth_median": 19.814037192561486,
+    "growth_p10": 17.773749093546048,
+    "growth_p90": 23.000887086554304,
+    "add_short_median": 219.0,
+    "add_long_median": 723.0,
+    "n_short": 48,
+    "n_long": 127,
+    "capped": 0,
+    "longest": [
+     {
+      "pause": 2935,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 71
+     },
+     {
+      "pause": 2935,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 74
+     },
+     {
+      "pause": 2866,
+      "mark": 1600,
+      "speech_ms": 4220,
+      "text": "be kept on display rather than flown again.",
+      "reply": 42
+     },
+     {
+      "pause": 2782,
+      "mark": 1600,
+      "speech_ms": 3940,
+      "text": "for public display instead of flying again.",
+      "reply": 34
+     },
+     {
+      "pause": 2701,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 35
+     },
+     {
+      "pause": 2701,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 41
+     },
+     {
+      "pause": 2599,
+      "mark": 1600,
+      "speech_ms": 3330,
+      "text": "two major SpaceX stories stand out:",
+      "reply": 37
+     },
+     {
+      "pause": 2598,
+      "mark": 600,
+      "speech_ms": 6660,
+      "text": "Orleans Pelicans 123–119 in overtime yesterday,",
+      "reply": 48
+     }
+    ]
+   },
+   {
+    "share": 0.35,
+    "kinds": {
+     "абзац": {
+      "n": 55,
+      "median": 2352,
+      "p90": 2884,
+      "max": 3000
+     },
+     "предложение": {
+      "n": 123,
+      "median": 1752,
+      "p90": 2152,
+      "max": 2561
+     },
+     ", : ;": {
+      "n": 197,
+      "median": 1216,
+      "p90": 1674,
+      "max": 2931
+     },
+     "внутри": {
+      "n": 245,
+      "median": 936,
+      "p90": 1346,
+      "max": 2388
+     }
+    },
+    "growth_median": 23.119376124775044,
+    "growth_p10": 20.739666424945614,
+    "growth_p90": 26.834368267646685,
+    "add_short_median": 255.49999999999997,
+    "add_long_median": 843.5,
+    "n_short": 48,
+    "n_long": 127,
+    "capped": 3,
+    "longest": [
+     {
+      "pause": 3000,
+      "mark": 1600,
+      "speech_ms": 4220,
+      "text": "be kept on display rather than flown again.",
+      "reply": 42
+     },
+     {
+      "pause": 3000,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 71
+     },
+     {
+      "pause": 3000,
+      "mark": 1600,
+      "speech_ms": 4450,
+      "text": "about **45°F (7°C)**.",
+      "reply": 74
+     },
+     {
+      "pause": 2979,
+      "mark": 1600,
+      "speech_ms": 3940,
+      "text": "for public display instead of flying again.",
+      "reply": 34
+     },
+     {
+      "pause": 2931,
+      "mark": 600,
+      "speech_ms": 6660,
+      "text": "Orleans Pelicans 123–119 in overtime yesterday,",
+      "reply": 48
+     },
+     {
+      "pause": 2884,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 35
+     },
+     {
+      "pause": 2884,
+      "mark": 1600,
+      "speech_ms": 3670,
+      "text": "for public display rather than flown again.",
+      "reply": 41
+     },
+     {
+      "pause": 2766,
+      "mark": 1600,
+      "speech_ms": 3330,
+      "text": "two major SpaceX stories stand out:",
+      "reply": 37
+     }
+    ]
+   }
+  ],
+  "groups": {
+   "- A Falcon 9": {
+    "total_ms": 1397,
+    "speech_ms": 1100,
+    "words": 4,
+    "syllables": 4
+   },
+   "- A new lawsuit: Virginia": {
+    "total_ms": 2475,
+    "speech_ms": 2290,
+    "words": 5,
+    "syllables": 7
+   },
+   "- SpaceX planned a": {
+    "total_ms": 2304,
+    "speech_ms": 2210,
+    "words": 4,
+    "syllables": 5
+   },
+   "- Starship milestone:": {
+    "total_ms": 2133,
+    "speech_ms": 1800,
+    "words": 3,
+    "syllables": 5
+   },
+   "- Starship milestone: On November 14,": {
+    "total_ms": 3892,
+    "speech_ms": 3770,
+    "words": 6,
+    "syllables": 10
+   },
+   "- Starship reached a major": {
+    "total_ms": 2699,
+    "speech_ms": 2180,
+    "words": 5,
+    "syllables": 7
+   },
+   "- Two U.S.": {
+    "total_ms": 1451,
+    "speech_ms": 1400,
+    "words": 3,
+    "syllables": 3
+   },
+   "- Two states sued SpaceX": {
+    "total_ms": 2987,
+    "speech_ms": 2690,
+    "words": 5,
+    "syllables": 6
+   },
+   "- Virginia": {
+    "total_ms": 2080,
+    "speech_ms": 1620,
+    "words": 2,
+    "syllables": 3
+   },
+   "111–101,": {
+    "total_ms": 3210,
+    "speech_ms": 2900,
+    "words": 1,
+    "syllables": 10
+   },
+   "111–101.": {
+    "total_ms": 3721,
+    "speech_ms": 3170,
+    "words": 1,
+    "syllables": 10
+   },
+   "123–119 in overtime,": {
+    "total_ms": 5086,
+    "speech_ms": 4660,
+    "words": 3,
+    "syllables": 16
+   },
+   "2026,": {
+    "total_ms": 1792,
+    "speech_ms": 1570,
+    "words": 1,
+    "syllables": 7
+   },
+   "2026.": {
+    "total_ms": 2304,
+    "speech_ms": 2150,
+    "words": 1,
+    "syllables": 7
+   },
+   "23 from Vandenberg Space Force Base.": {
+    "total_ms": 3785,
+    "speech_ms": 3550,
+    "words": 6,
+    "syllables": 10
+   },
+   "A natural way": {
+    "total_ms": 1568,
+    "speech_ms": 1280,
+    "words": 3,
+    "syllables": 5
+   },
+   "Also,": {
+    "total_ms": 821,
+    "speech_ms": 530,
+    "words": 1,
+    "syllables": 2
+   },
+   "An outage is a period": {
+    "total_ms": 2187,
+    "speech_ms": 1970,
+    "words": 5,
+    "syllables": 7
+   },
+   "An outage is a time": {
+    "total_ms": 1909,
+    "speech_ms": 1620,
+    "words": 5,
+    "syllables": 6
+   },
+   "As of Monday,": {
+    "total_ms": 1621,
+    "speech_ms": 1310,
+    "words": 3,
+    "syllables": 4
+   },
+   "Because it happened in the past,": {
+    "total_ms": 1963,
+    "speech_ms": 1710,
+    "words": 6,
+    "syllables": 9
+   },
+   "Because it happened yesterday,": {
+    "total_ms": 2475,
+    "speech_ms": 2350,
+    "words": 4,
+    "syllables": 9
+   },
+   "California on November 23.": {
+    "total_ms": 3444,
+    "speech_ms": 3140,
+    "words": 4,
+    "syllables": 11
+   },
+   "Can you think of": {
+    "total_ms": 1568,
+    "speech_ms": 1320,
+    "words": 4,
+    "syllables": 4
+   },
+   "Can you try": {
+    "total_ms": 1163,
+    "speech_ms": 1030,
+    "words": 3,
+    "syllables": 3
+   },
+   "Could you check": {
+    "total_ms": 1451,
+    "speech_ms": 1040,
+    "words": 3,
+    "syllables": 3
+   },
+   "Cygnus cargo spacecraft to the International Space Station.": {
+    "total_ms": 4692,
+    "speech_ms": 4390,
+    "words": 8,
+    "syllables": 17
+   },
+   "Did you mean the": {
+    "total_ms": 1909,
+    "speech_ms": 1780,
+    "words": 4,
+    "syllables": 4
+   },
+   "Do you mean the": {
+    "total_ms": 2475,
+    "speech_ms": 2370,
+    "words": 4,
+    "syllables": 4
+   },
+   "Do you want today’s forecast too?": {
+    "total_ms": 2699,
+    "speech_ms": 2290,
+    "words": 6,
+    "syllables": 10
+   },
+   "Does": {
+    "total_ms": 1280,
+    "speech_ms": 780,
+    "words": 1,
+    "syllables": 1
+   },
+   "Earlier this month,": {
+    "total_ms": 2421,
+    "speech_ms": 1960,
+    "words": 3,
+    "syllables": 4
+   },
+   "Elon Musk said it would be kept": {
+    "total_ms": 2869,
+    "speech_ms": 2580,
+    "words": 7,
+    "syllables": 8
+   },
+   "Elon Musk says it will be kept": {
+    "total_ms": 2816,
+    "speech_ms": 2470,
+    "words": 7,
+    "syllables": 8
+   },
+   "Elon Musk says the historic vehicle will": {
+    "total_ms": 3274,
+    "speech_ms": 2990,
+    "words": 7,
+    "syllables": 12
+   },
+   "For example,": {
+    "total_ms": 1280,
+    "speech_ms": 1020,
+    "words": 2,
+    "syllables": 4
+   },
+   "For example:": {
+    "total_ms": 1056,
+    "speech_ms": 910,
+    "words": 2,
+    "syllables": 4
+   },
+   "How many apples did you buy?": {
+    "total_ms": 1909,
+    "speech_ms": 1680,
+    "words": 6,
+    "syllables": 8
+   },
+   "I couldn’t find": {
+    "total_ms": 1675,
+    "speech_ms": 1430,
+    "words": 3,
+    "syllables": 4
+   },
+   "I couldn’t find a": {
+    "total_ms": 1675,
+    "speech_ms": 1390,
+    "words": 4,
+    "syllables": 5
+   },
+   "I couldn’t find fresh": {
+    "total_ms": 2357,
+    "speech_ms": 2070,
+    "words": 4,
+    "syllables": 5
+   },
+   "I couldn’t find fresh information": {
+    "total_ms": 2592,
+    "speech_ms": 2370,
+    "words": 5,
+    "syllables": 9
+   },
+   "I found current weather for Tucson,": {
+    "total_ms": 3327,
+    "speech_ms": 2840,
+    "words": 6,
+    "syllables": 9
+   },
+   "I think you mean,": {
+    "total_ms": 1451,
+    "speech_ms": 1200,
+    "words": 4,
+    "syllables": 4
+   },
+   "I think you mean:": {
+    "total_ms": 1451,
+    "speech_ms": 1180,
+    "words": 4,
+    "syllables": 4
+   },
+   "Individual stations may charge more": {
+    "total_ms": 3157,
+    "speech_ms": 2900,
+    "words": 5,
+    "syllables": 9
+   },
+   "Is": {
+    "total_ms": 1227,
+    "speech_ms": 580,
+    "words": 1,
+    "syllables": 1
+   },
+   "It looks clear in Tucson,": {
+    "total_ms": 2421,
+    "speech_ms": 2030,
+    "words": 5,
+    "syllables": 6
+   },
+   "It was": {
+    "total_ms": 1451,
+    "speech_ms": 1140,
+    "words": 2,
+    "syllables": 2
+   },
+   "It was really nice.”": {
+    "total_ms": 1963,
+    "speech_ms": 1790,
+    "words": 4,
+    "syllables": 5
+   },
+   "It will carry a classified payload.": {
+    "total_ms": 3157,
+    "speech_ms": 2990,
+    "words": 6,
+    "syllables": 10
+   },
+   "It’s clear": {
+    "total_ms": 1451,
+    "speech_ms": 830,
+    "words": 2,
+    "syllables": 3
+   },
+   "It’s clear in Tucson right now,": {
+    "total_ms": 2187,
+    "speech_ms": 1860,
+    "words": 6,
+    "syllables": 8
+   },
+   "It’s clear in Tucson,": {
+    "total_ms": 1963,
+    "speech_ms": 1780,
+    "words": 4,
+    "syllables": 6
+   },
+   "Monday,": {
+    "total_ms": 1227,
+    "speech_ms": 560,
+    "words": 1,
+    "syllables": 2
+   },
+   "Musk companies over allegations": {
+    "total_ms": 3104,
+    "speech_ms": 2810,
+    "words": 4,
+    "syllables": 10
+   },
+   "Musk companies over claims": {
+    "total_ms": 2699,
+    "speech_ms": 2550,
+    "words": 4,
+    "syllables": 7
+   },
+   "Musk says SpaceX plans to preserve it": {
+    "total_ms": 3838,
+    "speech_ms": 3430,
+    "words": 7,
+    "syllables": 9
+   },
+   "No.": {
+    "total_ms": 715,
+    "speech_ms": 530,
+    "words": 1,
+    "syllables": 1
+   },
+   "November 20,": {
+    "total_ms": 1504,
+    "speech_ms": 1290,
+    "words": 2,
+    "syllables": 4
+   },
+   "November 20.": {
+    "total_ms": 1397,
+    "speech_ms": 1210,
+    "words": 2,
+    "syllables": 4
+   },
+   "November 22.": {
+    "total_ms": 1845,
+    "speech_ms": 1450,
+    "words": 2,
+    "syllables": 6
+   },
+   "November 22?": {
+    "total_ms": 1739,
+    "speech_ms": 1390,
+    "words": 2,
+    "syllables": 6
+   },
+   "November 23,": {
+    "total_ms": 1675,
+    "speech_ms": 1490,
+    "words": 2,
+    "syllables": 6
+   },
+   "November 23.": {
+    "total_ms": 1739,
+    "speech_ms": 1540,
+    "words": 2,
+    "syllables": 6
+   },
+   "November 24,": {
+    "total_ms": 1845,
+    "speech_ms": 1650,
+    "words": 2,
+    "syllables": 6
+   },
+   "On November 14,": {
+    "total_ms": 2080,
+    "speech_ms": 1760,
+    "words": 3,
+    "syllables": 5
+   },
+   "On November 23,": {
+    "total_ms": 1675,
+    "speech_ms": 1380,
+    "words": 3,
+    "syllables": 7
+   },
+   "On the spaceflight side,": {
+    "total_ms": 1909,
+    "speech_ms": 1550,
+    "words": 4,
+    "syllables": 6
+   },
+   "Orleans Pelicans 123–119 in overtime yesterday,": {
+    "total_ms": 6907,
+    "speech_ms": 6660,
+    "words": 6,
+    "syllables": 24
+   },
+   "Pelicans was scheduled for Monday,": {
+    "total_ms": 2869,
+    "speech_ms": 2450,
+    "words": 5,
+    "syllables": 10
+   },
+   "Prices can vary by station.": {
+    "total_ms": 2763,
+    "speech_ms": 2360,
+    "words": 5,
+    "syllables": 8
+   },
+   "Prices vary by station,": {
+    "total_ms": 2528,
+    "speech_ms": 1940,
+    "words": 4,
+    "syllables": 7
+   },
+   "Prices vary by station.": {
+    "total_ms": 2528,
+    "speech_ms": 2150,
+    "words": 4,
+    "syllables": 7
+   },
+   "Regular gas in Tucson averages": {
+    "total_ms": 2699,
+    "speech_ms": 2470,
+    "words": 5,
+    "syllables": 11
+   },
+   "Regular gas in Tucson is": {
+    "total_ms": 2475,
+    "speech_ms": 2280,
+    "words": 5,
+    "syllables": 8
+   },
+   "Say:": {
+    "total_ms": 544,
+    "speech_ms": 420,
+    "words": 1,
+    "syllables": 1
+   },
+   "Ship 42 returned from orbit": {
+    "total_ms": 3274,
+    "speech_ms": 3070,
+    "words": 5,
+    "syllables": 10
+   },
+   "Ship 42,": {
+    "total_ms": 1739,
+    "speech_ms": 1460,
+    "words": 2,
+    "syllables": 4
+   },
+   "Space Force": {
+    "total_ms": 1333,
+    "speech_ms": 1120,
+    "words": 2,
+    "syllables": 2
+   },
+   "Space Force from": {
+    "total_ms": 2080,
+    "speech_ms": 1850,
+    "words": 3,
+    "syllables": 3
+   },
+   "Space Force launch from California.": {
+    "total_ms": 2987,
+    "speech_ms": 2820,
+    "words": 5,
+    "syllables": 8
+   },
+   "Space Force launch scheduled": {
+    "total_ms": 2763,
+    "speech_ms": 2240,
+    "words": 4,
+    "syllables": 6
+   },
+   "Space Force mission on November 23.": {
+    "total_ms": 3550,
+    "speech_ms": 3140,
+    "words": 6,
+    "syllables": 11
+   },
+   "Space Force was scheduled for November": {
+    "total_ms": 3157,
+    "speech_ms": 2560,
+    "words": 6,
+    "syllables": 10
+   },
+   "SpaceX also had a Falcon 9": {
+    "total_ms": 3104,
+    "speech_ms": 2690,
+    "words": 6,
+    "syllables": 9
+   },
+   "SpaceX also had a U.S.": {
+    "total_ms": 2699,
+    "speech_ms": 2530,
+    "words": 5,
+    "syllables": 8
+   },
+   "SpaceX caught Ship 42—the Starship upper stage—in the": {
+    "total_ms": 6226,
+    "speech_ms": 5990,
+    "words": 8,
+    "syllables": 15
+   },
+   "SpaceX has also been launching": {
+    "total_ms": 2187,
+    "speech_ms": 1990,
+    "words": 5,
+    "syllables": 8
+   },
+   "SpaceX is preparing a U.S.": {
+    "total_ms": 2987,
+    "speech_ms": 2780,
+    "words": 5,
+    "syllables": 9
+   },
+   "SpaceX is preparing to launch a Northrop Grumman": {
+    "total_ms": 3956,
+    "speech_ms": 3670,
+    "words": 8,
+    "syllables": 13
+   },
+   "SpaceX plans to put": {
+    "total_ms": 2080,
+    "speech_ms": 1710,
+    "words": 4,
+    "syllables": 5
+   },
+   "SpaceX recently caught": {
+    "total_ms": 1909,
+    "speech_ms": 1720,
+    "words": 3,
+    "syllables": 6
+   },
+   "SpaceX recently caught Starship Ship 42 with": {
+    "total_ms": 4404,
+    "speech_ms": 4270,
+    "words": 7,
+    "syllables": 13
+   },
+   "SpaceX says it will put the historic spacecraft": {
+    "total_ms": 3157,
+    "speech_ms": 3130,
+    "words": 8,
+    "syllables": 13
+   },
+   "SpaceX’s AI subsidiary": {
+    "total_ms": 3327,
+    "speech_ms": 2910,
+    "words": 3,
+    "syllables": 8
+   },
+   "SpaceX’s AI subsidiary said": {
+    "total_ms": 2699,
+    "speech_ms": 2560,
+    "words": 4,
+    "syllables": 9
+   },
+   "SpaceX’s AI subsidiary said it works": {
+    "total_ms": 3274,
+    "speech_ms": 3200,
+    "words": 6,
+    "syllables": 11
+   },
+   "SpaceX’s AI subsidiary says it": {
+    "total_ms": 3157,
+    "speech_ms": 2930,
+    "words": 5,
+    "syllables": 10
+   },
+   "SpaceX’s AI subsidiary says it works": {
+    "total_ms": 3550,
+    "speech_ms": 3350,
+    "words": 6,
+    "syllables": 11
+   },
+   "SpaceX’s Starship made a successful": {
+    "total_ms": 3380,
+    "speech_ms": 3130,
+    "words": 5,
+    "syllables": 10
+   },
+   "Starship made a historic return:": {
+    "total_ms": 2816,
+    "speech_ms": 2540,
+    "words": 5,
+    "syllables": 9
+   },
+   "Starship,": {
+    "total_ms": 939,
+    "speech_ms": 830,
+    "words": 1,
+    "syllables": 2
+   },
+   "Sunday,": {
+    "total_ms": 939,
+    "speech_ms": 730,
+    "words": 1,
+    "syllables": 2
+   },
+   "Suns game result for yesterday,": {
+    "total_ms": 3040,
+    "speech_ms": 2850,
+    "words": 5,
+    "syllables": 8
+   },
+   "Sunset in Tucson today,": {
+    "total_ms": 2357,
+    "speech_ms": 2090,
+    "words": 4,
+    "syllables": 7
+   },
+   "Suns’ NBA game on Sunday,": {
+    "total_ms": 2645,
+    "speech_ms": 2400,
+    "words": 5,
+    "syllables": 6
+   },
+   "Suns’ most recent NBA game?": {
+    "total_ms": 2592,
+    "speech_ms": 2520,
+    "words": 5,
+    "syllables": 6
+   },
+   "That sounds lovely!": {
+    "total_ms": 1451,
+    "speech_ms": 1270,
+    "words": 3,
+    "syllables": 5
+   },
+   "The Phoenix Suns beat": {
+    "total_ms": 2421,
+    "speech_ms": 2050,
+    "words": 4,
+    "syllables": 5
+   },
+   "The Phoenix Suns beat the New": {
+    "total_ms": 2421,
+    "speech_ms": 2060,
+    "words": 6,
+    "syllables": 7
+   },
+   "The Phoenix Suns won 123–119 in overtime": {
+    "total_ms": 6449,
+    "speech_ms": 6110,
+    "words": 7,
+    "syllables": 21
+   },
+   "The Suns beat the Utah Jazz,": {
+    "total_ms": 3210,
+    "speech_ms": 2870,
+    "words": 6,
+    "syllables": 7
+   },
+   "The Suns didn’t play yesterday,": {
+    "total_ms": 2933,
+    "speech_ms": 2630,
+    "words": 5,
+    "syllables": 8
+   },
+   "The biggest SpaceX story today,": {
+    "total_ms": 3104,
+    "speech_ms": 2900,
+    "words": 5,
+    "syllables": 9
+   },
+   "The biggest recent SpaceX": {
+    "total_ms": 3380,
+    "speech_ms": 3140,
+    "words": 4,
+    "syllables": 7
+   },
+   "The biggest recent SpaceX story is Starship’s": {
+    "total_ms": 3785,
+    "speech_ms": 3600,
+    "words": 7,
+    "syllables": 13
+   },
+   "The companies dispute the allegations": {
+    "total_ms": 3210,
+    "speech_ms": 3080,
+    "words": 5,
+    "syllables": 11
+   },
+   "The companies dispute the claims": {
+    "total_ms": 2421,
+    "speech_ms": 2250,
+    "words": 5,
+    "syllables": 8
+   },
+   "The forecast I found": {
+    "total_ms": 2421,
+    "speech_ms": 1990,
+    "words": 4,
+    "syllables": 6
+   },
+   "The forecast for Tucson tomorrow,": {
+    "total_ms": 2475,
+    "speech_ms": 2270,
+    "words": 5,
+    "syllables": 10
+   },
+   "The forecast for tomorrow,": {
+    "total_ms": 2080,
+    "speech_ms": 1820,
+    "words": 4,
+    "syllables": 8
+   },
+   "The forecast says it will": {
+    "total_ms": 2421,
+    "speech_ms": 2320,
+    "words": 5,
+    "syllables": 7
+   },
+   "The latest major SpaceX news is": {
+    "total_ms": 3497,
+    "speech_ms": 3200,
+    "words": 6,
+    "syllables": 9
+   },
+   "The latest report I found said": {
+    "total_ms": 3668,
+    "speech_ms": 3390,
+    "words": 6,
+    "syllables": 8
+   },
+   "The launch is": {
+    "total_ms": 1675,
+    "speech_ms": 1290,
+    "words": 3,
+    "syllables": 3
+   },
+   "The lawsuits allege": {
+    "total_ms": 2133,
+    "speech_ms": 1900,
+    "words": 3,
+    "syllables": 5
+   },
+   "The states say the companies failed": {
+    "total_ms": 2763,
+    "speech_ms": 2530,
+    "words": 6,
+    "syllables": 10
+   },
+   "Their game against the": {
+    "total_ms": 2528,
+    "speech_ms": 2090,
+    "words": 4,
+    "syllables": 5
+   },
+   "Their last game was Friday,": {
+    "total_ms": 2357,
+    "speech_ms": 1850,
+    "words": 5,
+    "syllables": 6
+   },
+   "Their most recent game was Friday,": {
+    "total_ms": 3104,
+    "speech_ms": 2760,
+    "words": 6,
+    "syllables": 8
+   },
+   "Their most recent game was against": {
+    "total_ms": 3380,
+    "speech_ms": 2970,
+    "words": 6,
+    "syllables": 8
+   },
+   "There’s also a legal story today:": {
+    "total_ms": 2763,
+    "speech_ms": 2520,
+    "words": 6,
+    "syllables": 11
+   },
+   "These are allegations in lawsuits,": {
+    "total_ms": 2528,
+    "speech_ms": 2290,
+    "words": 5,
+    "syllables": 9
+   },
+   "These are allegations,": {
+    "total_ms": 1792,
+    "speech_ms": 1610,
+    "words": 3,
+    "syllables": 6
+   },
+   "They allege": {
+    "total_ms": 1280,
+    "speech_ms": 1060,
+    "words": 2,
+    "syllables": 3
+   },
+   "They didn’t play yesterday,": {
+    "total_ms": 1845,
+    "speech_ms": 1650,
+    "words": 4,
+    "syllables": 7
+   },
+   "Tomorrow is Tuesday,": {
+    "total_ms": 2251,
+    "speech_ms": 1980,
+    "words": 3,
+    "syllables": 6
+   },
+   "Try checking a local weather app": {
+    "total_ms": 2869,
+    "speech_ms": 2550,
+    "words": 6,
+    "syllables": 9
+   },
+   "Tucson is clear right now,": {
+    "total_ms": 2645,
+    "speech_ms": 2370,
+    "words": 5,
+    "syllables": 6
+   },
+   "Tucson is currently clear,": {
+    "total_ms": 2133,
+    "speech_ms": 1960,
+    "words": 4,
+    "syllables": 7
+   },
+   "Tucson is forecast to": {
+    "total_ms": 2421,
+    "speech_ms": 2360,
+    "words": 4,
+    "syllables": 7
+   },
+   "Tuesday,": {
+    "total_ms": 1451,
+    "speech_ms": 1050,
+    "words": 1,
+    "syllables": 2
+   },
+   "Virginia": {
+    "total_ms": 1109,
+    "speech_ms": 900,
+    "words": 1,
+    "syllables": 3
+   },
+   "Want me to check": {
+    "total_ms": 1109,
+    "speech_ms": 930,
+    "words": 4,
+    "syllables": 4
+   },
+   "We use the past tense": {
+    "total_ms": 2080,
+    "speech_ms": 1920,
+    "words": 5,
+    "syllables": 5
+   },
+   "We use the past tense went": {
+    "total_ms": 2592,
+    "speech_ms": 2590,
+    "words": 6,
+    "syllables": 6
+   },
+   "What did you": {
+    "total_ms": 1280,
+    "speech_ms": 1020,
+    "words": 3,
+    "syllables": 3
+   },
+   "What did you do there?": {
+    "total_ms": 1675,
+    "speech_ms": 1290,
+    "words": 5,
+    "syllables": 5
+   },
+   "What did you enjoy": {
+    "total_ms": 1568,
+    "speech_ms": 1030,
+    "words": 4,
+    "syllables": 5
+   },
+   "What did you enjoy most?": {
+    "total_ms": 1792,
+    "speech_ms": 1390,
+    "words": 5,
+    "syllables": 6
+   },
+   "What kind of": {
+    "total_ms": 1451,
+    "speech_ms": 980,
+    "words": 3,
+    "syllables": 3
+   },
+   "Which story would you": {
+    "total_ms": 2933,
+    "speech_ms": 2050,
+    "words": 4,
+    "syllables": 5
+   },
+   "Which story would you like": {
+    "total_ms": 2592,
+    "speech_ms": 2400,
+    "words": 5,
+    "syllables": 6
+   },
+   "Would you like": {
+    "total_ms": 1397,
+    "speech_ms": 950,
+    "words": 3,
+    "syllables": 3
+   },
+   "Would you like another example?": {
+    "total_ms": 2133,
+    "speech_ms": 1920,
+    "words": 5,
+    "syllables": 9
+   },
+   "Would you like help": {
+    "total_ms": 1909,
+    "speech_ms": 1580,
+    "words": 4,
+    "syllables": 4
+   },
+   "Would you like help finding": {
+    "total_ms": 2645,
+    "speech_ms": 2490,
+    "words": 5,
+    "syllables": 6
+   },
+   "Would you like help finding it?": {
+    "total_ms": 2304,
+    "speech_ms": 2060,
+    "words": 6,
+    "syllables": 7
+   },
+   "Would you like me to": {
+    "total_ms": 2080,
+    "speech_ms": 1820,
+    "words": 5,
+    "syllables": 5
+   },
+   "Would you like more": {
+    "total_ms": 2763,
+    "speech_ms": 2670,
+    "words": 4,
+    "syllables": 4
+   },
+   "Would you like the": {
+    "total_ms": 1963,
+    "speech_ms": 1510,
+    "words": 4,
+    "syllables": 4
+   },
+   "Would you like the expected high": {
+    "total_ms": 4126,
+    "speech_ms": 3610,
+    "words": 6,
+    "syllables": 8
+   },
+   "Would you like the expected temperatures,": {
+    "total_ms": 3157,
+    "speech_ms": 2880,
+    "words": 6,
+    "syllables": 12
+   },
+   "Would you like the temperature forecast,": {
+    "total_ms": 3274,
+    "speech_ms": 2610,
+    "words": 6,
+    "syllables": 11
+   },
+   "Would you like tips on": {
+    "total_ms": 2016,
+    "speech_ms": 1660,
+    "words": 5,
+    "syllables": 5
+   },
+   "Would you like to": {
+    "total_ms": 1568,
+    "speech_ms": 1330,
+    "words": 4,
+    "syllables": 4
+   },
+   "Would you like to ask": {
+    "total_ms": 1621,
+    "speech_ms": 1500,
+    "words": 5,
+    "syllables": 5
+   },
+   "Would you like to know": {
+    "total_ms": 1792,
+    "speech_ms": 1470,
+    "words": 5,
+    "syllables": 5
+   },
+   "Would you like today’s forecast too?": {
+    "total_ms": 2816,
+    "speech_ms": 2360,
+    "words": 6,
+    "syllables": 10
+   },
+   "Your sentences are correct.": {
+    "total_ms": 2251,
+    "speech_ms": 2030,
+    "words": 4,
+    "syllables": 7
+   },
+   "a Starship upper stage,": {
+    "total_ms": 2187,
+    "speech_ms": 2000,
+    "words": 4,
+    "syllables": 6
+   },
+   "a few more examples?": {
+    "total_ms": 2133,
+    "speech_ms": 1870,
+    "words": 4,
+    "syllables": 6
+   },
+   "a live sports site": {
+    "total_ms": 2421,
+    "speech_ms": 2240,
+    "words": 4,
+    "syllables": 4
+   },
+   "a local gas-price app": {
+    "total_ms": 2187,
+    "speech_ms": 1870,
+    "words": 4,
+    "syllables": 6
+   },
+   "a power outage means": {
+    "total_ms": 1963,
+    "speech_ms": 1730,
+    "words": 4,
+    "syllables": 6
+   },
+   "about $3.60 per gallon today,": {
+    "total_ms": 4233,
+    "speech_ms": 3330,
+    "words": 5,
+    "syllables": 9
+   },
+   "about $3.88 per gallon today,": {
+    "total_ms": 4916,
+    "speech_ms": 4750,
+    "words": 5,
+    "syllables": 11
+   },
+   "about 45°F (7°C).": {
+    "total_ms": 4916,
+    "speech_ms": 4450,
+    "words": 3,
+    "syllables": 8
+   },
+   "about a specific SpaceX mission": {
+    "total_ms": 2592,
+    "speech_ms": 2340,
+    "words": 5,
+    "syllables": 10
+   },
+   "about a specific SpaceX topic,": {
+    "total_ms": 2528,
+    "speech_ms": 2340,
+    "words": 5,
+    "syllables": 10
+   },
+   "about gas prices in Tucson today.": {
+    "total_ms": 3892,
+    "speech_ms": 3290,
+    "words": 6,
+    "syllables": 10
+   },
+   "about the Phoenix Suns game yesterday.": {
+    "total_ms": 3497,
+    "speech_ms": 3200,
+    "words": 6,
+    "syllables": 10
+   },
+   "about today’s sunset time in Tucson.": {
+    "total_ms": 3444,
+    "speech_ms": 3160,
+    "words": 6,
+    "syllables": 11
+   },
+   "about yesterday’s Phoenix Suns game.": {
+    "total_ms": 3550,
+    "speech_ms": 3270,
+    "words": 5,
+    "syllables": 10
+   },
+   "according to Spaceflight Now.": {
+    "total_ms": 2016,
+    "speech_ms": 1790,
+    "words": 4,
+    "syllables": 8
+   },
+   "after Ship 42 was caught by": {
+    "total_ms": 3838,
+    "speech_ms": 2970,
+    "words": 6,
+    "syllables": 9
+   },
+   "against several Elon Musk companies,": {
+    "total_ms": 3956,
+    "speech_ms": 3430,
+    "words": 5,
+    "syllables": 11
+   },
+   "against the New Orleans Pelicans on Monday,": {
+    "total_ms": 3040,
+    "speech_ms": 2840,
+    "words": 7,
+    "syllables": 12
+   },
+   "and": {
+    "total_ms": 992,
+    "speech_ms": 950,
+    "words": 1,
+    "syllables": 1
+   },
+   "and 45°F (7°C)": {
+    "total_ms": 4745,
+    "speech_ms": 4450,
+    "words": 3,
+    "syllables": 7
+   },
+   "and National Reconnaissance Office.": {
+    "total_ms": 2699,
+    "speech_ms": 2270,
+    "words": 4,
+    "syllables": 10
+   },
+   "and Oregon filed lawsuits": {
+    "total_ms": 2816,
+    "speech_ms": 2570,
+    "words": 4,
+    "syllables": 8
+   },
+   "and Oregon have sued SpaceX": {
+    "total_ms": 2933,
+    "speech_ms": 2640,
+    "words": 5,
+    "syllables": 8
+   },
+   "and Oregon sued": {
+    "total_ms": 2357,
+    "speech_ms": 1890,
+    "words": 3,
+    "syllables": 5
+   },
+   "and Oregon sued SpaceX": {
+    "total_ms": 3040,
+    "speech_ms": 2770,
+    "words": 4,
+    "syllables": 7
+   },
+   "and Oregon sued several Musk companies,": {
+    "total_ms": 3668,
+    "speech_ms": 3450,
+    "words": 6,
+    "syllables": 12
+   },
+   "and Phoenix won,": {
+    "total_ms": 1963,
+    "speech_ms": 1720,
+    "words": 3,
+    "syllables": 4
+   },
+   "and bought for something": {
+    "total_ms": 2763,
+    "speech_ms": 2460,
+    "words": 4,
+    "syllables": 6
+   },
+   "and bought some apples.”": {
+    "total_ms": 2251,
+    "speech_ms": 1680,
+    "words": 4,
+    "syllables": 5
+   },
+   "and bought.": {
+    "total_ms": 1227,
+    "speech_ms": 1000,
+    "words": 2,
+    "syllables": 2
+   },
+   "and buy → bought.": {
+    "total_ms": 3040,
+    "speech_ms": 2580,
+    "words": 4,
+    "syllables": 3
+   },
+   "and clear,": {
+    "total_ms": 1397,
+    "speech_ms": 1200,
+    "words": 2,
+    "syllables": 2
+   },
+   "and its AI subsidiary,": {
+    "total_ms": 2251,
+    "speech_ms": 1990,
+    "words": 4,
+    "syllables": 7
+   },
+   "and it’s 52°F right now.": {
+    "total_ms": 3157,
+    "speech_ms": 2920,
+    "words": 5,
+    "syllables": 9
+   },
+   "and it’s 52°F.": {
+    "total_ms": 2869,
+    "speech_ms": 2570,
+    "words": 3,
+    "syllables": 7
+   },
+   "and low temperatures?": {
+    "total_ms": 1675,
+    "speech_ms": 1500,
+    "words": 3,
+    "syllables": 7
+   },
+   "and no rain.": {
+    "total_ms": 2133,
+    "speech_ms": 1850,
+    "words": 3,
+    "syllables": 3
+   },
+   "and other Elon": {
+    "total_ms": 1909,
+    "speech_ms": 1500,
+    "words": 3,
+    "syllables": 5
+   },
+   "and other Elon Musk": {
+    "total_ms": 2304,
+    "speech_ms": 2020,
+    "words": 4,
+    "syllables": 6
+   },
+   "and other Elon Musk companies": {
+    "total_ms": 2933,
+    "speech_ms": 2680,
+    "words": 5,
+    "syllables": 9
+   },
+   "and other Elon Musk companies over sexualized": {
+    "total_ms": 5319,
+    "speech_ms": 4460,
+    "words": 7,
+    "syllables": 15
+   },
+   "and other Elon Musk companies.": {
+    "total_ms": 3497,
+    "speech_ms": 3350,
+    "words": 5,
+    "syllables": 9
+   },
+   "and other checks.": {
+    "total_ms": 1675,
+    "speech_ms": 1390,
+    "words": 3,
+    "syllables": 4
+   },
+   "and say they have safeguards.": {
+    "total_ms": 2357,
+    "speech_ms": 2120,
+    "words": 5,
+    "syllables": 7
+   },
+   "and say they have taken": {
+    "total_ms": 1675,
+    "speech_ms": 1430,
+    "words": 5,
+    "syllables": 6
+   },
+   "and takes action against misuse.": {
+    "total_ms": 3550,
+    "speech_ms": 3030,
+    "words": 5,
+    "syllables": 9
+   },
+   "and tell me what you find?": {
+    "total_ms": 2528,
+    "speech_ms": 2120,
+    "words": 6,
+    "syllables": 6
+   },
+   "and the temperature is 52°F.": {
+    "total_ms": 3444,
+    "speech_ms": 3200,
+    "words": 5,
+    "syllables": 11
+   },
+   "and they beat the Utah Jazz,": {
+    "total_ms": 2187,
+    "speech_ms": 2070,
+    "words": 6,
+    "syllables": 7
+   },
+   "and was caught by": {
+    "total_ms": 1675,
+    "speech_ms": 1430,
+    "words": 4,
+    "syllables": 4
+   },
+   "another kind of outage?": {
+    "total_ms": 2133,
+    "speech_ms": 1760,
+    "words": 4,
+    "syllables": 7
+   },
+   "another sentence about yesterday?": {
+    "total_ms": 2528,
+    "speech_ms": 2290,
+    "words": 4,
+    "syllables": 10
+   },
+   "apples did you buy?": {
+    "total_ms": 1845,
+    "speech_ms": 1420,
+    "words": 4,
+    "syllables": 5
+   },
+   "as Starship": {
+    "total_ms": 1397,
+    "speech_ms": 1200,
+    "words": 2,
+    "syllables": 3
+   },
+   "ask about something else?": {
+    "total_ms": 1621,
+    "speech_ms": 1390,
+    "words": 4,
+    "syllables": 7
+   },
+   "at its launch tower": {
+    "total_ms": 2357,
+    "speech_ms": 1960,
+    "words": 4,
+    "syllables": 5
+   },
+   "averaged about $3.88 per gallon.": {
+    "total_ms": 3892,
+    "speech_ms": 3560,
+    "words": 5,
+    "syllables": 13
+   },
+   "averaging about $3.60 a gallon today,": {
+    "total_ms": 4809,
+    "speech_ms": 4490,
+    "words": 6,
+    "syllables": 13
+   },
+   "averaging about $3.60 per gallon today,": {
+    "total_ms": 4126,
+    "speech_ms": 3780,
+    "words": 6,
+    "syllables": 13
+   },
+   "averaging about $3.60 per gallon today.": {
+    "total_ms": 4180,
+    "speech_ms": 3890,
+    "words": 6,
+    "syllables": 13
+   },
+   "averaging about $3.88 per gallon today,": {
+    "total_ms": 4468,
+    "speech_ms": 4180,
+    "words": 6,
+    "syllables": 15
+   },
+   "be clear in Tucson tomorrow,": {
+    "total_ms": 2987,
+    "speech_ms": 2830,
+    "words": 5,
+    "syllables": 8
+   },
+   "be kept on display rather than flown again.": {
+    "total_ms": 4638,
+    "speech_ms": 4220,
+    "words": 8,
+    "syllables": 11
+   },
+   "be mostly sunny tomorrow,": {
+    "total_ms": 2763,
+    "speech_ms": 2480,
+    "words": 4,
+    "syllables": 8
+   },
+   "because it happened yesterday.": {
+    "total_ms": 2869,
+    "speech_ms": 2340,
+    "words": 4,
+    "syllables": 9
+   },
+   "because you said “yesterday.”": {
+    "total_ms": 2133,
+    "speech_ms": 1810,
+    "words": 4,
+    "syllables": 7
+   },
+   "but I can’t tell from this": {
+    "total_ms": 2080,
+    "speech_ms": 1840,
+    "words": 6,
+    "syllables": 7
+   },
+   "but I don’t have": {
+    "total_ms": 1504,
+    "speech_ms": 1290,
+    "words": 4,
+    "syllables": 5
+   },
+   "but it doesn’t include tomorrow’s forecast.": {
+    "total_ms": 3838,
+    "speech_ms": 3480,
+    "words": 6,
+    "syllables": 13
+   },
+   "check a local gas-price app": {
+    "total_ms": 2475,
+    "speech_ms": 2240,
+    "words": 5,
+    "syllables": 7
+   },
+   "check a specific weather forecast source?": {
+    "total_ms": 3274,
+    "speech_ms": 3000,
+    "words": 6,
+    "syllables": 11
+   },
+   "check again for the forecast?": {
+    "total_ms": 2187,
+    "speech_ms": 1820,
+    "words": 5,
+    "syllables": 8
+   },
+   "check where it’s cheapest nearby?": {
+    "total_ms": 3157,
+    "speech_ms": 2760,
+    "words": 5,
+    "syllables": 8
+   },
+   "companies on November 23,": {
+    "total_ms": 2987,
+    "speech_ms": 2450,
+    "words": 4,
+    "syllables": 10
+   },
+   "detail about the lawsuit,": {
+    "total_ms": 2080,
+    "speech_ms": 1900,
+    "words": 4,
+    "syllables": 7
+   },
+   "do at the park?": {
+    "total_ms": 1397,
+    "speech_ms": 1130,
+    "words": 4,
+    "syllables": 4
+   },
+   "enabled harmful sexualized images.": {
+    "total_ms": 2869,
+    "speech_ms": 2580,
+    "words": 4,
+    "syllables": 12
+   },
+   "finding it on a weather": {
+    "total_ms": 1909,
+    "speech_ms": 1750,
+    "words": 5,
+    "syllables": 7
+   },
+   "first successful catch of an upper stage.": {
+    "total_ms": 3444,
+    "speech_ms": 3120,
+    "words": 7,
+    "syllables": 10
+   },
+   "for November 23 from California.": {
+    "total_ms": 3380,
+    "speech_ms": 2960,
+    "words": 5,
+    "syllables": 12
+   },
+   "for Tucson is clear,": {
+    "total_ms": 2357,
+    "speech_ms": 2240,
+    "words": 4,
+    "syllables": 5
+   },
+   "for Tucson’s sunset time today.": {
+    "total_ms": 2699,
+    "speech_ms": 2490,
+    "words": 5,
+    "syllables": 9
+   },
+   "for public display instead of flying again.": {
+    "total_ms": 4233,
+    "speech_ms": 3940,
+    "words": 7,
+    "syllables": 11
+   },
+   "for public display rather than flown again.": {
+    "total_ms": 3892,
+    "speech_ms": 3670,
+    "words": 7,
+    "syllables": 11
+   },
+   "for public display rather than fly it again.": {
+    "total_ms": 3274,
+    "speech_ms": 2870,
+    "words": 8,
+    "syllables": 12
+   },
+   "for the first time.": {
+    "total_ms": 1621,
+    "speech_ms": 1370,
+    "words": 4,
+    "syllables": 4
+   },
+   "forecast for later today?": {
+    "total_ms": 2357,
+    "speech_ms": 2140,
+    "words": 4,
+    "syllables": 8
+   },
+   "forecast for the whole day?": {
+    "total_ms": 2016,
+    "speech_ms": 1730,
+    "words": 5,
+    "syllables": 8
+   },
+   "fresh news about SpaceX.": {
+    "total_ms": 2987,
+    "speech_ms": 2350,
+    "words": 4,
+    "syllables": 6
+   },
+   "from generating sexualized": {
+    "total_ms": 3040,
+    "speech_ms": 2770,
+    "words": 3,
+    "syllables": 9
+   },
+   "gas price you meant?": {
+    "total_ms": 1621,
+    "speech_ms": 1250,
+    "words": 4,
+    "syllables": 4
+   },
+   "generated sexualized images without people’s consent,": {
+    "total_ms": 4404,
+    "speech_ms": 4280,
+    "words": 6,
+    "syllables": 18
+   },
+   "go → went": {
+    "total_ms": 2251,
+    "speech_ms": 1690,
+    "words": 3,
+    "syllables": 2
+   },
+   "hear more about Starship": {
+    "total_ms": 2645,
+    "speech_ms": 2360,
+    "words": 4,
+    "syllables": 6
+   },
+   "hear more about the lawsuit": {
+    "total_ms": 1963,
+    "speech_ms": 1770,
+    "words": 5,
+    "syllables": 7
+   },
+   "hear more about the lawsuits": {
+    "total_ms": 2187,
+    "speech_ms": 1970,
+    "words": 5,
+    "syllables": 7
+   },
+   "help finding a forecast?": {
+    "total_ms": 2528,
+    "speech_ms": 2120,
+    "words": 4,
+    "syllables": 7
+   },
+   "here are two major SpaceX stories:": {
+    "total_ms": 3157,
+    "speech_ms": 3000,
+    "words": 6,
+    "syllables": 9
+   },
+   "images made with the Grok AI tool.": {
+    "total_ms": 3550,
+    "speech_ms": 3130,
+    "words": 7,
+    "syllables": 9
+   },
+   "images without people’s consent,": {
+    "total_ms": 2528,
+    "speech_ms": 2210,
+    "words": 4,
+    "syllables": 10
+   },
+   "in Tucson is mostly sunny": {
+    "total_ms": 2816,
+    "speech_ms": 2480,
+    "words": 5,
+    "syllables": 8
+   },
+   "in Tucson is mostly sunny,": {
+    "total_ms": 2869,
+    "speech_ms": 2680,
+    "words": 5,
+    "syllables": 8
+   },
+   "in Tucson right now.": {
+    "total_ms": 2304,
+    "speech_ms": 2070,
+    "words": 4,
+    "syllables": 5
+   },
+   "in Tucson shows mostly sunny skies": {
+    "total_ms": 3210,
+    "speech_ms": 2880,
+    "words": 6,
+    "syllables": 9
+   },
+   "including SpaceX": {
+    "total_ms": 1909,
+    "speech_ms": 1720,
+    "words": 2,
+    "syllables": 5
+   },
+   "including images": {
+    "total_ms": 2133,
+    "speech_ms": 1510,
+    "words": 2,
+    "syllables": 6
+   },
+   "including images involving children.": {
+    "total_ms": 3104,
+    "speech_ms": 2730,
+    "words": 4,
+    "syllables": 11
+   },
+   "is": {
+    "total_ms": 768,
+    "speech_ms": 490,
+    "words": 1,
+    "syllables": 1
+   },
+   "is at 5:20 p.m.": {
+    "total_ms": 2251,
+    "speech_ms": 2030,
+    "words": 4,
+    "syllables": 6
+   },
+   "is at about 5:20 p.m.": {
+    "total_ms": 2816,
+    "speech_ms": 2610,
+    "words": 5,
+    "syllables": 8
+   },
+   "is mostly sunny in Tucson,": {
+    "total_ms": 2816,
+    "speech_ms": 2430,
+    "words": 5,
+    "syllables": 8
+   },
+   "is mostly sunny,": {
+    "total_ms": 1845,
+    "speech_ms": 1690,
+    "words": 3,
+    "syllables": 5
+   },
+   "it didn’t confirm the outcome.": {
+    "total_ms": 2133,
+    "speech_ms": 1930,
+    "words": 5,
+    "syllables": 8
+   },
+   "it on a weather app?": {
+    "total_ms": 1621,
+    "speech_ms": 1360,
+    "words": 5,
+    "syllables": 6
+   },
+   "its launch tower for the first time.": {
+    "total_ms": 3104,
+    "speech_ms": 2660,
+    "words": 7,
+    "syllables": 8
+   },
+   "its upper stage,": {
+    "total_ms": 1963,
+    "speech_ms": 1840,
+    "words": 3,
+    "syllables": 4
+   },
+   "launch for the U.S.": {
+    "total_ms": 1845,
+    "speech_ms": 1800,
+    "words": 4,
+    "syllables": 5
+   },
+   "launch planned for a classified U.S.": {
+    "total_ms": 3614,
+    "speech_ms": 3370,
+    "words": 6,
+    "syllables": 10
+   },
+   "launch tower’s mechanical arms for the first time.": {
+    "total_ms": 4521,
+    "speech_ms": 4460,
+    "words": 8,
+    "syllables": 13
+   },
+   "like to hear more about?": {
+    "total_ms": 2304,
+    "speech_ms": 1800,
+    "words": 5,
+    "syllables": 6
+   },
+   "local time.": {
+    "total_ms": 1333,
+    "speech_ms": 980,
+    "words": 2,
+    "syllables": 3
+   },
+   "means the electricity stopped working.": {
+    "total_ms": 2592,
+    "speech_ms": 2270,
+    "words": 5,
+    "syllables": 11
+   },
+   "milestone this month: on November 14,": {
+    "total_ms": 4009,
+    "speech_ms": 3680,
+    "words": 6,
+    "syllables": 10
+   },
+   "most at the park?": {
+    "total_ms": 2187,
+    "speech_ms": 1940,
+    "words": 4,
+    "syllables": 4
+   },
+   "national-security payloads for the U.S.": {
+    "total_ms": 3550,
+    "speech_ms": 2860,
+    "words": 5,
+    "syllables": 13
+   },
+   "news about SpaceX right now.": {
+    "total_ms": 3614,
+    "speech_ms": 3290,
+    "words": 5,
+    "syllables": 7
+   },
+   "nice weather to you?": {
+    "total_ms": 1451,
+    "speech_ms": 1270,
+    "words": 4,
+    "syllables": 5
+   },
+   "not a court finding.": {
+    "total_ms": 1845,
+    "speech_ms": 1550,
+    "words": 4,
+    "syllables": 5
+   },
+   "not a court ruling.": {
+    "total_ms": 1621,
+    "speech_ms": 1360,
+    "words": 4,
+    "syllables": 5
+   },
+   "not court findings.": {
+    "total_ms": 1845,
+    "speech_ms": 1680,
+    "words": 3,
+    "syllables": 4
+   },
+   "not findings by a court.": {
+    "total_ms": 2763,
+    "speech_ms": 2150,
+    "words": 5,
+    "syllables": 6
+   },
+   "not proven findings.": {
+    "total_ms": 3040,
+    "speech_ms": 2780,
+    "words": 3,
+    "syllables": 5
+   },
+   "on Friday,": {
+    "total_ms": 992,
+    "speech_ms": 880,
+    "words": 2,
+    "syllables": 3
+   },
+   "on Monday,": {
+    "total_ms": 1333,
+    "speech_ms": 1040,
+    "words": 2,
+    "syllables": 3
+   },
+   "on public display rather than fly it again.": {
+    "total_ms": 3104,
+    "speech_ms": 2850,
+    "words": 8,
+    "syllables": 12
+   },
+   "or Starship?": {
+    "total_ms": 1739,
+    "speech_ms": 1270,
+    "words": 2,
+    "syllables": 3
+   },
+   "or astronomy website?": {
+    "total_ms": 2645,
+    "speech_ms": 2100,
+    "words": 3,
+    "syllables": 7
+   },
+   "or calendar.": {
+    "total_ms": 1792,
+    "speech_ms": 1530,
+    "words": 2,
+    "syllables": 4
+   },
+   "or is unavailable.": {
+    "total_ms": 1739,
+    "speech_ms": 1270,
+    "words": 3,
+    "syllables": 7
+   },
+   "or its launches?": {
+    "total_ms": 1739,
+    "speech_ms": 1480,
+    "words": 3,
+    "syllables": 4
+   },
+   "or less.": {
+    "total_ms": 1397,
+    "speech_ms": 1020,
+    "words": 2,
+    "syllables": 2
+   },
+   "or lower.": {
+    "total_ms": 1333,
+    "speech_ms": 1050,
+    "words": 2,
+    "syllables": 3
+   },
+   "or station website?": {
+    "total_ms": 1963,
+    "speech_ms": 1770,
+    "words": 3,
+    "syllables": 5
+   },
+   "or supply is not available.": {
+    "total_ms": 2816,
+    "speech_ms": 2040,
+    "words": 5,
+    "syllables": 9
+   },
+   "or system is unavailable.": {
+    "total_ms": 3040,
+    "speech_ms": 2820,
+    "words": 4,
+    "syllables": 9
+   },
+   "or the launch?": {
+    "total_ms": 939,
+    "speech_ms": 760,
+    "words": 3,
+    "syllables": 3
+   },
+   "or the lawsuit?": {
+    "total_ms": 1504,
+    "speech_ms": 1080,
+    "words": 3,
+    "syllables": 4
+   },
+   "or the lawsuits?": {
+    "total_ms": 2251,
+    "speech_ms": 1800,
+    "words": 3,
+    "syllables": 4
+   },
+   "or the upcoming launch?": {
+    "total_ms": 1675,
+    "speech_ms": 1510,
+    "words": 4,
+    "syllables": 6
+   },
+   "or topic?": {
+    "total_ms": 1227,
+    "speech_ms": 890,
+    "words": 2,
+    "syllables": 3
+   },
+   "over allegations": {
+    "total_ms": 1845,
+    "speech_ms": 1590,
+    "words": 2,
+    "syllables": 6
+   },
+   "over alleged failures to prevent Grok,": {
+    "total_ms": 4009,
+    "speech_ms": 3160,
+    "words": 6,
+    "syllables": 12
+   },
+   "over claims": {
+    "total_ms": 1739,
+    "speech_ms": 1380,
+    "words": 2,
+    "syllables": 3
+   },
+   "over claims related to": {
+    "total_ms": 2187,
+    "speech_ms": 2020,
+    "words": 4,
+    "syllables": 7
+   },
+   "pending weather": {
+    "total_ms": 992,
+    "speech_ms": 940,
+    "words": 2,
+    "syllables": 4
+   },
+   "planned for November 29,": {
+    "total_ms": 2763,
+    "speech_ms": 2640,
+    "words": 4,
+    "syllables": 9
+   },
+   "prevent harmful sexualized AI images.": {
+    "total_ms": 3497,
+    "speech_ms": 3230,
+    "words": 5,
+    "syllables": 12
+   },
+   "rather than fly it again.": {
+    "total_ms": 2816,
+    "speech_ms": 2560,
+    "words": 5,
+    "syllables": 7
+   },
+   "regular gas in Tucson": {
+    "total_ms": 2763,
+    "speech_ms": 2260,
+    "words": 4,
+    "syllables": 7
+   },
+   "result whether it will rain tomorrow.": {
+    "total_ms": 3104,
+    "speech_ms": 2790,
+    "words": 6,
+    "syllables": 10
+   },
+   "says it has safeguards": {
+    "total_ms": 1963,
+    "speech_ms": 1840,
+    "words": 4,
+    "syllables": 6
+   },
+   "several Elon Musk companies,": {
+    "total_ms": 3785,
+    "speech_ms": 3150,
+    "words": 4,
+    "syllables": 9
+   },
+   "sexualized images generated by Grok.": {
+    "total_ms": 4350,
+    "speech_ms": 3980,
+    "words": 5,
+    "syllables": 13
+   },
+   "sexualized images without people’s consent.": {
+    "total_ms": 3327,
+    "speech_ms": 3210,
+    "words": 5,
+    "syllables": 14
+   },
+   "so I can’t tell": {
+    "total_ms": 1739,
+    "speech_ms": 1610,
+    "words": 4,
+    "syllables": 5
+   },
+   "so it wasn’t played yet yesterday.": {
+    "total_ms": 2816,
+    "speech_ms": 2570,
+    "words": 6,
+    "syllables": 9
+   },
+   "so rain does not look likely.": {
+    "total_ms": 2592,
+    "speech_ms": 2460,
+    "words": 6,
+    "syllables": 8
+   },
+   "so rain doesn’t look likely.": {
+    "total_ms": 2645,
+    "speech_ms": 2160,
+    "words": 5,
+    "syllables": 8
+   },
+   "so rain is unlikely.": {
+    "total_ms": 2869,
+    "speech_ms": 2560,
+    "words": 4,
+    "syllables": 7
+   },
+   "so some may be higher": {
+    "total_ms": 2475,
+    "speech_ms": 2310,
+    "words": 5,
+    "syllables": 6
+   },
+   "states have sued SpaceX": {
+    "total_ms": 2475,
+    "speech_ms": 2350,
+    "words": 4,
+    "syllables": 6
+   },
+   "states sued SpaceX": {
+    "total_ms": 2763,
+    "speech_ms": 2340,
+    "words": 3,
+    "syllables": 5
+   },
+   "steps to address harmful content.": {
+    "total_ms": 3380,
+    "speech_ms": 2980,
+    "words": 5,
+    "syllables": 8
+   },
+   "story is a legal one.": {
+    "total_ms": 1845,
+    "speech_ms": 1510,
+    "words": 5,
+    "syllables": 7
+   },
+   "such": {
+    "total_ms": 992,
+    "speech_ms": 690,
+    "words": 1,
+    "syllables": 1
+   },
+   "such content is abhorrent": {
+    "total_ms": 2187,
+    "speech_ms": 1920,
+    "words": 4,
+    "syllables": 7
+   },
+   "that Grok AI produced": {
+    "total_ms": 2528,
+    "speech_ms": 2160,
+    "words": 4,
+    "syllables": 6
+   },
+   "that Grok generated harmful sexual images.": {
+    "total_ms": 3785,
+    "speech_ms": 3480,
+    "words": 6,
+    "syllables": 13
+   },
+   "that Grok’s safeguards failed to": {
+    "total_ms": 3892,
+    "speech_ms": 3360,
+    "words": 5,
+    "syllables": 9
+   },
+   "that Virginia": {
+    "total_ms": 1739,
+    "speech_ms": 1580,
+    "words": 2,
+    "syllables": 4
+   },
+   "that happened yesterday.": {
+    "total_ms": 2251,
+    "speech_ms": 2040,
+    "words": 3,
+    "syllables": 7
+   },
+   "that help?": {
+    "total_ms": 1109,
+    "speech_ms": 830,
+    "words": 2,
+    "syllables": 2
+   },
+   "that it takes action against users": {
+    "total_ms": 2763,
+    "speech_ms": 2610,
+    "words": 6,
+    "syllables": 10
+   },
+   "that make sense?": {
+    "total_ms": 1280,
+    "speech_ms": 990,
+    "words": 3,
+    "syllables": 3
+   },
+   "that may depict children.": {
+    "total_ms": 1792,
+    "speech_ms": 1610,
+    "words": 4,
+    "syllables": 6
+   },
+   "that morning;": {
+    "total_ms": 1163,
+    "speech_ms": 1130,
+    "words": 2,
+    "syllables": 3
+   },
+   "that sound comfortable to you?": {
+    "total_ms": 2304,
+    "speech_ms": 2050,
+    "words": 5,
+    "syllables": 8
+   },
+   "that sound like": {
+    "total_ms": 1909,
+    "speech_ms": 1470,
+    "words": 3,
+    "syllables": 3
+   },
+   "that the AI chatbot Grok": {
+    "total_ms": 3497,
+    "speech_ms": 2670,
+    "words": 5,
+    "syllables": 6
+   },
+   "that the AI chatbot Grok was allowed": {
+    "total_ms": 4062,
+    "speech_ms": 3740,
+    "words": 7,
+    "syllables": 10
+   },
+   "that the Grok chatbot": {
+    "total_ms": 2187,
+    "speech_ms": 1960,
+    "words": 4,
+    "syllables": 5
+   },
+   "that the fuel type you needed?": {
+    "total_ms": 2528,
+    "speech_ms": 2270,
+    "words": 6,
+    "syllables": 7
+   },
+   "that the kind of": {
+    "total_ms": 1568,
+    "speech_ms": 1290,
+    "words": 4,
+    "syllables": 4
+   },
+   "that the weather": {
+    "total_ms": 1163,
+    "speech_ms": 920,
+    "words": 3,
+    "syllables": 4
+   },
+   "that the weather you expected?": {
+    "total_ms": 2133,
+    "speech_ms": 1910,
+    "words": 5,
+    "syllables": 8
+   },
+   "that two U.S.": {
+    "total_ms": 1792,
+    "speech_ms": 1510,
+    "words": 3,
+    "syllables": 4
+   },
+   "that vehicle on public display": {
+    "total_ms": 2528,
+    "speech_ms": 2370,
+    "words": 5,
+    "syllables": 9
+   },
+   "the AI chatbot,": {
+    "total_ms": 2080,
+    "speech_ms": 1760,
+    "words": 3,
+    "syllables": 4
+   },
+   "the New Orleans Pelicans,": {
+    "total_ms": 2475,
+    "speech_ms": 2070,
+    "words": 4,
+    "syllables": 7
+   },
+   "the Utah Jazz 111–101.": {
+    "total_ms": 4350,
+    "speech_ms": 4340,
+    "words": 4,
+    "syllables": 14
+   },
+   "the Utah Jazz on November 20,": {
+    "total_ms": 2987,
+    "speech_ms": 2680,
+    "words": 6,
+    "syllables": 9
+   },
+   "the electricity is off.": {
+    "total_ms": 2304,
+    "speech_ms": 1940,
+    "words": 4,
+    "syllables": 8
+   },
+   "the electricity stopped working for a": {
+    "total_ms": 3668,
+    "speech_ms": 3500,
+    "words": 6,
+    "syllables": 12
+   },
+   "the electricity stops working.": {
+    "total_ms": 3838,
+    "speech_ms": 2900,
+    "words": 4,
+    "syllables": 9
+   },
+   "the forecast again later?": {
+    "total_ms": 2304,
+    "speech_ms": 1760,
+    "words": 4,
+    "syllables": 8
+   },
+   "the latest major SpaceX news is": {
+    "total_ms": 3550,
+    "speech_ms": 3460,
+    "words": 6,
+    "syllables": 9
+   },
+   "the launch tower on November 14,": {
+    "total_ms": 3327,
+    "speech_ms": 3140,
+    "words": 6,
+    "syllables": 9
+   },
+   "the launch tower’s arms.": {
+    "total_ms": 2133,
+    "speech_ms": 1920,
+    "words": 4,
+    "syllables": 6
+   },
+   "the launch tower’s “chopstick” arms.": {
+    "total_ms": 2933,
+    "speech_ms": 2580,
+    "words": 5,
+    "syllables": 8
+   },
+   "the launch window was scheduled to open": {
+    "total_ms": 2933,
+    "speech_ms": 2660,
+    "words": 7,
+    "syllables": 11
+   },
+   "the main SpaceX news is:": {
+    "total_ms": 2528,
+    "speech_ms": 2290,
+    "words": 5,
+    "syllables": 6
+   },
+   "to create sexualized images without people’s consent,": {
+    "total_ms": 4126,
+    "speech_ms": 3900,
+    "words": 7,
+    "syllables": 16
+   },
+   "to hear more about—the lawsuit": {
+    "total_ms": 3104,
+    "speech_ms": 2760,
+    "words": 5,
+    "syllables": 8
+   },
+   "to hear more about—the lawsuits": {
+    "total_ms": 2933,
+    "speech_ms": 2680,
+    "words": 5,
+    "syllables": 8
+   },
+   "to know the temperature,": {
+    "total_ms": 2421,
+    "speech_ms": 2190,
+    "words": 4,
+    "syllables": 7
+   },
+   "to prevent this kind of content.": {
+    "total_ms": 2304,
+    "speech_ms": 2050,
+    "words": 6,
+    "syllables": 8
+   },
+   "to protect people from harmful images.": {
+    "total_ms": 2987,
+    "speech_ms": 2750,
+    "words": 6,
+    "syllables": 11
+   },
+   "to say it is:": {
+    "total_ms": 1397,
+    "speech_ms": 1050,
+    "words": 4,
+    "syllables": 4
+   },
+   "to stop this kind of content.": {
+    "total_ms": 2592,
+    "speech_ms": 2410,
+    "words": 6,
+    "syllables": 7
+   },
+   "to stop this kind of misuse.": {
+    "total_ms": 2699,
+    "speech_ms": 2470,
+    "words": 6,
+    "syllables": 7
+   },
+   "tomorrow’s forecast from this result,": {
+    "total_ms": 3380,
+    "speech_ms": 3130,
+    "words": 5,
+    "syllables": 11
+   },
+   "too?": {
+    "total_ms": 651,
+    "speech_ms": 410,
+    "words": 1,
+    "syllables": 1
+   },
+   "tower catch on November 13,": {
+    "total_ms": 3327,
+    "speech_ms": 3070,
+    "words": 5,
+    "syllables": 8
+   },
+   "two major SpaceX stories stand out:": {
+    "total_ms": 3614,
+    "speech_ms": 3330,
+    "words": 6,
+    "syllables": 9
+   },
+   "two recent SpaceX stories stand out:": {
+    "total_ms": 3274,
+    "speech_ms": 2920,
+    "words": 6,
+    "syllables": 9
+   },
+   "use the past tense:": {
+    "total_ms": 2421,
+    "speech_ms": 2190,
+    "words": 4,
+    "syllables": 4
+   },
+   "use went": {
+    "total_ms": 1621,
+    "speech_ms": 1230,
+    "words": 2,
+    "syllables": 2
+   },
+   "very nice” is correct English.": {
+    "total_ms": 2528,
+    "speech_ms": 2330,
+    "words": 5,
+    "syllables": 8
+   },
+   "was caught by the launch tower.": {
+    "total_ms": 3444,
+    "speech_ms": 2890,
+    "words": 6,
+    "syllables": 7
+   },
+   "when a service": {
+    "total_ms": 1675,
+    "speech_ms": 1410,
+    "words": 3,
+    "syllables": 4
+   },
+   "when a service stops working": {
+    "total_ms": 2357,
+    "speech_ms": 2280,
+    "words": 5,
+    "syllables": 7
+   },
+   "when a service stops working.": {
+    "total_ms": 2080,
+    "speech_ms": 1860,
+    "words": 5,
+    "syllables": 7
+   },
+   "when it gets fully dark,": {
+    "total_ms": 2080,
+    "speech_ms": 1790,
+    "words": 5,
+    "syllables": 6
+   },
+   "when they beat": {
+    "total_ms": 2016,
+    "speech_ms": 1570,
+    "words": 3,
+    "syllables": 3
+   },
+   "where to check local prices?": {
+    "total_ms": 2933,
+    "speech_ms": 2630,
+    "words": 5,
+    "syllables": 7
+   },
+   "whether it will rain.": {
+    "total_ms": 1739,
+    "speech_ms": 1340,
+    "words": 4,
+    "syllables": 5
+   },
+   "while.": {
+    "total_ms": 768,
+    "speech_ms": 530,
+    "words": 1,
+    "syllables": 2
+   },
+   "who try to create it.": {
+    "total_ms": 2080,
+    "speech_ms": 1870,
+    "words": 5,
+    "syllables": 5
+   },
+   "with no rain expected.": {
+    "total_ms": 2080,
+    "speech_ms": 1730,
+    "words": 4,
+    "syllables": 6
+   },
+   "with no rain indicated.": {
+    "total_ms": 2645,
+    "speech_ms": 2150,
+    "words": 4,
+    "syllables": 7
+   },
+   "with no rain shown.": {
+    "total_ms": 1963,
+    "speech_ms": 1550,
+    "words": 4,
+    "syllables": 4
+   },
+   "works to stop this content.": {
+    "total_ms": 2645,
+    "speech_ms": 2180,
+    "words": 5,
+    "syllables": 6
+   },
+   "yesterday,": {
+    "total_ms": 1056,
+    "speech_ms": 760,
+    "words": 1,
+    "syllables": 3
+   },
+   "you were hoping for?": {
+    "total_ms": 2475,
+    "speech_ms": 1710,
+    "words": 4,
+    "syllables": 5
+   },
+   "“I went to the park yesterday.": {
+    "total_ms": 2763,
+    "speech_ms": 2570,
+    "words": 6,
+    "syllables": 8
+   },
+   "“Outage” means a time": {
+    "total_ms": 2251,
+    "speech_ms": 2000,
+    "words": 4,
+    "syllables": 5
+   },
+   "“There was a power outage”": {
+    "total_ms": 2016,
+    "speech_ms": 1710,
+    "words": 5,
+    "syllables": 7
+   },
+   "“There was a power outage” means": {
+    "total_ms": 3721,
+    "speech_ms": 3690,
+    "words": 6,
+    "syllables": 8
+   },
+   "“Yesterday I went to the shop": {
+    "total_ms": 2421,
+    "speech_ms": 2260,
+    "words": 6,
+    "syllables": 8
+   },
+   "“Yesterday, I went to the shop": {
+    "total_ms": 2763,
+    "speech_ms": 2530,
+    "words": 6,
+    "syllables": 8
+   }
+  },
+  "date": "2026-11-27T20:51:12"
+ },
+ "spend_runs": [
+  {
+   "date": "2026-11-27T20:50:00",
+   "parts": [
+    "durations"
+   ],
+   "spend": {
+    "synth": 0.217,
+    "live": 0,
+    "file": 0
+   },
+   "elapsed_s": null,
+   "note": "прервана пределом TPM Realtime при 4 сессиях; звук в кэше"
+  },
+  {
+   "date": "2026-11-27T20:51:12",
+   "parts": [
+    "durations"
+   ],
+   "spend": {
+    "synth": 0.24928,
+    "live": 0.0,
+    "file": 0.0
+   },
+   "elapsed_s": 185.0
+  },
+  {
+   "date": "2026-11-27T20:52:51",
+   "parts": [
+    "faster"
+   ],
+   "spend": {
+    "synth": 0.02842,
+    "live": 0.04137,
+    "file": 0.00683
+   },
+   "elapsed_s": 75.1
+  }
+ ],
+ "faster": {
+  "rows": [
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Faster.",
+    "want": "faster",
+    "heard": "Aster.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Faster, please.",
+    "want": "faster",
+    "heard": "Faster, please.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Speed up.",
+    "want": "faster",
+    "heard": "Speed up.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Quicker.",
+    "want": "faster",
+    "heard": "Quicker.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "More quickly.",
+    "want": "faster",
+    "heard": "More quickly.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Speak faster.",
+    "want": "faster",
+    "heard": "Speak faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "A bit faster.",
+    "want": "faster",
+    "heard": "A bit faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Fast food.",
+    "want": null,
+    "heard": "Fast food.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Breakfast.",
+    "want": null,
+    "heard": "Breakfast.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "First.",
+    "want": null,
+    "heard": "First.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Fasting.",
+    "want": null,
+    "heard": "Fasting.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Fast car.",
+    "want": null,
+    "heard": "Fast car.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Last.",
+    "want": null,
+    "heard": "Last.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Past.",
+    "want": null,
+    "heard": "Past.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Fact.",
+    "want": null,
+    "heard": "Fact.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Vast.",
+    "want": null,
+    "heard": "Vast.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Forest.",
+    "want": null,
+    "heard": "Forest.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Fashion.",
+    "want": null,
+    "heard": "Fashion.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Quick lunch.",
+    "want": null,
+    "heard": "Quick lunch?",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Faster than me.",
+    "want": null,
+    "heard": "Faster than me.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Festival.",
+    "want": null,
+    "heard": "Festival.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "file",
+    "said": "Feast.",
+    "want": null,
+    "heard": "Feast.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Faster.",
+    "want": "faster",
+    "heard": "Aster,",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Faster, please.",
+    "want": "faster",
+    "heard": "Faster, please.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Speed up.",
+    "want": "faster",
+    "heard": "Speed up.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Quicker.",
+    "want": "faster",
+    "heard": "Quicker.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "More quickly.",
+    "want": "faster",
+    "heard": "More quickly.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Speak faster.",
+    "want": "faster",
+    "heard": "Speak fasten.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "A bit faster.",
+    "want": "faster",
+    "heard": "A bit faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Fast food.",
+    "want": null,
+    "heard": "Fast food.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Breakfast.",
+    "want": null,
+    "heard": "Breakfast.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "First.",
+    "want": null,
+    "heard": "First,",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Fasting.",
+    "want": null,
+    "heard": "Fasting.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Fast car.",
+    "want": null,
+    "heard": "Fast car.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Last.",
+    "want": null,
+    "heard": "Last.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Past.",
+    "want": null,
+    "heard": "Past.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Fact.",
+    "want": null,
+    "heard": "Fact.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Vast.",
+    "want": null,
+    "heard": "Vast.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Forest.",
+    "want": null,
+    "heard": "Forest",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Fashion.",
+    "want": null,
+    "heard": "Fashion,",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Quick lunch.",
+    "want": null,
+    "heard": "Quick lunch?",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Faster than me.",
+    "want": null,
+    "heard": "Faster, than me.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Festival.",
+    "want": null,
+    "heard": "Festival.",
+    "got": null
+   },
+   {
+    "voice": "alloy",
+    "path": "live",
+    "said": "Feast.",
+    "want": null,
+    "heard": "Feast.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Faster.",
+    "want": "faster",
+    "heard": "Faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Faster, please.",
+    "want": "faster",
+    "heard": "Faster, please.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Speed up.",
+    "want": "faster",
+    "heard": "Speed up.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Quicker.",
+    "want": "faster",
+    "heard": "Quicker.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "More quickly.",
+    "want": "faster",
+    "heard": "More quickly.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Speak faster.",
+    "want": "faster",
+    "heard": "Speak faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "A bit faster.",
+    "want": "faster",
+    "heard": "A bit faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Fast food.",
+    "want": null,
+    "heard": "Fast food.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Breakfast.",
+    "want": null,
+    "heard": "Breakfast.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "First.",
+    "want": null,
+    "heard": "Burst.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Fasting.",
+    "want": null,
+    "heard": "Sasting.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Fast car.",
+    "want": null,
+    "heard": "Fast car.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Last.",
+    "want": null,
+    "heard": "Last.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Past.",
+    "want": null,
+    "heard": "Past.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Fact.",
+    "want": null,
+    "heard": "Fact.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Vast.",
+    "want": null,
+    "heard": "Vast.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Forest.",
+    "want": null,
+    "heard": "Forest.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Fashion.",
+    "want": null,
+    "heard": "Fashion.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Quick lunch.",
+    "want": null,
+    "heard": "Quick lunch.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Faster than me.",
+    "want": null,
+    "heard": "Faster than me.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Festival.",
+    "want": null,
+    "heard": "Festival.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "file",
+    "said": "Feast.",
+    "want": null,
+    "heard": "Feast.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Faster.",
+    "want": "faster",
+    "heard": "Faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Faster, please.",
+    "want": "faster",
+    "heard": "Faster. Please.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Speed up.",
+    "want": "faster",
+    "heard": "Speed up.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Quicker.",
+    "want": "faster",
+    "heard": "Quicker.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "More quickly.",
+    "want": "faster",
+    "heard": "More quickly.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Speak faster.",
+    "want": "faster",
+    "heard": "Speak faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "A bit faster.",
+    "want": "faster",
+    "heard": "A bit faster.",
+    "got": "faster"
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Fast food.",
+    "want": null,
+    "heard": "Fast food.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Breakfast.",
+    "want": null,
+    "heard": "Breakfast.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "First.",
+    "want": null,
+    "heard": "Burst.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Fasting.",
+    "want": null,
+    "heard": "Sasting",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Fast car.",
+    "want": null,
+    "heard": "Fast car.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Last.",
+    "want": null,
+    "heard": "Last.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Past.",
+    "want": null,
+    "heard": "Past.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Fact.",
+    "want": null,
+    "heard": "Fact.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Vast.",
+    "want": null,
+    "heard": "Vast.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Forest.",
+    "want": null,
+    "heard": "Forest.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Fashion.",
+    "want": null,
+    "heard": "Fashion.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Quick lunch.",
+    "want": null,
+    "heard": "Quick lunch",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Faster than me.",
+    "want": null,
+    "heard": "Faster than me.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Festival.",
+    "want": null,
+    "heard": "Festival.",
+    "got": null
+   },
+   {
+    "voice": "coral",
+    "path": "live",
+    "said": "Feast.",
+    "want": null,
+    "heard": "Feast",
+    "got": null
+   }
+  ],
+  "commands_ok": 25,
+  "commands_total": 28,
+  "false": 0,
+  "answers_total": 60,
+  "s05b_total": 552,
+  "s05b_wrong": [],
+  "s05b_false_faster": 0,
+  "date": "2026-11-27T20:52:51"
+ }
+}

@@ -1,4 +1,4 @@
-# Пробы S00b, S02c, S02e–S02i, S03b, S04, S05, S05b; сверка S05c
+# Пробы S00b, S02c, S02e–S02i, S03b, S04, S05, S05b, S07; сверка S05c
 
 Скрипт `probe.py` проверяет с вашим ключом всё, что в разведке S00
 (`docs/research/00-models.md`) осталось «не подтверждено» (S00b), и учителя на Responses API
@@ -384,6 +384,25 @@ python tools/probe/quotes_check.py
   `SpeechPlannerCopyTest` (сверка копий). Поменяли нарезку — перезапустите скрипт, иначе упадут `SpeechPlannerCopyTest`
   и `test_quotes_check_fixture_is_current`.
 
+## Проба S07 — паузы по потребности (`s07`)
+
+Бриф — `docs/stages/07-brief.md`, п. 4; код — `s07.py`. Две части, по умолчанию обе (≈ $0,55 при пустом кэше; с кэшем — центы):
+
+```bash
+python tools/probe/probe.py s07                          # покажет оценку цены и спросит «y»
+python tools/probe/probe.py s07 --s07-part durations     # только длительности групп
+```
+
+- **`durations`** — все группы 90 ответов S02c (до первого вопроса, D48) синтезом голосом приложения (`SPEECH_VOICE`,
+  `SPEECH_SPEED`), одна сессия (при 4 сразу — предел TPM Realtime); звук — `out/07/synth/`, повторный прогон его не
+  синтезирует. Длительность — копией `PauseRule.speechMs` (без тишины по краям); паузы — копией `PauseRule.pauseMs` для долей
+  0 … 0,35: медиана и p90 по типам знаков, прирост реплики, самые длинные паузы; слоги и плотность — справочно.
+- **`faster`** — «Faster» и похожие короткие ответы двумя голосами, файлом и потоком с подсказкой команд; узнавание — копией
+  `VoiceCommand.of` (`s05.command_of`), список читается из `VoiceCommand.kt`. Тексты коротких ответов S05b — заново по новому
+  правилу, без сети.
+
+Итог — `docs/research/07-pauses.md` (+ `.json`). Бюджет — `--s07-budget` (по умолчанию $0,5).
+
 ## Тесты (без ключа и без сети)
 
 ```bash
@@ -394,7 +413,7 @@ python -m pytest tools/probe/tests
 звук, файлы результатов. `test_speech_planner.py` — копия `SpeechPlanner` (случаи из `SpeechPlannerTest.kt`),
 чистка сносок, потоковая нарезка (группы те же, что у готового текста, при любой разбивке на куски).
 `test_responses.py` — подкоманда `responses` против подставного сервера с потоком SSE по документации.
-`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` (с `own_words`) и `NotUnderstood.kt`; судья, проверка уточнения, цели S02g, `--rejudge`. `test_endpoint.py` — проба S03b: эмуляция порога, конечный автомат Silero/WebRTC, уточнение конца речи, события сессии, меры и правило выбора. `test_silero_app_check.py` — правило приложения в сверке S03c и его настройки против `ModelConfig.kt`. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_fake_server.py` гоняет сетевой код против подставного
+`test_tutor_dialog.py` — подкоманда `tutor-dialog` так же; плюс сверка копий с `ModelConfig.kt`, `ReplyText.kt` (с `own_words`) и `NotUnderstood.kt`; судья, проверка уточнения, цели S02g, `--rejudge`. `test_endpoint.py` — проба S03b: эмуляция порога, конечный автомат Silero/WebRTC, уточнение конца речи, события сессии, меры и правило выбора. `test_silero_app_check.py` — правило приложения в сверке S03c и его настройки против `ModelConfig.kt`. `test_corrector.py` — набор фраз, оценка поправки, правило решения, копия `Correction.kt`. `test_s07.py` — копия `PauseRule` против Kotlin, нарезка до первого вопроса, ожидания «Faster». `test_fake_server.py` гоняет сетевой код против подставного
 локального сервера: он ловит ошибки в нашем коде, но не подтверждает, что настоящий API
 отвечает так же.
 

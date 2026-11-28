@@ -48,10 +48,10 @@ def kotlin_const(name: str, path: Path = MODEL_CONFIG_KT) -> str:
 
 
 def command_phrases(path: Path = VOICE_COMMAND_KT) -> dict[str, list[str]]:
-    """`VoiceCommand.PHRASES` из Kotlin: {"stop": [...], "again": [...], "slower": [...]}."""
+    """`VoiceCommand.PHRASES` из Kotlin: {"stop": [...], "again": [...], "slower": [...], "faster": [...]}."""
     src = path.read_text(encoding="utf-8")
     out = {}
-    for name in ("STOP", "AGAIN", "SLOWER"):
+    for name in ("STOP", "AGAIN", "SLOWER", "FASTER"):
         m = re.search(rf"\b{name} to listOf\((.*?)\)", src, re.S)
         if not m:
             raise ProbeError(f"не нашёл {name} в VoiceCommand.kt")
@@ -93,6 +93,9 @@ def tolerant_of(word: str, strict: bool = True) -> str | None:
     slow = kotlin_const("SLOW_PREFIX", VOICE_COMMAND_KT)
     if w.startswith(slow):
         return "slower"
+    if w.startswith(kotlin_const("FASTER_PREFIX", VOICE_COMMAND_KT)) and \
+            edits(w, "faster") <= int(kotlin_const("FASTER_MAX_EDITS", VOICE_COMMAND_KT)):
+        return "faster"  # S07
     if (not strict or (w[0] in "aeiou" and "g" in w)) and edits(w, "again") <= int(kotlin_const("AGAIN_MAX_EDITS", VOICE_COMMAND_KT)):
         return "again"
     if (not strict or w.startswith("st")) and edits(w, "stop") <= int(kotlin_const("STOP_MAX_EDITS", VOICE_COMMAND_KT)):

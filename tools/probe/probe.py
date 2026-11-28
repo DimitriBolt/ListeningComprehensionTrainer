@@ -2516,8 +2516,14 @@ OPTIONS = [
     (("--part",), dict(action="append", choices=("commands", "slower", "interrupted", "corrector-long", "corrector"),
                        default=None, help="часть пробы S05 / S05b (можно несколько раз; по умолчанию все)"),
      ("s05", "s05b")),
+    (("--s07-part",), dict(action="append", choices=("durations", "faster"), default=None, dest="part_s07",
+                           help="часть пробы S07 (можно несколько раз; по умолчанию обе)"),
+     ("s07",)),
+    (("--s07-budget",), dict(type=float, default=0.5, metavar="$", dest="s07_budget",
+                             help="остановить прогон, когда потрачено столько, $ (по умолчанию 0.5)"),
+     ("s07",)),
     (("--yes",), dict(action="store_true", help="не спрашивать подтверждение стоимости"),
-     ("all", "responses", "tutor-dialog", "corrector", "endpoint", "turn-end", "s05", "s05b")),
+     ("all", "responses", "tutor-dialog", "corrector", "endpoint", "turn-end", "s05", "s05b", "s07")),
 ]
 
 COMMANDS = {
@@ -2534,6 +2540,7 @@ COMMANDS = {
     "endpoint": "S03b: конец реплики в шуме — порог, Silero, WebRTC, server_vad, semantic_vad на записях пользователя",
     "s05": "S05: команды голосом на синтезе, «Slower», учитель после перебивания, поправщик на длинной реплике",
     "s05b": "S05b: команды и короткие ответы на синтезе (поток и файл, с подсказкой и без), поправка длинной реплики — участок",
+    "s07": "S07: длительность звука групп 90 ответов S02c и доля паузы (D97); команда «Faster» на синтезе без ложных",
     "turn-end": "S04: конец реплики на паузах обдумывания — кандидат, текст потока, судьи J0–J3, предел, отмена (записи S03b)",
 }
 
@@ -2633,6 +2640,14 @@ def main(argv: list[str] | None = None) -> int:
                 print("\nОтправить архитектору (из корня репозитория):\n"
                       "  git add docs/research/05b-probes.md docs/research/05b-probes.json && "
                       'git commit -m "[S05b] Пробы" && git push')
+            return 0
+        elif args.cmd == "s07":
+            sys.modules.setdefault("probe", sys.modules[__name__])
+            import s07
+            if s07.probe_s07(ctx):
+                print("\nОтправить архитектору (из корня репозитория):\n"
+                      "  git add docs/research/07-pauses.md docs/research/07-pauses.json && "
+                      'git commit -m "[S07] Проба пауз" && git push')
             return 0
         elif args.cmd == "tutor-dialog":
             sys.modules.setdefault("probe", sys.modules[__name__])  # tutor_dialog делает import probe: тот же модуль

@@ -5,7 +5,7 @@ import s05
 
 def test_command_list_is_read_from_kotlin():
     p = s05.command_phrases()
-    assert set(p) == {"stop", "again", "slower"}
+    assert set(p) == {"stop", "again", "slower", "faster"}
     assert "say again" in p["again"] and "slow down" in p["slower"] and "wait" in p["stop"]
     assert s05.command_max_words() == 3
 
@@ -44,8 +44,10 @@ TOLERANT_CASES = {
     "slower": ["Slowware.", "Slowlyer.", "Slow.", "slows", "Slowly!"],
     "again": ["Igain.", "Agane", "Agin.", "Again!", "Egain"],
     "stop": ["Stap.", "Stops.", "Stup", "Stoop.", "Stomp"],
+    "faster": ["Fast.", "Fastr.", "Fastest!", "Faster, please.", "Speed up.", "More quickly."],  # S07
     None: ["Stopped.", "Spot.", "Shop.", "Top.", "Step on it.", "A gain of five.", "Rain.", "Spain.", "Gain.", "Brain.",
-           "Again tomorrow, yes.", "Green.", "Agent.", "Slow food.", "It is slow.", "Stop the car.", "Stone."],
+           "Again tomorrow, yes.", "Green.", "Agent.", "Slow food.", "It is slow.", "Stop the car.", "Stone.",
+           "Fast food.", "Breakfast.", "First.", "Fasting.", "Fact.", "Last."],
 }
 
 
